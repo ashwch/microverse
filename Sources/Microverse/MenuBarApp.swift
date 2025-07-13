@@ -55,8 +55,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     @MainActor func setupBatteryManager() {
         logger.info("Setting up battery manager...")
         
-        // Use shared view model
-        viewModel = SharedViewModel.shared
+        // Create battery view model
+        viewModel = BatteryViewModel()
         
         // Update menu bar
         updateMenuBarDisplay()

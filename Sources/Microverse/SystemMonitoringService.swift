@@ -59,12 +59,12 @@ class SystemMonitoringService: ObservableObject {
         // Perform system calls on background queue to avoid blocking main thread
         let (newCpuUsage, newMemoryInfo) = await withTaskGroup(of: (Double?, MemoryInfo?).self) { group in
             group.addTask {
-                let cpu = self.systemMonitor.getCPUUsage()
+                let cpu = await self.systemMonitor.getCPUUsage()
                 return (cpu, nil)
             }
             
             group.addTask {
-                let memory = self.systemMonitor.getMemoryInfo()
+                let memory = await self.systemMonitor.getMemoryInfo()
                 return (nil, memory)
             }
             

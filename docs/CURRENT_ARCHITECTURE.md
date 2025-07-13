@@ -12,7 +12,7 @@ Microverse is a unified system monitoring application that combines elegant UI d
 
 ## Overview
 
-Microverse features a tabbed interface monitoring Battery, CPU, Memory, and unified system overview, built with Johnny Ive design principles and John Carmack engineering excellence.
+Microverse features a tabbed interface monitoring Battery, CPU, Memory, and unified system overview, built with elegant design principles and engineering excellence.
 
 ## Architecture Diagram
 

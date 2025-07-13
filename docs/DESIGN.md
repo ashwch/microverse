@@ -2,7 +2,7 @@
 
 ## Design Philosophy
 
-### Johnny Ive Principles
+### Design Principles
 - **Clarity**: Information hierarchy through semantic color and typography
 - **Deference**: UI serves content, never competes with system metrics
 - **Depth**: Layered information through blur effects and proper spacing

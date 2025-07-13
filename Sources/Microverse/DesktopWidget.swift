@@ -74,17 +74,13 @@ class DesktopWidgetManager: ObservableObject {
     private func getWidgetSize(for style: WidgetStyle) -> NSSize {
         switch style {
         case .minimal:
-            let size = DesignSystem.WidgetSize.minimal
-            return NSSize(width: size.width, height: size.height)
+            return NSSize(width: 100, height: 40)
         case .compact:
-            let size = DesignSystem.WidgetSize.compact
-            return NSSize(width: size.width, height: size.height)
+            return NSSize(width: 160, height: 50)
         case .standard:
-            let size = DesignSystem.WidgetSize.standard
-            return NSSize(width: size.width, height: size.height)
+            return NSSize(width: 180, height: 100)
         case .detailed:
-            let size = DesignSystem.WidgetSize.detailed
-            return NSSize(width: size.width, height: size.height)
+            return NSSize(width: 240, height: 120)
         case .cpu, .memory:
             return NSSize(width: 160, height: 80)
         case .system:
@@ -175,7 +171,7 @@ struct MinimalWidget: View {
     
     var body: some View {
         // Main content in simple HStack
-        HStack(spacing: DesignSystem.Spacing.micro) {
+        HStack(spacing: MicroverseDesign.Layout.space1) {
             if batteryInfo.isCharging {
                 Image(systemName: "bolt.fill")
                     .font(.system(size: 12, weight: .bold))
@@ -186,10 +182,9 @@ struct MinimalWidget: View {
                 .font(.system(size: 16, weight: .bold, design: .rounded))
                 .foregroundColor(.white)
         }
-        .padding(DesignSystem.Spacing.small) // Padding INSIDE the frame
+        .padding(MicroverseDesign.Layout.space2) // Padding INSIDE the frame
         .widgetBackground() // Use consistent blur background
-        .frame(width: DesignSystem.WidgetSize.minimal.width, 
-               height: DesignSystem.WidgetSize.minimal.height) // Explicit frame MUST match window size
+        .frame(width: 100, height: 40) // Explicit frame MUST match window size
     }
 }
 
@@ -202,8 +197,8 @@ struct CompactWidget: View {
     var body: some View {
         HStack(spacing: 0) {
             // Battery percentage section with fixed width
-            HStack(spacing: DesignSystem.Spacing.micro) {
-                Image(systemName: batteryInfo.isCharging ? "bolt.fill" : DesignSystem.batteryIconName(for: batteryInfo))
+            HStack(spacing: MicroverseDesign.Layout.space1) {
+                Image(systemName: batteryInfo.isCharging ? "bolt.fill" : "battery.100percent")
                     .font(.system(size: 14, weight: .bold))
                     .foregroundColor(batteryInfo.isCharging ? .green : .white)
                 
@@ -215,9 +210,9 @@ struct CompactWidget: View {
             
             // Visual separator
             Rectangle()
-                .fill(Color.primary.opacity(DesignSystem.Opacity.divider))
+                .fill(MicroverseDesign.Colors.divider)
                 .frame(width: 1, height: 20) // Fixed height divider
-                .padding(.horizontal, DesignSystem.Spacing.small)
+                .padding(.horizontal, MicroverseDesign.Layout.space2)
             
             // Time remaining section
             Group {
@@ -233,11 +228,10 @@ struct CompactWidget: View {
             }
             .frame(maxWidth: .infinity, alignment: .trailing)
         }
-        .padding(.horizontal, DesignSystem.Spacing.small + 2) // Horizontal padding for content
-        .padding(.vertical, DesignSystem.Spacing.small)    // Vertical padding for content
+        .padding(.horizontal, MicroverseDesign.Layout.space2 + 2) // Horizontal padding for content
+        .padding(.vertical, MicroverseDesign.Layout.space2)    // Vertical padding for content
         .widgetBackground()
-        .frame(width: DesignSystem.WidgetSize.compact.width, 
-               height: DesignSystem.WidgetSize.compact.height) // MUST match window size exactly
+        .frame(width: 160, height: 50) // MUST match window size exactly
     }
 }
 
@@ -246,14 +240,14 @@ struct StandardWidget: View {
     let batteryInfo: BatteryInfo
     
     var body: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: MicroverseDesign.Layout.space2) {
             // Battery percentage with clear hierarchy
             Text("\(batteryInfo.currentCharge)%")
                 .font(.system(size: 28, weight: .bold, design: .rounded))
                 .foregroundColor(.white)
             
             // Status with improved visibility
-            HStack(spacing: 4) {
+            HStack(spacing: MicroverseDesign.Layout.space1) {
                 if batteryInfo.isCharging {
                     Image(systemName: "bolt.fill")
                         .font(.system(size: 12, weight: .medium))
@@ -273,8 +267,7 @@ struct StandardWidget: View {
         }
         .padding(16)
         .widgetBackground()
-        .frame(width: DesignSystem.WidgetSize.standard.width,
-               height: DesignSystem.WidgetSize.standard.height)
+        .frame(width: 180, height: 100)
     }
 }
 
@@ -285,18 +278,18 @@ struct DetailedWidget: View {
     let batteryInfo: BatteryInfo
     
     var body: some View {
-        VStack(spacing: DesignSystem.Spacing.small) {
+        VStack(spacing: MicroverseDesign.Layout.space2) {
             // Header row
             HStack {
                 // Percentage
-                HStack(spacing: DesignSystem.Spacing.micro) {
+                HStack(spacing: MicroverseDesign.Layout.space1) {
                     if batteryInfo.isCharging {
                         Image(systemName: "bolt.fill")
-                            .font(DesignSystem.Typography.widgetCaption)
+                            .font(MicroverseDesign.Typography.caption)
                             .foregroundColor(.green)
                     }
                     Text("\(batteryInfo.currentCharge)%")
-                        .font(DesignSystem.Typography.widgetHeadline)
+                        .font(MicroverseDesign.Typography.title)
                         .foregroundColor(.green)
                 }
                 
@@ -304,12 +297,12 @@ struct DetailedWidget: View {
                 
                 // Status
                 Text(batteryInfo.isCharging ? "Charging" : "On Battery")
-                    .font(DesignSystem.Typography.widgetSmallCaption)
+                    .font(MicroverseDesign.Typography.label)
                     .foregroundColor(.white)
             }
             
             Divider()
-                .background(Color.white.opacity(DesignSystem.Opacity.divider))
+                .background(MicroverseDesign.Colors.divider)
             
             // Stats row
             HStack {
@@ -319,7 +312,7 @@ struct DetailedWidget: View {
                         .font(.system(size: 9))
                         .foregroundColor(.white)
                     Text("\(batteryInfo.cycleCount)")
-                        .font(DesignSystem.Typography.widgetCaption.weight(.medium))
+                        .font(MicroverseDesign.Typography.caption.weight(.medium))
                         .foregroundColor(.white)
                 }
                 
@@ -331,7 +324,7 @@ struct DetailedWidget: View {
                         .font(.system(size: 9))
                         .foregroundColor(.white)
                     Text("\(Int(batteryInfo.health * 100))%")
-                        .font(DesignSystem.Typography.widgetCaption.weight(.medium))
+                        .font(MicroverseDesign.Typography.caption.weight(.medium))
                         .foregroundColor(.white)
                 }
                 
@@ -344,19 +337,18 @@ struct DetailedWidget: View {
                         .foregroundColor(.white)
                     if let timeString = batteryInfo.timeRemainingFormatted {
                         Text(timeString)
-                            .font(DesignSystem.Typography.widgetCaption.weight(.medium))
+                            .font(MicroverseDesign.Typography.caption.weight(.medium))
                             .foregroundColor(.white)
                     } else {
                         Text("—")
-                            .font(DesignSystem.Typography.widgetCaption.weight(.medium))
+                            .font(MicroverseDesign.Typography.caption.weight(.medium))
                             .foregroundColor(.white)
                     }
                 }
             }
         }
-        .padding(DesignSystem.Spacing.medium)
-        .frame(width: DesignSystem.WidgetSize.detailed.width,
-               height: DesignSystem.WidgetSize.detailed.height)
+        .padding(MicroverseDesign.Layout.space3)
+        .frame(width: 240, height: 120)
         .widgetBackground()
     }
 }
@@ -383,7 +375,7 @@ struct VisualEffectBlur: NSViewRepresentable {
 // MARK: - Consistent Widget Background Extension
 
 extension View {
-    /// Applies consistent Johnny Ive-inspired widget background
+    /// Applies consistent elegant widget background
     func widgetBackground() -> some View {
         self.background(
             RoundedRectangle(cornerRadius: 16)
@@ -417,7 +409,7 @@ struct CPUWidget: View {
     @StateObject private var systemService = SystemMonitoringService.shared
     
     var body: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: MicroverseDesign.Layout.space2) {
             // CPU Header
             HStack {
                 Image(systemName: "cpu")
@@ -455,7 +447,7 @@ struct CPUWidget: View {
                 .font(.system(size: 10, weight: .medium))
                 .foregroundColor(.white.opacity(0.8))
         }
-        .padding(12)
+        .padding(MicroverseDesign.Layout.space3)
         .frame(width: 160, height: 80)
         .widgetBackground()
     }
@@ -479,7 +471,7 @@ struct MemoryWidget: View {
     @StateObject private var systemService = SystemMonitoringService.shared
     
     var body: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: MicroverseDesign.Layout.space2) {
             // Memory Header
             HStack {
                 Image(systemName: "memorychip")
@@ -517,7 +509,7 @@ struct MemoryWidget: View {
                 .font(.system(size: 10, weight: .medium))
                 .foregroundColor(.white.opacity(0.8))
         }
-        .padding(12)
+        .padding(MicroverseDesign.Layout.space3)
         .frame(width: 160, height: 80)
         .widgetBackground()
     }
@@ -541,7 +533,7 @@ struct SystemOverviewWidget: View {
         VStack(spacing: 6) {
             // Header with battery prominently displayed
             HStack {
-                HStack(spacing: 4) {
+                HStack(spacing: MicroverseDesign.Layout.space1) {
                     Image(systemName: "bolt.fill")
                         .font(.system(size: 14, weight: .medium))
                         .foregroundColor(.green)
@@ -605,7 +597,7 @@ struct SystemOverviewWidget: View {
                 .frame(maxWidth: .infinity)
             }
         }
-        .padding(12)
+        .padding(MicroverseDesign.Layout.space3)
         .frame(width: 240, height: 100)
         .widgetBackground()
     }
@@ -671,12 +663,11 @@ struct CompactSystemWidget: View {
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
         .widgetBackground()
-        .frame(width: DesignSystem.WidgetSize.compact.width, 
-               height: DesignSystem.WidgetSize.compact.height)
+        .frame(width: 160, height: 50)
     }
 }
 
-// Johnny Ive-inspired detailed system widget
+// Elegant detailed system widget
 struct DetailedSystemWidget: View {
     let batteryInfo: BatteryInfo
     @StateObject private var systemService = SystemMonitoringService.shared
@@ -700,7 +691,7 @@ struct DetailedSystemWidget: View {
                 
                 HStack {
                     // Large battery percentage
-                    HStack(spacing: 4) {
+                    HStack(spacing: MicroverseDesign.Layout.space1) {
                         if batteryInfo.isCharging {
                             Image(systemName: "bolt.fill")
                                 .font(.system(size: 16, weight: .medium))
@@ -762,8 +753,7 @@ struct DetailedSystemWidget: View {
         }
         .padding(16)
         .widgetBackground()
-        .frame(width: DesignSystem.WidgetSize.detailed.width,
-               height: DesignSystem.WidgetSize.detailed.height)
+        .frame(width: 240, height: 120)
     }
     
     private var systemHealthColor: Color {

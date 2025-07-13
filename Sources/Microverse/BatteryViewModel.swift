@@ -68,7 +68,7 @@ class BatteryViewModel: ObservableObject {
         
         // Initialize widget manager
         let manager = DesktopWidgetManager(viewModel: self)
-        SharedViewModel.widgetManager = manager  // Store strong reference
+        // Store widget manager reference for lifecycle management
         widgetManager = manager  // Keep weak reference for access
         
         // Show widget if it was enabled

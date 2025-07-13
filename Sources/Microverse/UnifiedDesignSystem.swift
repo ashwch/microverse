@@ -1,7 +1,7 @@
 import SwiftUI
 import BatteryCore
 
-/// Johnny Ive-inspired unified design system for Microverse
+/// Elegant unified design system for Microverse
 /// Principles: Clarity, Deference, Depth, Consistency
 enum MicroverseDesign {
     

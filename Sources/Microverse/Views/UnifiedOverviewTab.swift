@@ -2,7 +2,7 @@ import SwiftUI
 import BatteryCore
 import SystemCore
 
-/// Johnny Ive-inspired Overview tab with perfect consistency
+/// Elegant Overview tab with perfect consistency
 struct UnifiedOverviewTab: View {
     @EnvironmentObject var viewModel: BatteryViewModel
     @StateObject private var systemService = SystemMonitoringService.shared
