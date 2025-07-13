@@ -9,18 +9,30 @@ public class BatteryReader {
     
     public init() {}
     
-    /// Get current battery information (no root required)
-    public func getBatteryInfo() -> BatteryInfo {
-        let snapshot = IOPSCopyPowerSourcesInfo()?.takeRetainedValue()
-        let sources = IOPSCopyPowerSourcesList(snapshot)?.takeRetainedValue() as? [Any] ?? []
+    /// Get current battery information with proper error handling
+    public func getBatteryInfo() throws -> BatteryInfo {
+        guard let snapshot = IOPSCopyPowerSourcesInfo()?.takeRetainedValue() else {
+            logger.error("Failed to get power source info")
+            throw BatteryError.noPowerSource
+        }
         
-        var info = BatteryInfo()
+        guard let sources = IOPSCopyPowerSourcesList(snapshot)?.takeRetainedValue() as? [Any],
+              !sources.isEmpty else {
+            logger.error("No power sources found")
+            throw BatteryError.noPowerSource
+        }
         
         for source in sources {
             if let description = IOPSGetPowerSourceDescription(snapshot, source as CFTypeRef)?.takeUnretainedValue() as? [String: Any] {
-                // Basic battery stats
-                // Get cycle count efficiently from IOKit
-                let cycleCount = getCycleCount()
+                // Validate required properties exist
+                guard let currentCharge = description[kIOPSCurrentCapacityKey] as? Int,
+                      let maxCapacity = description[kIOPSMaxCapacityKey] as? Int else {
+                    logger.error("Missing required battery properties")
+                    throw BatteryError.invalidPowerSourceData
+                }
+                
+                // Get cycle count with error handling
+                let cycleCount = (try? getCycleCountWithErrors()) ?? 0
                 
                 // Calculate time remaining based on charging state
                 let timeRemaining: Int? = if description[kIOPSIsChargingKey] as? Bool == true {
@@ -29,26 +41,79 @@ public class BatteryReader {
                     description[kIOPSTimeToEmptyKey] as? Int
                 }
                 
-                info = BatteryInfo(
-                    currentCharge: description[kIOPSCurrentCapacityKey] as? Int ?? 0,
+                let info = BatteryInfo(
+                    currentCharge: currentCharge,
                     isCharging: description[kIOPSIsChargingKey] as? Bool ?? false,
                     isPluggedIn: description[kIOPSPowerSourceStateKey] as? String == kIOPSACPowerValue,
                     cycleCount: cycleCount,
-                    maxCapacity: description[kIOPSMaxCapacityKey] as? Int ?? 100,
+                    maxCapacity: maxCapacity,
                     timeRemaining: timeRemaining,
-                    health: calculateHealth(maxCapacity: description[kIOPSMaxCapacityKey] as? Int ?? 100)
+                    health: calculateHealth(maxCapacity: maxCapacity)
                 )
                 
                 logger.debug("Battery info: \(info.currentCharge)%, charging: \(info.isCharging), plugged: \(info.isPluggedIn)")
-                break
+                return info
             }
         }
         
-        return info
+        throw BatteryError.invalidPowerSourceData
+    }
+    
+    /// Convenience method that returns default BatteryInfo on error
+    public func getBatteryInfoSafe() -> BatteryInfo {
+        do {
+            return try getBatteryInfo()
+        } catch {
+            logger.error("Failed to get battery info: \(error.localizedDescription)")
+            return BatteryInfo()
+        }
     }
     
     
     // MARK: - Private Helpers
+    
+    private func getCycleCountWithErrors() throws -> Int {
+        let matching = IOServiceMatching("IOPMPowerSource")
+        let entry: io_object_t
+        if #available(macOS 12.0, *) {
+            entry = IOServiceGetMatchingService(kIOMainPortDefault, matching)
+        } else {
+            entry = IOServiceGetMatchingService(kIOMasterPortDefault, matching)
+        }
+        
+        guard entry != IO_OBJECT_NULL else {
+            logger.warning("Could not find IOPMPowerSource service")
+            throw BatteryError.iokitServiceNotFound
+        }
+        
+        defer { IOObjectRelease(entry) }
+        
+        // Try to get the cycle count property
+        if let cycleCountRef = IORegistryEntryCreateCFProperty(entry, 
+                                                               "CycleCount" as CFString,
+                                                               kCFAllocatorDefault,
+                                                               0) {
+            if let cycleCount = cycleCountRef.takeRetainedValue() as? Int {
+                logger.debug("Got cycle count from IOKit: \(cycleCount)")
+                return cycleCount
+            }
+        }
+        
+        // Fallback: Check BatteryData dictionary
+        if let batteryDataRef = IORegistryEntryCreateCFProperty(entry,
+                                                                "BatteryData" as CFString,
+                                                                kCFAllocatorDefault,
+                                                                0) {
+            if let batteryData = batteryDataRef.takeRetainedValue() as? [String: Any],
+               let cycleCount = batteryData["CycleCount"] as? Int {
+                logger.debug("Got cycle count from BatteryData: \(cycleCount)")
+                return cycleCount
+            }
+        }
+        
+        logger.warning("Could not get cycle count from IOKit")
+        throw BatteryError.iokitPropertyMissing("CycleCount")
+    }
     
     private func getCycleCount() -> Int {
         // Use IOKit directly to get cycle count - no subprocess needed!

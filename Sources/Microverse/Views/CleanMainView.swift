@@ -8,10 +8,26 @@ struct CleanMainView: View {
     
     var body: some View {
         VStack(spacing: 0) {
-            // Battery Status Section
-            BatteryStatusView(batteryInfo: viewModel.batteryInfo)
-                .padding(.horizontal, DesignSystem.Spacing.large)
-                .padding(.vertical, DesignSystem.Spacing.large)
+            // Error message if present
+            if let errorMessage = viewModel.errorMessage {
+                VStack(spacing: DesignSystem.Spacing.small) {
+                    Image(systemName: "exclamationmark.triangle")
+                        .font(.system(size: 32))
+                        .foregroundColor(.orange)
+                    
+                    Text(errorMessage)
+                        .font(DesignSystem.Typography.caption)
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, DesignSystem.Spacing.medium)
+                }
+                .padding(DesignSystem.Spacing.large)
+            } else {
+                // Battery Status Section
+                BatteryStatusView(batteryInfo: viewModel.batteryInfo)
+                    .padding(.horizontal, DesignSystem.Spacing.large)
+                    .padding(.vertical, DesignSystem.Spacing.large)
+            }
             
             Divider()
             

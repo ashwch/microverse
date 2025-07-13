@@ -9,6 +9,9 @@ class BatteryViewModel: ObservableObject {
     // Real battery info
     @Published var batteryInfo = BatteryInfo()
     
+    // Error state for user feedback
+    @Published var errorMessage: String? = nil
+    
     // App settings
     @Published var launchAtStartup = LaunchAtStartup.isEnabled {
         didSet {
@@ -72,20 +75,79 @@ class BatteryViewModel: ObservableObject {
     // MARK: - Public Methods
     
     func refreshBatteryInfo() {
-        batteryInfo = reader.getBatteryInfo()
-        logger.debug("Battery: \(self.batteryInfo.currentCharge)%, \(self.batteryInfo.isCharging ? "charging" : "not charging")")
+        // Clear previous error
+        errorMessage = nil
+        
+        // Use the safe method which handles errors gracefully
+        batteryInfo = reader.getBatteryInfoSafe()
+        
+        // Check if we got default values (indicating an error)
+        if batteryInfo.currentCharge == 0 && !batteryInfo.isCharging && !batteryInfo.isPluggedIn {
+            // Try the throwing version to get the actual error
+            do {
+                _ = try reader.getBatteryInfo()
+            } catch let error as BatteryError {
+                errorMessage = error.userMessage
+                logger.error("Battery error: \(error.localizedDescription)")
+            } catch {
+                errorMessage = "Unable to read battery information"
+                logger.error("Unknown error: \(error)")
+            }
+        } else {
+            logger.debug("Battery: \(self.batteryInfo.currentCharge)%, \(self.batteryInfo.isCharging ? "charging" : "not charging")")
+        }
     }
     
     
     
     // MARK: - Private Methods
     
+    /// Starts battery monitoring with adaptive refresh rates
+    /// - Slower refresh when battery is stable (plugged in at 100%)
+    /// - Normal refresh when charging or on battery power
+    /// - Faster refresh when battery is critically low
     private func startMonitoring() {
         timer?.invalidate()
-        timer = Timer.scheduledTimer(withTimeInterval: refreshInterval, repeats: true) { [weak self] _ in
+        
+        // Calculate adaptive refresh interval based on battery state
+        let adaptiveInterval = calculateAdaptiveRefreshInterval()
+        
+        timer = Timer.scheduledTimer(withTimeInterval: adaptiveInterval, repeats: false) { [weak self] _ in
             Task { @MainActor in
                 self?.refreshBatteryInfo()
+                // Schedule next update with potentially different interval
+                self?.startMonitoring()
             }
+        }
+        
+        logger.debug("Adaptive refresh: Next update in \(adaptiveInterval)s (battery: \(self.batteryInfo.currentCharge)%, charging: \(self.batteryInfo.isCharging))")
+    }
+    
+    /// Calculates optimal refresh interval based on battery state
+    /// Returns interval in seconds
+    private func calculateAdaptiveRefreshInterval() -> TimeInterval {
+        // Use user preference as base interval
+        let baseInterval = refreshInterval
+        
+        // Adaptive logic based on battery state
+        if batteryInfo.currentCharge <= 5 {
+            // Critical battery: Update every 2 seconds
+            return min(baseInterval, 2.0)
+        } else if batteryInfo.currentCharge <= 20 {
+            // Low battery: Update at normal rate
+            return baseInterval
+        } else if batteryInfo.isCharging {
+            // Charging: Update at normal rate to show progress
+            return baseInterval
+        } else if batteryInfo.isPluggedIn && batteryInfo.currentCharge >= 100 {
+            // Plugged in at 100%: Battery stable, slow updates
+            return baseInterval * 6  // e.g., 30 seconds if base is 5
+        } else if batteryInfo.isPluggedIn && batteryInfo.currentCharge >= 80 {
+            // Plugged in at high charge: Slower updates
+            return baseInterval * 3  // e.g., 15 seconds if base is 5
+        } else {
+            // On battery power: Normal rate
+            return baseInterval
         }
     }
     

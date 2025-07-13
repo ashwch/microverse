@@ -2,33 +2,19 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <!-- Required for hardened runtime -->
+    <!-- Enable App Sandbox for security and App Store compliance -->
     <key>com.apple.security.app-sandbox</key>
-    <false/>
-    
-    <!-- Required for helper tool communication -->
-    <key>com.apple.security.temporary-exception.mach-lookup.global-name</key>
-    <array>
-        <string>com.microverse.helper</string>
-    </array>
-    
-    <!-- Required for SMC access on Intel Macs -->
-    <key>com.apple.security.device.serial</key>
     <true/>
     
-    <!-- Required for power management -->
-    <key>com.apple.security.iokit-user-client-class</key>
-    <array>
-        <string>AppleSMCClient</string>
-        <string>IOPMrootDomain</string>
-    </array>
+    <!-- Required for IOKit battery information access -->
+    <!-- IOPMPowerSource is accessible in sandbox without special entitlements -->
+    <!-- The app uses IOPSCopyPowerSourcesInfo which works in sandbox -->
     
-    <!-- Required for automation and calendar access -->
-    <key>com.apple.security.automation.apple-events</key>
-    <true/>
-    
-    <!-- Required for notifications -->
-    <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
-    <true/>
+    <!-- No special entitlements needed for:
+         - Menu bar apps (LSUIElement)
+         - UserDefaults preferences
+         - Standard UI operations
+         - IOKit power source queries
+    -->
 </dict>
 </plist>
