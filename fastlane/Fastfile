@@ -1,0 +1,52 @@
+default_platform(:mac)
+
+platform :mac do
+  desc "Run tests"
+  lane :test do
+    run_tests(
+      scheme: "Microverse",
+      clean: true,
+      code_coverage: true
+    )
+  end
+
+  desc "Build the app"
+  lane :build do
+    build_mac_app(
+      scheme: "Microverse",
+      export_method: "developer-id",
+      output_directory: "./build",
+      clean: true,
+      skip_codesigning: ENV["CI"] == "true"
+    )
+  end
+
+  desc "Create a new release"
+  lane :release do
+    ensure_git_status_clean
+    
+    version = prompt(text: "Enter version number: ")
+    
+    increment_version_number(version_number: version)
+    increment_build_number
+    
+    build
+    
+    # Create DMG
+    sh "../Scripts/build_installer.sh"
+    
+    git_commit(
+      path: ["Info.plist"],
+      message: "Version bump to #{version}"
+    )
+    
+    add_git_tag(tag: "v#{version}")
+    push_to_git_remote
+  end
+
+  desc "Run all CI steps"
+  lane :ci do
+    test
+    build
+  end
+end

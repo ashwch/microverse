@@ -1,0 +1,46 @@
+steps:
+  - label: "🔨 Build"
+    command: |
+      echo "--- Installing dependencies"
+      brew install swiftlint || true
+      
+      echo "--- Building Microverse"
+      xcodebuild build \
+        -project Microverse.xcodeproj \
+        -scheme Microverse \
+        -configuration Release \
+        -derivedDataPath build \
+        CODE_SIGN_IDENTITY="" \
+        CODE_SIGNING_REQUIRED=NO
+    artifact_paths:
+      - "build/Build/Products/Release/Microverse.app/**/*"
+    agents:
+      os: "macOS"
+
+  - wait
+
+  - label: "🧪 Test"
+    command: |
+      echo "--- Running tests"
+      xcodebuild test \
+        -project Microverse.xcodeproj \
+        -scheme Microverse \
+        -destination 'platform=macOS' \
+        CODE_SIGN_IDENTITY="" \
+        CODE_SIGNING_REQUIRED=NO | xcpretty
+    agents:
+      os: "macOS"
+
+  - wait: ~
+    continue_on_failure: true
+
+  - label: "📦 Create Release"
+    command: |
+      echo "--- Creating DMG"
+      ./Scripts/build_installer.sh
+    artifact_paths:
+      - "release/*.dmg"
+      - "release/*.zip"
+    branches: "main"
+    agents:
+      os: "macOS"

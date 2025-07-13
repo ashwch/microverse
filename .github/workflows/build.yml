@@ -1,0 +1,85 @@
+name: Build and Test
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Select Xcode
+      run: sudo xcode-select -s /Applications/Xcode_15.0.app
+    
+    - name: Show Xcode version
+      run: xcodebuild -version
+    
+    - name: Build with xcodebuild
+      run: |
+        xcodebuild build \
+          -project Microverse.xcodeproj \
+          -scheme Microverse \
+          -configuration Release \
+          -derivedDataPath build \
+          CODE_SIGN_IDENTITY="" \
+          CODE_SIGNING_REQUIRED=NO \
+          CODE_SIGNING_ALLOWED=NO
+    
+    - name: Run tests
+      run: |
+        xcodebuild test \
+          -project Microverse.xcodeproj \
+          -scheme Microverse \
+          -configuration Debug \
+          CODE_SIGN_IDENTITY="" \
+          CODE_SIGNING_REQUIRED=NO
+    
+    - name: Build with Swift Package Manager
+      run: |
+        swift build -c release
+    
+    - name: Run Swift tests
+      run: |
+        swift test
+    
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: Microverse-build
+        path: |
+          build/Build/Products/Release/Microverse.app
+          .build/release/Microverse
+
+  build-installer:
+    needs: build
+    runs-on: macos-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Download build artifacts
+      uses: actions/download-artifact@v3
+      with:
+        name: Microverse-build
+    
+    - name: Create DMG
+      run: |
+        mkdir -p dmg_source
+        cp -R build/Build/Products/Release/Microverse.app dmg_source/
+        
+        hdiutil create -volname "Microverse" \
+          -srcfolder dmg_source \
+          -ov -format UDZO \
+          Microverse.dmg
+    
+    - name: Upload DMG
+      uses: actions/upload-artifact@v3
+      with:
+        name: Microverse-dmg
+        path: Microverse.dmg
