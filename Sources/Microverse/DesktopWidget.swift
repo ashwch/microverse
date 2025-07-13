@@ -53,13 +53,13 @@ class DesktopWidgetManager: ObservableObject {
     private func getWidgetSize(for style: WidgetStyle) -> NSSize {
         switch style {
         case .minimal:
-            return NSSize(width: 100, height: 40)
+            return NSSize(width: 120, height: 50)
         case .compact:
-            return NSSize(width: 160, height: 60)
+            return NSSize(width: 180, height: 70)
         case .standard:
-            return NSSize(width: 180, height: 100)
-        case .detailed:
             return NSSize(width: 200, height: 120)
+        case .detailed:
+            return NSSize(width: 280, height: 140)
         }
     }
     
@@ -163,11 +163,11 @@ struct MinimalWidget: View {
                     .foregroundColor(batteryColor)
             }
         }
-        .frame(width: 100, height: 40)
+        .frame(width: 120, height: 50)
     }
 }
 
-// Compact widget
+// Compact widget - Horizontal layout with time
 struct CompactWidget: View {
     let batteryInfo: BatteryInfo
     
@@ -194,8 +194,8 @@ struct CompactWidget: View {
                 )
             
             // Content
-            HStack(spacing: 12) {
-                // Battery icon with percentage
+            HStack(spacing: 16) {
+                // Battery percentage
                 HStack(spacing: 6) {
                     Image(systemName: batteryInfo.isCharging ? "bolt.fill" : "battery.100")
                         .font(.system(size: 14))
@@ -206,18 +206,30 @@ struct CompactWidget: View {
                         .foregroundColor(batteryColor)
                 }
                 
-                Spacer()
+                // Divider
+                Rectangle()
+                    .fill(Color.white.opacity(0.2))
+                    .frame(width: 1, height: 30)
                 
-                // Time if available
-                if let timeString = batteryInfo.timeRemainingFormatted {
-                    Text(timeString)
-                        .font(.system(size: 14, weight: .regular, design: .rounded))
-                        .foregroundColor(.white.opacity(0.8))
+                // Time or status
+                VStack(spacing: 2) {
+                    if let timeString = batteryInfo.timeRemainingFormatted {
+                        Text(timeString)
+                            .font(.system(size: 16, weight: .medium, design: .rounded))
+                            .foregroundColor(.white)
+                        Text(batteryInfo.isCharging ? "to full" : "remaining")
+                            .font(.system(size: 10))
+                            .foregroundColor(.white.opacity(0.6))
+                    } else {
+                        Text(batteryInfo.isCharging ? "Calculating..." : "—")
+                            .font(.system(size: 12))
+                            .foregroundColor(.white.opacity(0.6))
+                    }
                 }
             }
             .padding(.horizontal, 16)
         }
-        .frame(width: 160, height: 60)
+        .frame(width: 180, height: 70)
     }
 }
 
@@ -273,7 +285,7 @@ struct StandardWidget: View {
                 }
             }
         }
-        .frame(width: 180, height: 100)
+        .frame(width: 200, height: 120)
     }
 }
 
@@ -365,7 +377,7 @@ struct DetailedWidget: View {
             }
             .padding(16)
         }
-        .frame(width: 200, height: 120)
+        .frame(width: 280, height: 140)
     }
 }
 

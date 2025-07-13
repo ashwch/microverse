@@ -19,10 +19,11 @@ struct MicroverseApp: App {
     }
 }
 
-class AppDelegate: NSObject, NSApplicationDelegate {
+class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     var statusItem: NSStatusItem!
     var popover: NSPopover!
     var viewModel: BatteryViewModel!
+    var popoverContentViewController: NSViewController?
     
     private let logger = Logger(subsystem: "com.microverse.app", category: "AppDelegate")
     
@@ -60,12 +61,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // Create popover
         popover = NSPopover()
         popover.contentSize = NSSize(width: 280, height: 300)
-        popover.behavior = .transient
+        popover.behavior = .applicationDefined
+        popover.delegate = self
         
         let cleanMainView = CleanMainView()
             .environmentObject(viewModel)
         
-        popover.contentViewController = NSHostingController(rootView: cleanMainView)
+        popoverContentViewController = NSHostingController(rootView: cleanMainView)
+        popover.contentViewController = popoverContentViewController
         
         // Update periodically
         Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
@@ -166,12 +169,66 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     
     @objc func togglePopover(_ sender: AnyObject?) {
         if let button = statusItem.button {
-            if popover?.isShown == true {
-                popover?.performClose(sender)
+            if popover.isShown {
+                popover.performClose(sender)
             } else {
-                popover?.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
-                NSApp.activate(ignoringOtherApps: true)
+                // Recreate the content view to ensure fresh state
+                let cleanMainView = CleanMainView()
+                    .environmentObject(viewModel)
+                
+                popoverContentViewController = NSHostingController(rootView: cleanMainView)
+                popover.contentViewController = popoverContentViewController
+                
+                popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+                popover.contentViewController?.view.window?.makeKey()
             }
         }
     }
+    
+    // MARK: - NSPopoverDelegate
+    
+    func popoverShouldDetach(_ popover: NSPopover) -> Bool {
+        return false
+    }
+    
+    func popoverDidShow(_ notification: Notification) {
+        // Set up event monitor for clicks outside
+        if eventMonitor == nil {
+            eventMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] event in
+                if let strongSelf = self, strongSelf.popover.isShown {
+                    // Check if click is within popover bounds
+                    if let contentView = strongSelf.popover.contentViewController?.view,
+                       let window = contentView.window {
+                        let clickLocation = event.locationInWindow
+                        let screenLocation = NSPoint(
+                            x: window.frame.origin.x + clickLocation.x,
+                            y: window.frame.origin.y + clickLocation.y
+                        )
+                        
+                        // Don't close if click is within popover window
+                        if window.frame.contains(screenLocation) {
+                            return
+                        }
+                    }
+                    
+                    strongSelf.closePopover()
+                }
+            }
+        }
+    }
+    
+    func popoverDidClose(_ notification: Notification) {
+        // Remove event monitor
+        if let monitor = eventMonitor {
+            NSEvent.removeMonitor(monitor)
+            eventMonitor = nil
+        }
+    }
+    
+    func closePopover() {
+        popover.performClose(nil)
+    }
+    
+    // Event monitor for clicks outside popover
+    var eventMonitor: Any?
 }

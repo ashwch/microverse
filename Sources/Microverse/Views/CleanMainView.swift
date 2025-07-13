@@ -31,23 +31,31 @@ struct CleanMainView: View {
             
             // Action Bar
             HStack(spacing: 12) {
-                Button(action: { showingSettings = true }) {
+                Button(action: { 
+                    print("Settings button clicked, current state: \(showingSettings)")
+                    showingSettings = true
+                    print("Settings state after click: \(showingSettings)")
+                }) {
                     HStack(spacing: 4) {
                         Image(systemName: "gearshape")
                             .font(.system(size: 14))
                         Text("Settings")
                             .font(.system(size: 13))
                     }
+                    .foregroundColor(.primary)
                 }
                 .buttonStyle(FlatButtonStyle())
+                .help("Open settings")
                 
                 Spacer()
                 
                 Button(action: { viewModel.refreshBatteryInfo() }) {
                     Image(systemName: "arrow.clockwise")
                         .font(.system(size: 14))
+                        .foregroundColor(.primary)
                 }
                 .buttonStyle(FlatButtonStyle())
+                .help("Refresh battery info")
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 8)
@@ -142,13 +150,21 @@ struct StatItem: View {
 }
 
 struct FlatButtonStyle: ButtonStyle {
+    @State private var isHovered = false
+    
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .padding(.horizontal, 12)
             .padding(.vertical, 6)
-            .background(configuration.isPressed ? Color.secondary.opacity(0.1) : Color.clear)
-            .cornerRadius(6)
-            .contentShape(Rectangle())
+            .background(
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(configuration.isPressed ? Color.secondary.opacity(0.2) : 
+                          isHovered ? Color.secondary.opacity(0.1) : Color.clear)
+            )
+            .contentShape(RoundedRectangle(cornerRadius: 6))
+            .onHover { hovering in
+                isHovered = hovering
+            }
     }
 }
 
