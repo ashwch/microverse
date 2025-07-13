@@ -1,27 +1,43 @@
 # Microverse
 
-A clean, minimalist battery monitoring app for macOS with beautiful desktop widgets.
+A unified system monitoring application for macOS featuring elegant battery, CPU, and memory monitoring with beautiful desktop widgets. Built with Johnny Ive design principles and John Carmack engineering excellence.
 
-![Swift](https://img.shields.io/badge/Swift-5.5+-orange.svg)
+![Swift](https://img.shields.io/badge/Swift-5.9+-orange.svg)
 ![macOS](https://img.shields.io/badge/macOS-11.0+-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 
 ## Features
 
-- 🔋 Real-time battery monitoring
-- 📊 Clean menu bar display with customizable options
-- 🖥️ Four beautiful desktop widget styles
-- ⚡ Charging status and time remaining
-- 📈 Battery health and cycle count tracking
-- 🎨 Minimalist design with blur effects
-- 🚀 Lightweight and efficient
+### System Monitoring
+- 🔋 **Battery**: Real-time monitoring with health metrics and time estimates
+- ⚙️ **CPU**: Live usage tracking with process-level insights  
+- 🧠 **Memory**: Pressure monitoring with memory breakdown
+- 📊 **Overview**: Unified system health dashboard
+
+### Interface
+- 🎯 **Tabbed Interface**: Clean navigation between monitoring categories
+- 📱 **Menu Bar Integration**: Compact system status display
+- 🖥️ **Desktop Widgets**: 6 beautiful widget styles for any workflow
+- ⚡ **Real-time Updates**: Adaptive refresh rates for optimal performance
+
+### Design
+- 🎨 **Johnny Ive Inspired**: Clarity, deference, and depth in every detail
+- 🌙 **Adaptive UI**: Seamless light/dark mode integration  
+- ✨ **Glass Effects**: Elegant blur backgrounds with subtle borders
+- 🎯 **Semantic Colors**: Intuitive color coding (green=energy, blue=computing, purple=memory)
 
 ## Widget Styles
 
-- **Minimal**: Compact 100×40px display showing just battery percentage
-- **Compact**: 160×50px with battery percentage and time remaining
-- **Standard**: 180×100px vertical layout with large percentage display
-- **Detailed**: 240×120px comprehensive view with all battery statistics
+### Battery Focused
+- **Minimal (100×40)**: Battery percentage only
+- **Compact (160×50)**: Battery + time remaining  
+- **Standard (180×100)**: Large percentage with status
+- **Detailed (240×120)**: Complete battery statistics
+
+### System Monitoring
+- **CPU (160×80)**: Dedicated CPU usage monitoring
+- **Memory (160×80)**: Memory pressure and usage
+- **System (240×100)**: Unified overview of all metrics
 
 ## Installation
 
@@ -57,46 +73,61 @@ After installation with `make install`, the app will automatically launch. You c
 ## Usage
 
 ### Menu Bar
-- Click the battery icon to open the status popover
-- Shows current charge percentage, status, cycles, and health
-- Access settings to customize display options
+- Click the system monitoring icon to open the main interface
+- Tabbed navigation: Overview, Battery, CPU, Memory
+- Unified settings panel with comprehensive options
 
-### Settings
-- **Show percentage in menu bar**: Toggle percentage display next to icon
-- **Enable widget**: Show floating desktop widget
-- **Widget style**: Choose from Minimal, Compact, Standard, or Detailed
-- **Launch at startup**: Automatically start with macOS
-- **Refresh interval**: Adjust battery data update frequency
+### Interface Navigation
+- **Overview Tab**: System health dashboard with unified metrics
+- **Battery Tab**: Detailed battery monitoring and health insights
+- **CPU Tab**: Real-time processor usage and top processes  
+- **Memory Tab**: Memory pressure monitoring and usage breakdown
+
+### Settings & Configuration
+- **Menu Bar Display**: Show system status or specific metrics
+- **Desktop Widgets**: Enable and configure 6 different widget styles
+- **System Monitoring**: Toggle CPU/Memory tracking in widgets
+- **Launch Controls**: Startup behavior and refresh intervals
+- **Widget Positioning**: Drag widgets anywhere on desktop
 
 ### Desktop Widgets
-- Enable from settings and choose your preferred style
-- Widget appears in top-right corner by default
-- Drag to reposition anywhere on screen
-- Always stays on top for easy monitoring
+- **System-aware**: Automatically show system information when enabled
+- **Adaptive Content**: Different metrics based on widget style
+- **Glass Design**: Elegant blur effects matching macOS design language
+- **Always Accessible**: Stay on top for continuous monitoring
 
 ## Architecture
 
-Built with:
-- **SwiftUI** for modern UI
-- **IOKit** for battery information
-- **SPM** for dependency management
+### Modern Tech Stack
+- **SwiftUI** with async/await for responsive UI
+- **IOKit & mach** for low-level system monitoring
+- **Swift Package Manager** for modular architecture
 
-Key components:
-- `BatteryCore`: Core battery monitoring logic
-- `MenuBarApp`: Menu bar application management
-- `DesktopWidget`: Floating widget implementation
-- `CleanMainView`: Main UI popover
+### Core Modules
+- **SystemCore**: CPU and memory monitoring framework
+- **BatteryCore**: Advanced battery analytics and health tracking
+- **UnifiedDesignSystem**: Johnny Ive-inspired design tokens
+- **SystemMonitoringService**: Singleton service for efficient data collection
+
+### Key Components
+- `TabbedMainView`: Main tabbed interface (Overview/Battery/CPU/Memory)
+- `SystemMonitoringService`: Centralized system metrics collection
+- `DesktopWidget`: 6 widget styles with unified background system
+- `UnifiedDesignSystem`: Semantic color system and typography hierarchy
 
 ## Development
 
-See [Widget Design Specification](docs/WidgetDesignSpec.md) for detailed implementation guidelines.
+### Documentation
+- [Current Architecture](docs/CURRENT_ARCHITECTURE.md) - Complete system overview
+- [Technical Implementation](docs/TECHNICAL_IMPLEMENTATION.md) - Implementation details
+- [Design Mockups](docs/DESIGN_MOCKUPS.md) - Visual design specifications
+- [Expansion Plan](docs/EXPANSION_PLAN.md) - Future roadmap
 
-### Key Implementation Rules
-1. Never use ZStack as root container (causes clipping)
-2. Always set explicit frame sizes matching window dimensions
-3. Apply backgrounds last in view hierarchy
-4. Keep padding inside frames
-5. Test with edge cases (100% battery, long time strings)
+### Design Principles
+1. **Johnny Ive Approach**: Clarity through hierarchy, purposeful motion, contextual intelligence
+2. **Performance First**: Async system calls, efficient polling, minimal CPU impact
+3. **Semantic Design**: Green=energy, Blue=computing, Purple=memory
+4. **Modular Architecture**: Clean separation between UI, services, and data layers
 
 ## Contributing
 

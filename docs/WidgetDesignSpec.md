@@ -1,13 +1,23 @@
-# Microverse Widget Design Specifications
+# Microverse Widget Design Specifications v3.0
 
-## CRITICAL IMPLEMENTATION RULES
+**⚠️ DEPRECATED: This document is outdated. See [Current Architecture](CURRENT_ARCHITECTURE.md) for current implementation.**
 
-### The Golden Rules of Widget Implementation
-1. **NEVER use ZStack as root container** - It causes content clipping
-2. **ALWAYS set explicit frame sizes** - Must match window dimensions exactly
-3. **Apply backgrounds LAST** - After content and padding, before frame
-4. **Padding goes INSIDE frame** - Not outside the frame modifier
-5. **Test with edge cases** - 100% battery, "Calculating...", long time strings
+## Widget Evolution
+
+Microverse now features **6 widget styles** with **unified design system**:
+
+### Battery Widgets (Legacy)
+1. **Minimal (100×40)** - Battery percentage only
+2. **Compact (160×50)** - Battery + time remaining  
+3. **Standard (180×100)** - Large percentage with status
+4. **Detailed (240×120)** - Complete battery statistics
+
+### System Monitoring Widgets (New)
+5. **CPU (160×80)** - Dedicated CPU monitoring
+6. **Memory (160×80)** - Memory pressure monitoring
+7. **System (240×100)** - Unified system overview
+
+## CURRENT IMPLEMENTATION RULES
 
 ### Why These Rules Matter
 - **ZStack Issue**: When ZStack is the root, SwiftUI's layout system can misalculate bounds

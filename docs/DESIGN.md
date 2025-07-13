@@ -1,10 +1,13 @@
-# Microverse UI Design Document v2
+# Microverse UI Design Document v3.0  
 
-## Design Philosophy
-- **Minimalist**: Show only essential, real battery information
-- **Native**: Follow macOS design patterns and use system colors
-- **Consistent**: Unified visual language across all components
-- **Accessible**: Clear contrast, readable text, keyboard navigation
+**⚠️ DEPRECATED: This document reflects the old single-panel design. See [Current Architecture](CURRENT_ARCHITECTURE.md) and [Design Mockups](DESIGN_MOCKUPS.md) for current implementation.**
+
+## Current Design Philosophy (Updated)
+- **Johnny Ive Inspired**: Clarity, deference, depth through semantic hierarchy
+- **Unified System**: Tabbed interface for Battery, CPU, Memory, and Overview
+- **Semantic Colors**: Green=energy, Blue=computing, Purple=memory, White=system
+- **Glass Effects**: Elegant blur backgrounds with subtle borders
+- **Adaptive Interface**: Responsive to system state and user needs
 
 ## Main Popover (280×Auto)
 
