@@ -59,7 +59,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         
         // Create popover
         popover = NSPopover()
-        popover.contentSize = NSSize(width: 380, height: 500)
+        popover.contentSize = NSSize(width: 280, height: 300)
         popover.behavior = .transient
         
         let cleanMainView = CleanMainView()

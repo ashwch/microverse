@@ -2,9 +2,84 @@ import SwiftUI
 import AppKit
 import BatteryCore
 
-// MARK: - Desktop Widget Window
+// Widget style enum
+enum WidgetStyle: String, CaseIterable {
+    case minimal = "Minimal"
+    case compact = "Compact" 
+    case standard = "Standard"
+    case detailed = "Detailed"
+}
+
+// Desktop widget manager
+class DesktopWidgetManager: ObservableObject {
+    private var window: DesktopWidgetWindow?
+    private var hostingView: NSHostingView<AnyView>?
+    weak var viewModel: BatteryViewModel?
+    
+    init(viewModel: BatteryViewModel) {
+        self.viewModel = viewModel
+    }
+    
+    @MainActor
+    func showWidget() {
+        guard window == nil else { return }
+        
+        guard let viewModel = viewModel else { return }
+        
+        let size = getWidgetSize(for: viewModel.widgetStyle)
+        window = DesktopWidgetWindow(size: size)
+        
+        let widgetView = AnyView(
+            DesktopWidgetView(viewModel: viewModel)
+                .frame(width: size.width, height: size.height)
+        )
+        
+        hostingView = NSHostingView(rootView: widgetView)
+        hostingView?.frame = NSRect(origin: .zero, size: size)
+        
+        window?.contentView = hostingView
+        window?.makeKeyAndOrderFront(nil)
+        
+        // Position in top-right corner
+        positionWindow()
+    }
+    
+    func hideWidget() {
+        window?.close()
+        window = nil
+        hostingView = nil
+    }
+    
+    private func getWidgetSize(for style: WidgetStyle) -> NSSize {
+        switch style {
+        case .minimal:
+            return NSSize(width: 100, height: 40)
+        case .compact:
+            return NSSize(width: 160, height: 60)
+        case .standard:
+            return NSSize(width: 180, height: 100)
+        case .detailed:
+            return NSSize(width: 200, height: 120)
+        }
+    }
+    
+    private func positionWindow() {
+        guard let window = window,
+              let screen = NSScreen.main else { return }
+        
+        let screenFrame = screen.visibleFrame
+        let windowFrame = window.frame
+        
+        let x = screenFrame.maxX - windowFrame.width - 20
+        let y = screenFrame.maxY - windowFrame.height - 20
+        
+        window.setFrameOrigin(NSPoint(x: x, y: y))
+    }
+}
+
+// Custom window for widget
 class DesktopWidgetWindow: NSWindow {
-    init(size: NSSize = NSSize(width: 200, height: 200)) {
+    init(size: NSSize = NSSize(width: 180, height: 100)) {
         super.init(
             contentRect: NSRect(x: 0, y: 0, width: size.width, height: size.height),
             styleMask: [.borderless, .nonactivatingPanel],
@@ -12,377 +87,315 @@ class DesktopWidgetWindow: NSWindow {
             defer: false
         )
         
-        // Window properties for floating widget
-        level = .floating
-        isOpaque = false
-        backgroundColor = .clear
-        hasShadow = true
-        isMovableByWindowBackground = true
-        collectionBehavior = [.canJoinAllSpaces, .stationary, .ignoresCycle]
+        self.level = .floating
+        self.collectionBehavior = [.canJoinAllSpaces, .stationary]
+        self.backgroundColor = .clear
+        self.isOpaque = false
+        self.hasShadow = true
+        self.isMovableByWindowBackground = true
+        self.titleVisibility = .hidden
+        self.titlebarAppearsTransparent = true
         
         // Disable release when closed to prevent crashes
         isReleasedWhenClosed = false
         
         // Disable animations
         animationBehavior = .none
-        
-        // Position in bottom right corner by default
-        if let screen = NSScreen.main {
-            let screenFrame = screen.visibleFrame
-            let x = screenFrame.maxX - size.width - 20
-            let y = screenFrame.minY + 20
-            setFrameOrigin(NSPoint(x: x, y: y))
-        }
     }
 }
 
-// MARK: - Widget Styles
-enum WidgetStyle: String, CaseIterable {
-    case circular = "Circular"
-    case compact = "Compact"
-    case detailed = "Detailed"
-    case minimal = "Minimal"
-}
-
-// MARK: - Desktop Widget View
+// Widget view
 struct DesktopWidgetView: View {
     @ObservedObject var viewModel: BatteryViewModel
-    @AppStorage("widgetStyle") var widgetStyle = WidgetStyle.circular
-    @AppStorage("widgetOpacity") var widgetOpacity = 0.9
-    @State private var isHovering = false
     
     var body: some View {
         Group {
-            switch widgetStyle {
-            case .circular:
-                CircularWidget(info: viewModel.batteryInfo, isHovering: isHovering)
-            case .compact:
-                CompactWidget(info: viewModel.batteryInfo, isHovering: isHovering)
-            case .detailed:
-                DetailedWidget(info: viewModel.batteryInfo, isHovering: isHovering)
+            switch viewModel.widgetStyle {
             case .minimal:
-                MinimalWidget(info: viewModel.batteryInfo, isHovering: isHovering)
-            }
-        }
-        .opacity(widgetOpacity)
-        .onHover { hovering in
-            withAnimation(.easeInOut(duration: 0.2)) {
-                isHovering = hovering
+                MinimalWidget(batteryInfo: viewModel.batteryInfo)
+            case .compact:
+                CompactWidget(batteryInfo: viewModel.batteryInfo)
+            case .standard:
+                StandardWidget(batteryInfo: viewModel.batteryInfo)
+            case .detailed:
+                DetailedWidget(batteryInfo: viewModel.batteryInfo)
             }
         }
     }
 }
 
-// MARK: - Circular Widget
-struct CircularWidget: View {
-    let info: BatteryInfo
-    let isHovering: Bool
+// Minimal widget - Just percentage
+struct MinimalWidget: View {
+    let batteryInfo: BatteryInfo
     
     var batteryColor: Color {
-        if info.currentCharge <= 20 {
+        if batteryInfo.currentCharge <= 10 {
             return .red
-        } else if info.currentCharge <= 50 {
-            return .yellow
-        } else {
+        } else if batteryInfo.currentCharge <= 20 {
+            return .orange  
+        } else if batteryInfo.isCharging {
             return .green
+        } else {
+            return .white
         }
     }
     
     var body: some View {
         ZStack {
             // Background
-            Circle()
-                .fill(Color.black.opacity(0.7))
-                .frame(width: 180, height: 180)
-            
-            // Battery ring
-            Circle()
-                .trim(from: 0, to: CGFloat(info.currentCharge) / 100)
-                .stroke(
-                    batteryColor,
-                    style: StrokeStyle(lineWidth: 12, lineCap: .round)
+            RoundedRectangle(cornerRadius: 10)
+                .fill(Color.black.opacity(0.5))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10)
+                        .stroke(Color.white.opacity(0.1), lineWidth: 0.5)
                 )
-                .rotationEffect(.degrees(-90))
-                .frame(width: 150, height: 150)
-                .animation(.easeInOut(duration: 0.3), value: info.currentCharge)
+            
+            // Content
+            HStack(spacing: 6) {
+                if batteryInfo.isCharging {
+                    Image(systemName: "bolt.fill")
+                        .font(.system(size: 12))
+                        .foregroundColor(batteryColor)
+                }
+                
+                Text("\(batteryInfo.currentCharge)%")
+                    .font(.system(size: 16, weight: .medium, design: .rounded))
+                    .foregroundColor(batteryColor)
+            }
+        }
+        .frame(width: 100, height: 40)
+    }
+}
+
+// Compact widget
+struct CompactWidget: View {
+    let batteryInfo: BatteryInfo
+    
+    var batteryColor: Color {
+        if batteryInfo.currentCharge <= 10 {
+            return .red
+        } else if batteryInfo.currentCharge <= 20 {
+            return .orange
+        } else if batteryInfo.isCharging {
+            return .green
+        } else {
+            return .white
+        }
+    }
+    
+    var body: some View {
+        ZStack {
+            // Background
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color.black.opacity(0.5))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(Color.white.opacity(0.1), lineWidth: 0.5)
+                )
+            
+            // Content
+            HStack(spacing: 12) {
+                // Battery icon with percentage
+                HStack(spacing: 6) {
+                    Image(systemName: batteryInfo.isCharging ? "bolt.fill" : "battery.100")
+                        .font(.system(size: 14))
+                        .foregroundColor(batteryColor)
+                    
+                    Text("\(batteryInfo.currentCharge)%")
+                        .font(.system(size: 18, weight: .medium, design: .rounded))
+                        .foregroundColor(batteryColor)
+                }
+                
+                Spacer()
+                
+                // Time if available
+                if let timeString = batteryInfo.timeRemainingFormatted {
+                    Text(timeString)
+                        .font(.system(size: 14, weight: .regular, design: .rounded))
+                        .foregroundColor(.white.opacity(0.8))
+                }
+            }
+            .padding(.horizontal, 16)
+        }
+        .frame(width: 160, height: 60)
+    }
+}
+
+// Standard widget
+struct StandardWidget: View {
+    let batteryInfo: BatteryInfo
+    
+    var batteryColor: Color {
+        if batteryInfo.currentCharge <= 10 {
+            return .red
+        } else if batteryInfo.currentCharge <= 20 {
+            return .orange
+        } else if batteryInfo.isCharging {
+            return .green
+        } else {
+            return .white
+        }
+    }
+    
+    var body: some View {
+        ZStack {
+            // Background with blur
+            VisualEffectBlur(material: .hudWindow, blendingMode: .behindWindow)
+                .clipShape(RoundedRectangle(cornerRadius: 16))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(Color.white.opacity(0.1), lineWidth: 0.5)
+                )
             
             // Content
             VStack(spacing: 8) {
                 // Battery percentage
-                Text("\(info.currentCharge)")
-                    .font(.system(size: 48, weight: .light, design: .rounded))
-                    .foregroundColor(.white)
+                Text("\(batteryInfo.currentCharge)%")
+                    .font(.system(size: 32, weight: .bold, design: .rounded))
+                    .foregroundColor(batteryColor)
                 
-                Text("%")
-                    .font(.system(size: 24, weight: .light))
-                    .foregroundColor(.gray)
-                    .offset(y: -8)
+                // Status with icon
+                HStack(spacing: 4) {
+                    if batteryInfo.isCharging {
+                        Image(systemName: "bolt.fill")
+                            .font(.system(size: 11))
+                    }
+                    Text(batteryInfo.isCharging ? "Charging" : "On Battery")
+                        .font(.system(size: 12))
+                }
+                .foregroundColor(.secondary)
                 
-                // Status
-                Label(info.isCharging ? "Charging" : "Battery", 
-                      systemImage: info.isCharging ? "bolt.fill" : "battery.75")
-                    .font(.caption)
-                    .foregroundColor(.gray)
-                
-                // Time remaining on hover
-                if isHovering, let time = info.timeRemaining, !info.isPluggedIn {
-                    Text("\(time / 60):\(String(format: "%02d", time % 60))")
-                        .font(.caption2)
-                        .foregroundColor(.gray)
-                        .transition(.opacity)
+                // Time if available
+                if let timeString = batteryInfo.timeRemainingFormatted {
+                    Text(timeString)
+                        .font(.system(size: 14, weight: .medium, design: .rounded))
+                        .foregroundColor(.primary)
                 }
             }
         }
-        .frame(width: 200, height: 200)
+        .frame(width: 180, height: 100)
     }
 }
 
-// MARK: - Compact Widget
-struct CompactWidget: View {
-    let info: BatteryInfo
-    let isHovering: Bool
-    
-    var body: some View {
-        HStack(spacing: 12) {
-            // Battery icon
-            Image(systemName: batteryIconName)
-                .font(.system(size: 24))
-                .foregroundColor(batteryColor)
-            
-            VStack(alignment: .leading, spacing: 2) {
-                Text("\(info.currentCharge)%")
-                    .font(.system(size: 20, weight: .medium))
-                    .foregroundColor(.white)
-                
-                if info.isCharging {
-                    Text("Charging")
-                        .font(.caption)
-                        .foregroundColor(.gray)
-                } else if let time = info.timeRemaining {
-                    Text("\(time / 60):\(String(format: "%02d", time % 60))")
-                        .font(.caption)
-                        .foregroundColor(.gray)
-                }
-            }
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
-        .frame(width: 200, height: 70)
-        .background(Color.black.opacity(0.8))
-        .cornerRadius(12)
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(Color.white.opacity(0.1), lineWidth: 1)
-        )
-        .scaleEffect(isHovering ? 1.02 : 1.0)
-    }
-    
-    var batteryIconName: String {
-        if info.isCharging {
-            return "battery.100.bolt"
-        } else if info.currentCharge > 75 {
-            return "battery.100"
-        } else if info.currentCharge > 50 {
-            return "battery.75"
-        } else if info.currentCharge > 25 {
-            return "battery.50"
-        } else {
-            return "battery.25"
-        }
-    }
+// Detailed widget - Clean grid layout
+struct DetailedWidget: View {
+    let batteryInfo: BatteryInfo
     
     var batteryColor: Color {
-        if info.currentCharge <= 20 {
+        if batteryInfo.currentCharge <= 10 {
             return .red
-        } else if info.currentCharge <= 50 {
-            return .yellow
-        } else {
+        } else if batteryInfo.currentCharge <= 20 {
+            return .orange
+        } else if batteryInfo.isCharging {
             return .green
+        } else {
+            return .primary
         }
     }
-}
-
-// MARK: - Detailed Widget
-struct DetailedWidget: View {
-    let info: BatteryInfo
-    let isHovering: Bool
     
     var body: some View {
-        VStack(spacing: 16) {
-            // Header
-            HStack {
-                Image(systemName: "battery.75")
-                    .font(.title2)
-                    .foregroundColor(.green)
-                
-                Spacer()
-                
-                Text("\(info.currentCharge)%")
-                    .font(.system(size: 32, weight: .light))
-                    .foregroundColor(.white)
-            }
+        ZStack {
+            // Background
+            VisualEffectBlur(material: .hudWindow, blendingMode: .behindWindow)
+                .clipShape(RoundedRectangle(cornerRadius: 16))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(Color.white.opacity(0.1), lineWidth: 0.5)
+                )
             
-            // Progress bar
-            GeometryReader { geometry in
-                ZStack(alignment: .leading) {
-                    RoundedRectangle(cornerRadius: 4)
-                        .fill(Color.white.opacity(0.1))
-                        .frame(height: 8)
-                    
-                    RoundedRectangle(cornerRadius: 4)
-                        .fill(batteryColor)
-                        .frame(width: geometry.size.width * CGFloat(info.currentCharge) / 100, height: 8)
-                        .animation(.easeInOut(duration: 0.3), value: info.currentCharge)
-                }
-            }
-            .frame(height: 8)
-            
-            // Details
-            VStack(alignment: .leading, spacing: 8) {
+            // Content
+            VStack(alignment: .leading, spacing: 16) {
+                // Header row
                 HStack {
-                    Label(info.isCharging ? "Charging" : "On Battery", 
-                          systemImage: info.isCharging ? "bolt.fill" : "battery.75")
-                        .font(.caption)
-                        .foregroundColor(.white)
+                    // Percentage
+                    HStack(spacing: 6) {
+                        if batteryInfo.isCharging {
+                            Image(systemName: "bolt.fill")
+                                .font(.system(size: 16))
+                                .foregroundColor(batteryColor)
+                        }
+                        Text("\(batteryInfo.currentCharge)%")
+                            .font(.system(size: 24, weight: .bold, design: .rounded))
+                            .foregroundColor(batteryColor)
+                    }
                     
                     Spacer()
                     
-                    if let time = info.timeRemaining, !info.isPluggedIn {
-                        Text("\(time / 60):\(String(format: "%02d", time % 60)) remaining")
-                            .font(.caption)
-                            .foregroundColor(.gray)
-                    }
+                    // Status
+                    Text(batteryInfo.isCharging ? "Charging" : "On Battery")
+                        .font(.system(size: 12))
+                        .foregroundColor(.secondary)
                 }
                 
-                if isHovering {
-                    HStack {
-                        Text("Cycles: \(info.cycleCount)")
-                        Spacer()
-                        Text("Health: \(Int(info.health * 100))%")
+                // Stats row
+                HStack {
+                    // Cycles
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Cycles")
+                            .font(.system(size: 10))
+                            .foregroundColor(.secondary)
+                        Text("\(batteryInfo.cycleCount)")
+                            .font(.system(size: 14, weight: .medium))
                     }
-                    .font(.caption2)
-                    .foregroundColor(.gray)
-                    .transition(.opacity)
+                    
+                    Spacer()
+                    
+                    // Health
+                    VStack(alignment: .center, spacing: 2) {
+                        Text("Health")
+                            .font(.system(size: 10))
+                            .foregroundColor(.secondary)
+                        Text("\(Int(batteryInfo.health * 100))%")
+                            .font(.system(size: 14, weight: .medium))
+                    }
+                    
+                    Spacer()
+                    
+                    // Time
+                    if let timeString = batteryInfo.timeRemainingFormatted {
+                        VStack(alignment: .trailing, spacing: 2) {
+                            Text("Time")
+                                .font(.system(size: 10))
+                                .foregroundColor(.secondary)
+                            Text(timeString)
+                                .font(.system(size: 14, weight: .medium))
+                        }
+                    }
                 }
             }
+            .padding(16)
         }
-        .padding()
-        .frame(width: 250)
-        .background(Color.black.opacity(0.85))
-        .cornerRadius(16)
-        .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .stroke(Color.white.opacity(0.1), lineWidth: 1)
-        )
-    }
-    
-    var batteryColor: Color {
-        if info.currentCharge <= 20 {
-            return .red
-        } else if info.currentCharge <= 50 {
-            return .yellow
-        } else {
-            return .green
-        }
+        .frame(width: 200, height: 120)
     }
 }
 
-// MARK: - Minimal Widget
-struct MinimalWidget: View {
-    let info: BatteryInfo
-    let isHovering: Bool
+// Visual effect blur
+struct VisualEffectBlur: NSViewRepresentable {
+    let material: NSVisualEffectView.Material
+    let blendingMode: NSVisualEffectView.BlendingMode
     
-    var body: some View {
-        VStack(spacing: 2) {
-            Text("\(info.currentCharge)")
-                .font(.system(size: 28, weight: .ultraLight, design: .rounded))
-                .foregroundColor(batteryColor)
-            
-            Text("%")
-                .font(.system(size: 12, weight: .light))
-                .foregroundColor(.gray)
-                .offset(y: -2)
-            
-            if info.isCharging {
-                Image(systemName: "bolt.fill")
-                    .font(.system(size: 10))
-                    .foregroundColor(.green)
-            }
-        }
-        .frame(width: 120, height: 80)
-        .background(
-            Capsule()
-                .fill(Color.black.opacity(0.75))
-                .overlay(
-                    Capsule()
-                        .stroke(batteryColor.opacity(0.3), lineWidth: 1)
-                )
-        )
-        .scaleEffect(isHovering ? 1.05 : 1.0)
+    func makeNSView(context: Context) -> NSVisualEffectView {
+        let view = NSVisualEffectView()
+        view.material = material
+        view.blendingMode = blendingMode
+        view.state = .active
+        return view
     }
     
-    var batteryColor: Color {
-        if info.currentCharge <= 20 {
-            return .red
-        } else if info.currentCharge <= 50 {
-            return .yellow
-        } else {
-            return .green
-        }
+    func updateNSView(_ nsView: NSVisualEffectView, context: Context) {
+        nsView.material = material
+        nsView.blendingMode = blendingMode
     }
 }
 
-// MARK: - Widget Manager
-class DesktopWidgetManager {
-    private var window: DesktopWidgetWindow?
-    private let viewModel: BatteryViewModel
-    
-    init(viewModel: BatteryViewModel) {
-        self.viewModel = viewModel
-    }
-    
-    @MainActor func showWidget() {
-        if window == nil {
-            // Get appropriate size based on widget style
-            let size = getWidgetSize()
-            window = DesktopWidgetWindow(size: size)
-            let widgetView = DesktopWidgetView(viewModel: viewModel)
-            window?.contentView = NSHostingView(rootView: widgetView)
-            window?.orderFront(nil)
-        }
-    }
-    
-    @MainActor private func getWidgetSize() -> NSSize {
-        switch viewModel.widgetStyle {
-        case .circular:
-            return NSSize(width: 220, height: 220)
-        case .compact:
-            return NSSize(width: 220, height: 90)
-        case .detailed:
-            return NSSize(width: 280, height: 180)
-        case .minimal:
-            return NSSize(width: 140, height: 100)  // Increased size to prevent cropping
-        }
-    }
-    
-    @MainActor func hideWidget() {
-        guard let window = window else { return }
-        
-        // Disable animations to prevent crashes
-        NSAnimationContext.runAnimationGroup({ context in
-            context.duration = 0
-            window.orderOut(nil)
-        }) {
-            window.close()
-            self.window = nil
-        }
-    }
-    
-    @MainActor func toggleWidget() {
-        if window != nil {
-            hideWidget()
-        } else {
-            showWidget()
+// Widget Style Extension
+extension WidgetStyle {
+    var displayName: String {
+        switch self {
+        case .minimal: return "Minimal"
+        case .compact: return "Compact"
+        case .standard: return "Standard"
+        case .detailed: return "Detailed"
         }
     }
 }

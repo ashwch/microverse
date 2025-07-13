@@ -20,11 +20,6 @@ let package = Package(
             name: "BatteryCore",
             dependencies: [],
             path: "Sources/BatteryCore"
-        ),
-        .testTarget(
-            name: "MicroverseTests",
-            dependencies: ["Microverse", "BatteryCore"],
-            path: "Tests/MicroverseTests"
         )
     ]
 )

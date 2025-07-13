@@ -16,9 +16,7 @@ public struct BatteryInfo: Equatable {
     
     // Health metrics
     public let health: Double            // 0.0-1.0 (maxCapacity/designCapacity)
-    public let voltage: Double           // Volts
     public let amperage: Int?            // mA
-    public let temperature: Double       // Celsius
     
     // System info
     public let hardwareModel: String     // Mac model
@@ -34,9 +32,7 @@ public struct BatteryInfo: Equatable {
         adapterWattage: Int? = nil,
         powerSourceType: String = "Battery Power",
         health: Double = 1.0,
-        voltage: Double = 12.0,
         amperage: Int? = nil,
-        temperature: Double = 25.0,
         hardwareModel: String = "Unknown",
         isAppleSilicon: Bool = false
     ) {
@@ -49,9 +45,7 @@ public struct BatteryInfo: Equatable {
         self.adapterWattage = adapterWattage
         self.powerSourceType = powerSourceType
         self.health = health
-        self.voltage = voltage
         self.amperage = amperage
-        self.temperature = temperature
         self.hardwareModel = hardwareModel
         self.isAppleSilicon = isAppleSilicon
     }

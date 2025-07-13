@@ -10,9 +10,7 @@ class BatteryViewModel: ObservableObject {
     @Published var batteryInfo = BatteryInfo()
     @Published var capabilities = BatteryControlCapabilities()
     
-    // Settings that actually work
-    @Published var targetChargeLimit: Int = 80
-    @Published var showAdminFeatures = false
+    // App settings only
     
     // App settings
     @Published var launchAtStartup = LaunchAtStartup.isEnabled {
@@ -34,7 +32,7 @@ class BatteryViewModel: ObservableObject {
             saveSetting("showDesktopWidget", value: showDesktopWidget)
         }
     }
-    @Published var widgetStyle = WidgetStyle.circular {
+    @Published var widgetStyle = WidgetStyle.standard {
         didSet {
             saveSetting("widgetStyle", value: widgetStyle.rawValue)
             // Note: Widget will be recreated when user toggles it off/on
@@ -43,13 +41,9 @@ class BatteryViewModel: ObservableObject {
     }
     
     // UI State
-    @Published var isRequestingAdminAccess = false
     @Published var lastError: String?
-    @Published var showBatteryControlGuide = false
     
     private let reader = BatteryReader()
-    private let privilegedController = BatteryControllerPrivileged()
-    private let modernAuth = ModernAuthHelper()
     private var timer: Timer?
     private var cancellables = Set<AnyCancellable>()
     private let logger = Logger(subsystem: "com.microverse.app", category: "BatteryViewModel")
@@ -88,47 +82,17 @@ class BatteryViewModel: ObservableObject {
     
     func checkCapabilities() {
         capabilities = reader.getCapabilities()
-        
-        // No admin features in simplified version
-        showAdminFeatures = false
-        
         logger.info("Battery monitoring ready")
     }
     
     func requestAdminAccess() {
-        isRequestingAdminAccess = true
-        lastError = nil
-        
-        // For now, just show the guide
-        // In a real implementation, this would check for helper installation
-        
-        // Show battery control guide
-        showBatteryControlGuide = true
-        isRequestingAdminAccess = false
+        // Admin access not implemented in simplified version
+        lastError = "Admin features not available"
     }
     
     func setChargeLimit(_ limit: Int) {
-        // Just try it directly - let the SMC controller handle the errors
-        Task {
-            let result = privilegedController.setChargeLimit(limit)
-            
-            await MainActor.run {
-                switch result {
-                case .success:
-                    targetChargeLimit = limit
-                    lastError = nil
-                    saveSetting("targetChargeLimit", value: limit)
-                case .requiresAuthentication:
-                    requestAdminAccess()
-                case .notSupported(let reason):
-                    lastError = "Not supported: \(reason)"
-                    logger.warning("Charge limit not supported: \(reason)")
-                case .failed(let error):
-                    lastError = "Failed: \(error.localizedDescription)"
-                    logger.error("Charge limit failed: \(error)")
-                }
-            }
-        }
+        // Charge limit control not available in simplified version
+        lastError = "Charge limit control requires admin privileges"
     }
     
     
@@ -162,7 +126,7 @@ class BatteryViewModel: ObservableObject {
     
     private func loadSettings() {
         let defaults = UserDefaults.standard
-        targetChargeLimit = defaults.integer(forKey: "targetChargeLimit") == 0 ? 80 : defaults.integer(forKey: "targetChargeLimit")
+        // Removed targetChargeLimit loading
         // launchAtStartup is now loaded from LaunchAtStartup.isEnabled in the property declaration
         showPercentageInMenuBar = defaults.bool(forKey: "showPercentageInMenuBar")
         refreshInterval = defaults.double(forKey: "refreshInterval") == 0 ? 5.0 : defaults.double(forKey: "refreshInterval")
