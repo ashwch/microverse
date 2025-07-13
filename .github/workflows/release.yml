@@ -1,0 +1,301 @@
+name: Build and Release Microverse
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  PRODUCT_NAME: Microverse
+  SCHEME_NAME: Microverse
+  CONFIGURATION: Release
+
+jobs:
+  build-and-release:
+    runs-on: macos-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0 # Full history for changelog generation
+        
+    - name: Set up Xcode
+      uses: maxim-lobanov/setup-xcode@v1
+      with:
+        xcode-version: latest-stable
+        
+    - name: Cache Swift Package Manager
+      uses: actions/cache@v3
+      with:
+        path: .build
+        key: ${{ runner.os }}-spm-${{ hashFiles('**/Package.resolved') }}
+        restore-keys: |
+          ${{ runner.os }}-spm-
+          
+    - name: Determine version bump
+      id: version
+      run: |
+        # Get the last version tag
+        LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+        echo "Last tag: $LAST_TAG"
+        
+        # For now, always use 1.0.0 as requested
+        NEW_VERSION="1.0.0"
+        NEW_TAG="v$NEW_VERSION"
+        
+        # Check commit messages since last tag for version bumping logic (future use)
+        COMMITS_SINCE_TAG=$(git log $LAST_TAG..HEAD --oneline 2>/dev/null || git log --oneline)
+        
+        # Future version bumping logic:
+        # if echo "$COMMITS_SINCE_TAG" | grep -q "BREAKING CHANGE\|major:"; then
+        #   VERSION_TYPE="major"
+        # elif echo "$COMMITS_SINCE_TAG" | grep -q "feat:\|feature:"; then
+        #   VERSION_TYPE="minor"  
+        # else
+        #   VERSION_TYPE="patch"
+        # fi
+        
+        echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+        echo "new_tag=$NEW_TAG" >> $GITHUB_OUTPUT
+        echo "commits_since_tag<<EOF" >> $GITHUB_OUTPUT
+        echo "$COMMITS_SINCE_TAG" >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
+        
+    - name: Check if tag exists
+      id: tag_check
+      run: |
+        if git rev-parse "refs/tags/${{ steps.version.outputs.new_tag }}" >/dev/null 2>&1; then
+          echo "tag_exists=true" >> $GITHUB_OUTPUT
+          echo "Tag ${{ steps.version.outputs.new_tag }} already exists"
+        else
+          echo "tag_exists=false" >> $GITHUB_OUTPUT
+          echo "Tag ${{ steps.version.outputs.new_tag }} does not exist"
+        fi
+        
+    - name: Build Microverse
+      if: steps.tag_check.outputs.tag_exists == 'false'
+      run: |
+        echo "Building Microverse v${{ steps.version.outputs.new_version }}"
+        
+        # Build using Swift Package Manager
+        swift build -c release --arch arm64 --arch x86_64
+        
+        # Create app bundle structure
+        APP_PATH="$PRODUCT_NAME.app"
+        mkdir -p "$APP_PATH/Contents/MacOS"
+        mkdir -p "$APP_PATH/Contents/Resources"
+        
+        # Copy executable
+        cp .build/apple/Products/Release/$PRODUCT_NAME "$APP_PATH/Contents/MacOS/"
+        
+        # Create Info.plist
+        cat > "$APP_PATH/Contents/Info.plist" << EOF
+        <?xml version="1.0" encoding="UTF-8"?>
+        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+        <plist version="1.0">
+        <dict>
+            <key>CFBundleExecutable</key>
+            <string>$PRODUCT_NAME</string>
+            <key>CFBundleIdentifier</key>
+            <string>com.microverse.app</string>
+            <key>CFBundleName</key>
+            <string>$PRODUCT_NAME</string>
+            <key>CFBundleDisplayName</key>
+            <string>$PRODUCT_NAME</string>
+            <key>CFBundleVersion</key>
+            <string>${{ steps.version.outputs.new_version }}</string>
+            <key>CFBundleShortVersionString</key>
+            <string>${{ steps.version.outputs.new_version }}</string>
+            <key>CFBundlePackageType</key>
+            <string>APPL</string>
+            <key>CFBundleSignature</key>
+            <string>????</string>
+            <key>LSMinimumSystemVersion</key>
+            <string>11.0</string>
+            <key>NSHighResolutionCapable</key>
+            <true/>
+            <key>LSUIElement</key>
+            <true/>
+            <key>NSSupportsAutomaticTermination</key>
+            <true/>
+            <key>NSSupportsSuddenTermination</key>
+            <true/>
+            <key>NSPrincipalClass</key>
+            <string>NSApplication</string>
+        </dict>
+        </plist>
+        EOF
+        
+        # Copy app icon if it exists
+        if [ -f "Resources/AppIcon.icns" ]; then
+          cp "Resources/AppIcon.icns" "$APP_PATH/Contents/Resources/"
+        elif [ -f "AppIcon.icns" ]; then
+          cp "AppIcon.icns" "$APP_PATH/Contents/Resources/"
+        fi
+        
+        # Make executable
+        chmod +x "$APP_PATH/Contents/MacOS/$PRODUCT_NAME"
+        
+        echo "App bundle created successfully"
+        ls -la "$APP_PATH/Contents/MacOS/"
+        
+    - name: Create DMG
+      if: steps.tag_check.outputs.tag_exists == 'false'
+      run: |
+        DMG_NAME="${PRODUCT_NAME}-v${{ steps.version.outputs.new_version }}.dmg"
+        
+        # Create a temporary directory for DMG contents
+        mkdir -p dmg-contents
+        cp -R "$PRODUCT_NAME.app" dmg-contents/
+        
+        # Create a symbolic link to Applications folder
+        ln -s /Applications dmg-contents/Applications
+        
+        # Create DMG
+        hdiutil create -size 100m -format UDZO -srcfolder dmg-contents -volname "$PRODUCT_NAME" "$DMG_NAME"
+        
+        echo "DMG created: $DMG_NAME"
+        echo "dmg_name=$DMG_NAME" >> $GITHUB_ENV
+        
+    - name: Generate Changelog
+      if: steps.tag_check.outputs.tag_exists == 'false'
+      id: changelog
+      run: |
+        echo "Generating changelog for v${{ steps.version.outputs.new_version }}"
+        
+        # Create a comprehensive changelog
+        cat > CHANGELOG.md << EOF
+        # Microverse v${{ steps.version.outputs.new_version }}
+        
+        **Release Date:** $(date '+%Y-%m-%d')
+        **Author:** Ashwini Chaudhary
+        
+        ## 🎉 Features
+        
+        ### System Monitoring
+        - 🔋 **Advanced Battery Monitoring**: Real-time battery health, cycle count, and time estimates
+        - ⚙️ **CPU Monitoring**: Live processor usage tracking with Apple Silicon support
+        - 🧠 **Memory Monitoring**: Memory pressure tracking with usage breakdown
+        - 📊 **Unified Overview**: System health dashboard with intelligent insights
+        
+        ### Interface Design
+        - 🎯 **Tabbed Interface**: Clean navigation between Overview, Battery, CPU, and Memory
+        - 🖥️ **Desktop Widgets**: 6 beautiful widget styles for any workflow
+        - 🎨 **Johnny Ive Design**: Semantic color system and elegant glass effects
+        - 🌙 **Adaptive UI**: Seamless light/dark mode integration
+        
+        ### Performance
+        - ⚡ **Adaptive Refresh**: Smart polling rates based on battery state
+        - 🚀 **Async Architecture**: Non-blocking system monitoring
+        - 💾 **Memory Efficient**: <50MB footprint with <1% CPU impact
+        - 🔄 **Real-time Updates**: Live system metrics with smooth animations
+        
+        ## 🏗️ Technical Architecture
+        
+        - **Frameworks**: BatteryCore + SystemCore for modular monitoring
+        - **Design System**: Unified design tokens following Apple's HIG
+        - **Performance**: Direct IOKit/mach access for optimal efficiency
+        - **Compatibility**: macOS 11.0+, Intel & Apple Silicon support
+        
+        ## 📋 Recent Changes
+        
+        EOF
+        
+        # Add commit messages since last tag
+        if [ -n "${{ steps.version.outputs.commits_since_tag }}" ]; then
+          echo "${{ steps.version.outputs.commits_since_tag }}" | head -10 | while read line; do
+            echo "- $line" >> CHANGELOG.md
+          done
+        else
+          echo "- Initial release of Microverse" >> CHANGELOG.md
+        fi
+        
+        cat >> CHANGELOG.md << EOF
+        
+        ## 🎯 What's Next
+        
+        - Process monitoring with smart app categorization
+        - Historical trend tracking and analytics
+        - Advanced network and thermal monitoring
+        - Custom dashboard builder
+        
+        ## 📦 Installation
+        
+        1. Download the DMG file
+        2. Open the DMG and drag Microverse to Applications
+        3. Launch Microverse from Applications or Spotlight
+        4. Look for the system monitoring icon in your menu bar
+        
+        ## 🔗 Links
+        
+        - **Documentation**: Complete architecture and design specifications included
+        - **Source Code**: Open source and available on GitHub
+        - **License**: MIT License - free for everyone
+        
+        **Built with ❤️ for the macOS development community**
+        EOF
+        
+        # Set output for release notes
+        echo "changelog_content<<EOF" >> $GITHUB_OUTPUT
+        cat CHANGELOG.md >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
+        
+    - name: Create Release
+      if: steps.tag_check.outputs.tag_exists == 'false'
+      uses: actions/create-release@v1
+      id: create_release
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ steps.version.outputs.new_tag }}
+        release_name: "Microverse ${{ steps.version.outputs.new_version }}"
+        body: ${{ steps.changelog.outputs.changelog_content }}
+        draft: false
+        prerelease: false
+        
+    - name: Upload DMG to Release
+      if: steps.tag_check.outputs.tag_exists == 'false'
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./${{ env.dmg_name }}
+        asset_name: ${{ env.dmg_name }}
+        asset_content_type: application/x-apple-diskimage
+        
+    - name: Upload App Bundle to Release
+      if: steps.tag_check.outputs.tag_exists == 'false'
+      run: |
+        # Create zip of app bundle for additional download option
+        zip -r "${PRODUCT_NAME}-v${{ steps.version.outputs.new_version }}.zip" "$PRODUCT_NAME.app"
+        echo "app_zip=${PRODUCT_NAME}-v${{ steps.version.outputs.new_version }}.zip" >> $GITHUB_ENV
+        
+    - name: Upload App Zip to Release
+      if: steps.tag_check.outputs.tag_exists == 'false'
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./${{ env.app_zip }}
+        asset_name: ${{ env.app_zip }}
+        asset_content_type: application/zip
+        
+    - name: Build Summary
+      if: steps.tag_check.outputs.tag_exists == 'false'
+      run: |
+        echo "🎉 Successfully built and released Microverse v${{ steps.version.outputs.new_version }}"
+        echo "📦 Assets created:"
+        echo "  - ${{ env.dmg_name }} (DMG installer)"
+        echo "  - ${{ env.app_zip }} (App bundle)"
+        echo "🔗 Release URL: ${{ steps.create_release.outputs.html_url }}"
+        echo "✅ Release is now available for download!"
+        
+    - name: Skip Release (Tag Exists)
+      if: steps.tag_check.outputs.tag_exists == 'true'
+      run: |
+        echo "⏭️  Skipping release - tag ${{ steps.version.outputs.new_tag }} already exists"
+        echo "ℹ️  No new release will be created for this build"
