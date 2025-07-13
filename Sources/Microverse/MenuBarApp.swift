@@ -42,7 +42,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         
         if let button = statusItem.button {
-            button.title = "Microverse"
+            // Use elegant system monitoring icon instead of battery
+            button.image = createMicroverseIcon()
             button.action = #selector(togglePopover(_:))
             button.target = self
         }
@@ -62,14 +63,14 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         
         // Create popover
         popover = NSPopover()
-        popover.contentSize = NSSize(width: 280, height: 300)
+        popover.contentSize = NSSize(width: 280, height: 500)
         popover.behavior = .applicationDefined
         popover.delegate = self
         
-        let cleanMainView = CleanMainView()
+        let tabbedMainView = TabbedMainView()
             .environmentObject(viewModel)
         
-        popoverContentViewController = NSHostingController(rootView: cleanMainView)
+        popoverContentViewController = NSHostingController(rootView: tabbedMainView)
         popover.contentViewController = popoverContentViewController
         
         // Update menu bar display when battery info changes
@@ -90,19 +91,17 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         let info = viewModel.batteryInfo
         
         if viewModel.showPercentageInMenuBar {
-            // Show custom battery icon with percentage
-            button.image = createBatteryIcon(
-                charge: info.currentCharge,
-                isCharging: info.isCharging
+            // Show Microverse icon with system health indicator
+            button.image = createMicroverseIcon(
+                batteryLevel: info.currentCharge,
+                isCharging: info.isCharging,
+                showHealth: true
             )
             button.title = " \(info.currentCharge)%"
             button.imagePosition = .imageLeft
         } else {
-            // Show only icon
-            button.image = createBatteryIcon(
-                charge: info.currentCharge,
-                isCharging: info.isCharging
-            )
+            // Show clean Microverse icon
+            button.image = createMicroverseIcon()
             button.title = ""
         }
     }
@@ -171,16 +170,64 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         return image
     }
     
+    /// Create elegant Microverse system monitoring icon
+    func createMicroverseIcon(batteryLevel: Int? = nil, isCharging: Bool = false, showHealth: Bool = false) -> NSImage? {
+        let size = NSSize(width: 22, height: 22)
+        let image = NSImage(size: size)
+        
+        image.lockFocus()
+        
+        // Use clean system monitoring icon instead of battery
+        let iconName = "circle.grid.2x2.fill"
+        let systemImage = NSImage(systemSymbolName: iconName, accessibilityDescription: "Microverse")
+        
+        if let systemImage = systemImage {
+            // Base icon color
+            var iconColor = NSColor.controlAccentColor
+            
+            // Adjust color based on system health if requested
+            if showHealth, let battery = batteryLevel {
+                if battery <= 10 {
+                    iconColor = NSColor.systemRed
+                } else if battery <= 20 {
+                    iconColor = NSColor.systemOrange
+                } else if isCharging {
+                    iconColor = NSColor.systemGreen
+                } else {
+                    iconColor = NSColor.controlAccentColor
+                }
+            }
+            
+            // Draw the icon
+            iconColor.set()
+            let iconRect = NSRect(x: 3, y: 3, width: 16, height: 16)
+            systemImage.draw(in: iconRect)
+            
+            // Add subtle charging indicator if needed
+            if isCharging && showHealth {
+                let boltImage = NSImage(systemSymbolName: "bolt.fill", accessibilityDescription: "Charging")
+                if let boltImage = boltImage {
+                    NSColor.systemYellow.set()
+                    let boltRect = NSRect(x: 13, y: 2, width: 8, height: 8)
+                    boltImage.draw(in: boltRect)
+                }
+            }
+        }
+        
+        image.unlockFocus()
+        return image
+    }
+    
     @objc func togglePopover(_ sender: AnyObject?) {
         if let button = statusItem.button {
             if popover.isShown {
                 popover.performClose(sender)
             } else {
                 // Recreate the content view to ensure fresh state
-                let cleanMainView = CleanMainView()
+                let tabbedMainView = TabbedMainView()
                     .environmentObject(viewModel)
                 
-                popoverContentViewController = NSHostingController(rootView: cleanMainView)
+                popoverContentViewController = NSHostingController(rootView: tabbedMainView)
                 popover.contentViewController = popoverContentViewController
                 
                 popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)

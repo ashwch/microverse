@@ -1,6 +1,7 @@
 import SwiftUI
 import AppKit
 import BatteryCore
+import SystemCore
 
 // IMPORTANT: Widget Implementation Notes
 // =====================================
@@ -17,6 +18,9 @@ enum WidgetStyle: String, CaseIterable {
     case compact = "Compact"    // 160×50: Percentage + time
     case standard = "Standard"  // 180×100: Vertical layout
     case detailed = "Detailed"  // 240×120: Full stats
+    case cpu = "CPU"           // 160×80: CPU focused
+    case memory = "Memory"     // 160×80: Memory focused
+    case system = "System"     // 240×120: All metrics
 }
 
 // Desktop widget manager
@@ -81,6 +85,10 @@ class DesktopWidgetManager: ObservableObject {
         case .detailed:
             let size = DesignSystem.WidgetSize.detailed
             return NSSize(width: size.width, height: size.height)
+        case .cpu, .memory:
+            return NSSize(width: 160, height: 80)
+        case .system:
+            return NSSize(width: 240, height: 100) // Compact to prevent cropping
         }
     }
     
@@ -135,11 +143,25 @@ struct DesktopWidgetView: View {
             case .minimal:
                 MinimalWidget(batteryInfo: viewModel.batteryInfo)
             case .compact:
-                CompactWidget(batteryInfo: viewModel.batteryInfo)
+                if viewModel.showSystemInfoInWidget {
+                    CompactSystemWidget(batteryInfo: viewModel.batteryInfo)
+                } else {
+                    CompactWidget(batteryInfo: viewModel.batteryInfo)
+                }
             case .standard:
                 StandardWidget(batteryInfo: viewModel.batteryInfo)
             case .detailed:
-                DetailedWidget(batteryInfo: viewModel.batteryInfo)
+                if viewModel.showSystemInfoInWidget {
+                    DetailedSystemWidget(batteryInfo: viewModel.batteryInfo)
+                } else {
+                    DetailedWidget(batteryInfo: viewModel.batteryInfo)
+                }
+            case .cpu:
+                CPUWidget()
+            case .memory:
+                MemoryWidget()
+            case .system:
+                SystemOverviewWidget(batteryInfo: viewModel.batteryInfo)
             }
         }
     }
@@ -156,13 +178,13 @@ struct MinimalWidget: View {
         HStack(spacing: DesignSystem.Spacing.micro) {
             if batteryInfo.isCharging {
                 Image(systemName: "bolt.fill")
-                    .font(.system(size: 12))
-                    .foregroundColor(DesignSystem.batteryColor(for: batteryInfo))
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundColor(.green)
             }
             
             Text("\(batteryInfo.currentCharge)%")
-                .font(DesignSystem.Typography.widgetBody)
-                .foregroundColor(.primary)
+                .font(.system(size: 16, weight: .bold, design: .rounded))
+                .foregroundColor(.white)
         }
         .padding(DesignSystem.Spacing.small) // Padding INSIDE the frame
         .widgetBackground() // Use consistent blur background
@@ -182,12 +204,12 @@ struct CompactWidget: View {
             // Battery percentage section with fixed width
             HStack(spacing: DesignSystem.Spacing.micro) {
                 Image(systemName: batteryInfo.isCharging ? "bolt.fill" : DesignSystem.batteryIconName(for: batteryInfo))
-                    .font(DesignSystem.Typography.widgetCaption)
-                    .foregroundColor(DesignSystem.batteryColor(for: batteryInfo))
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundColor(batteryInfo.isCharging ? .green : .white)
                 
                 Text("\(batteryInfo.currentCharge)%")
-                    .font(.system(size: 14, weight: .medium, design: .rounded))
-                    .foregroundColor(.primary)
+                    .font(.system(size: 16, weight: .bold, design: .rounded))
+                    .foregroundColor(.white)
             }
             .frame(width: 70, alignment: .leading) // Fixed width to prevent layout shifts
             
@@ -201,12 +223,12 @@ struct CompactWidget: View {
             Group {
                 if let timeString = batteryInfo.timeRemainingFormatted {
                     Text(timeString)
-                        .font(.system(size: 14, weight: .medium, design: .rounded))
-                        .foregroundColor(.primary)
+                        .font(.system(size: 14, weight: .bold, design: .rounded))
+                        .foregroundColor(.white)
                 } else {
                     Text("—")
-                        .font(.system(size: 14))
-                        .foregroundColor(.primary.opacity(DesignSystem.Opacity.secondaryText))
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundColor(.white)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .trailing)
@@ -219,41 +241,40 @@ struct CompactWidget: View {
     }
 }
 
-// Standard widget - Vertical centered layout
-// Design: Large %, status below, optional time
-// Key approach: VStack with blur background, explicit frame size
+// Elegant standard widget with improved contrast
 struct StandardWidget: View {
     let batteryInfo: BatteryInfo
     
     var body: some View {
-        VStack(spacing: DesignSystem.Spacing.small) {
-            // Battery percentage
+        VStack(spacing: 8) {
+            // Battery percentage with clear hierarchy
             Text("\(batteryInfo.currentCharge)%")
-                .font(DesignSystem.Typography.widgetTitle)
-                .foregroundColor(DesignSystem.batteryColor(for: batteryInfo))
+                .font(.system(size: 28, weight: .bold, design: .rounded))
+                .foregroundColor(.white)
             
-            // Status with icon
-            HStack(spacing: DesignSystem.Spacing.micro) {
+            // Status with improved visibility
+            HStack(spacing: 4) {
                 if batteryInfo.isCharging {
                     Image(systemName: "bolt.fill")
-                        .font(DesignSystem.Typography.widgetSmallCaption)
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(.white.opacity(0.9))
                 }
                 Text(batteryInfo.isCharging ? "Charging" : "On Battery")
-                    .font(DesignSystem.Typography.smallCaption)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(.white.opacity(0.8))
             }
-            .foregroundColor(.secondary)
             
-            // Time if available
+            // Time if available with better contrast
             if let timeString = batteryInfo.timeRemainingFormatted {
                 Text(timeString)
-                    .font(DesignSystem.Typography.widgetCaption.weight(.medium))
-                    .foregroundColor(.primary)
+                    .font(.system(size: 14, weight: .semibold, design: .rounded))
+                    .foregroundColor(.white)
             }
         }
-        .padding(DesignSystem.Spacing.medium)
+        .padding(16)
+        .widgetBackground()
         .frame(width: DesignSystem.WidgetSize.standard.width,
                height: DesignSystem.WidgetSize.standard.height)
-        .widgetBackground()
     }
 }
 
@@ -272,11 +293,11 @@ struct DetailedWidget: View {
                     if batteryInfo.isCharging {
                         Image(systemName: "bolt.fill")
                             .font(DesignSystem.Typography.widgetCaption)
-                            .foregroundColor(DesignSystem.batteryColor(for: batteryInfo))
+                            .foregroundColor(.green)
                     }
                     Text("\(batteryInfo.currentCharge)%")
                         .font(DesignSystem.Typography.widgetHeadline)
-                        .foregroundColor(DesignSystem.batteryColor(for: batteryInfo))
+                        .foregroundColor(.green)
                 }
                 
                 Spacer()
@@ -284,7 +305,7 @@ struct DetailedWidget: View {
                 // Status
                 Text(batteryInfo.isCharging ? "Charging" : "On Battery")
                     .font(DesignSystem.Typography.widgetSmallCaption)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(.white)
             }
             
             Divider()
@@ -296,9 +317,10 @@ struct DetailedWidget: View {
                 VStack(spacing: 2) {
                     Text("Cycles")
                         .font(.system(size: 9))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(.white)
                     Text("\(batteryInfo.cycleCount)")
                         .font(DesignSystem.Typography.widgetCaption.weight(.medium))
+                        .foregroundColor(.white)
                 }
                 
                 Spacer()
@@ -307,9 +329,10 @@ struct DetailedWidget: View {
                 VStack(spacing: 2) {
                     Text("Health")
                         .font(.system(size: 9))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(.white)
                     Text("\(Int(batteryInfo.health * 100))%")
                         .font(DesignSystem.Typography.widgetCaption.weight(.medium))
+                        .foregroundColor(.white)
                 }
                 
                 Spacer()
@@ -318,13 +341,15 @@ struct DetailedWidget: View {
                 VStack(spacing: 2) {
                     Text("Time")
                         .font(.system(size: 9))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(.white)
                     if let timeString = batteryInfo.timeRemainingFormatted {
                         Text(timeString)
                             .font(DesignSystem.Typography.widgetCaption.weight(.medium))
+                            .foregroundColor(.white)
                     } else {
                         Text("—")
                             .font(DesignSystem.Typography.widgetCaption.weight(.medium))
+                            .foregroundColor(.white)
                     }
                 }
             }
@@ -355,6 +380,22 @@ struct VisualEffectBlur: NSViewRepresentable {
     }
 }
 
+// MARK: - Consistent Widget Background Extension
+
+extension View {
+    /// Applies consistent Johnny Ive-inspired widget background
+    func widgetBackground() -> some View {
+        self.background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color.black.opacity(0.85))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(Color.white.opacity(0.1), lineWidth: 1)
+                )
+        )
+    }
+}
+
 // Widget Style Extension
 extension WidgetStyle {
     var displayName: String {
@@ -363,6 +404,410 @@ extension WidgetStyle {
         case .compact: return "Compact"
         case .standard: return "Standard"
         case .detailed: return "Detailed"
+        case .cpu: return "CPU"
+        case .memory: return "Memory"
+        case .system: return "System"
         }
+    }
+}
+
+// MARK: - Dedicated CPU Widget
+
+struct CPUWidget: View {
+    @StateObject private var systemService = SystemMonitoringService.shared
+    
+    var body: some View {
+        VStack(spacing: 8) {
+            // CPU Header
+            HStack {
+                Image(systemName: "cpu")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(.blue)
+                
+                Text("CPU")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(.white)
+                
+                Spacer()
+                
+                Text("\(Int(systemService.cpuUsage))%")
+                    .font(.system(size: 18, weight: .bold, design: .rounded))
+                    .foregroundColor(.blue)
+            }
+            
+            // CPU Progress Bar
+            GeometryReader { geometry in
+                ZStack(alignment: .leading) {
+                    RoundedRectangle(cornerRadius: 3)
+                        .fill(Color.white.opacity(0.2))
+                        .frame(height: 6)
+                    
+                    RoundedRectangle(cornerRadius: 3)
+                        .fill(cpuColor)
+                        .frame(width: geometry.size.width * (systemService.cpuUsage / 100), height: 6)
+                        .animation(.easeInOut(duration: 0.3), value: systemService.cpuUsage)
+                }
+            }
+            .frame(height: 6)
+            
+            // Status
+            Text(cpuStatusText)
+                .font(.system(size: 10, weight: .medium))
+                .foregroundColor(.white.opacity(0.8))
+        }
+        .padding(12)
+        .frame(width: 160, height: 80)
+        .widgetBackground()
+    }
+    
+    private var cpuColor: Color {
+        if systemService.cpuUsage > 80 { return .red }
+        else if systemService.cpuUsage > 60 { return .orange }
+        else { return .blue }
+    }
+    
+    private var cpuStatusText: String {
+        if systemService.cpuUsage > 80 { return "High Usage" }
+        else if systemService.cpuUsage > 60 { return "Moderate Load" }
+        else { return "Normal Operation" }
+    }
+}
+
+// MARK: - Dedicated Memory Widget
+
+struct MemoryWidget: View {
+    @StateObject private var systemService = SystemMonitoringService.shared
+    
+    var body: some View {
+        VStack(spacing: 8) {
+            // Memory Header
+            HStack {
+                Image(systemName: "memorychip")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(.purple)
+                
+                Text("MEMORY")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(.white)
+                
+                Spacer()
+                
+                Text("\(Int(systemService.memoryInfo.usagePercentage))%")
+                    .font(.system(size: 18, weight: .bold, design: .rounded))
+                    .foregroundColor(.purple)
+            }
+            
+            // Memory Progress Bar
+            GeometryReader { geometry in
+                ZStack(alignment: .leading) {
+                    RoundedRectangle(cornerRadius: 3)
+                        .fill(Color.white.opacity(0.2))
+                        .frame(height: 6)
+                    
+                    RoundedRectangle(cornerRadius: 3)
+                        .fill(memoryColor)
+                        .frame(width: geometry.size.width * (systemService.memoryInfo.usagePercentage / 100), height: 6)
+                        .animation(.easeInOut(duration: 0.3), value: systemService.memoryInfo.usagePercentage)
+                }
+            }
+            .frame(height: 6)
+            
+            // Memory Usage
+            Text("\(String(format: "%.1f", systemService.memoryInfo.usedMemory)) / \(String(format: "%.1f", systemService.memoryInfo.totalMemory)) GB")
+                .font(.system(size: 10, weight: .medium))
+                .foregroundColor(.white.opacity(0.8))
+        }
+        .padding(12)
+        .frame(width: 160, height: 80)
+        .widgetBackground()
+    }
+    
+    private var memoryColor: Color {
+        switch systemService.memoryInfo.pressure {
+        case .critical: return .red
+        case .warning: return .orange
+        case .normal: return .purple
+        }
+    }
+}
+
+// MARK: - System Overview Widget (Replaces DetailedSystemWidget)
+
+struct SystemOverviewWidget: View {
+    let batteryInfo: BatteryInfo
+    @StateObject private var systemService = SystemMonitoringService.shared
+    
+    var body: some View {
+        VStack(spacing: 6) {
+            // Header with battery prominently displayed
+            HStack {
+                HStack(spacing: 4) {
+                    Image(systemName: "bolt.fill")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(.green)
+                    Text("\(batteryInfo.currentCharge)%")
+                        .font(.system(size: 18, weight: .bold, design: .rounded))
+                        .foregroundColor(.white)
+                }
+                
+                Spacer()
+                
+                Circle()
+                    .fill(systemHealthColor)
+                    .frame(width: 6, height: 6)
+            }
+            
+            // Compact two-column metrics  
+            HStack(spacing: 16) {
+                // CPU
+                VStack(spacing: 2) {
+                    Image(systemName: "cpu")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(.blue)
+                    Text("\(Int(systemService.cpuUsage))%")
+                        .font(.system(size: 14, weight: .bold, design: .rounded))
+                        .foregroundColor(.white)
+                    Text("CPU")
+                        .font(.system(size: 8, weight: .semibold))
+                        .foregroundColor(.white.opacity(0.7))
+                        .tracking(0.8)
+                }
+                .frame(maxWidth: .infinity)
+                
+                // Memory
+                VStack(spacing: 2) {
+                    Image(systemName: "memorychip")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(.purple)
+                    Text("\(Int(systemService.memoryInfo.usagePercentage))%")
+                        .font(.system(size: 14, weight: .bold, design: .rounded))
+                        .foregroundColor(.white)
+                    Text("MEMORY")
+                        .font(.system(size: 8, weight: .semibold))
+                        .foregroundColor(.white.opacity(0.7))
+                        .tracking(0.8)
+                }
+                .frame(maxWidth: .infinity)
+                
+                // Health
+                VStack(spacing: 2) {
+                    Image(systemName: "heart.fill")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(.white)
+                    Text("\(Int(batteryInfo.health * 100))%")
+                        .font(.system(size: 14, weight: .bold, design: .rounded))
+                        .foregroundColor(.white)
+                    Text("HEALTH")
+                        .font(.system(size: 8, weight: .semibold))
+                        .foregroundColor(.white.opacity(0.7))
+                        .tracking(0.8)
+                }
+                .frame(maxWidth: .infinity)
+            }
+        }
+        .padding(12)
+        .frame(width: 240, height: 100)
+        .widgetBackground()
+    }
+    
+    private var systemHealthColor: Color {
+        if systemService.cpuUsage > 80 || systemService.memoryInfo.pressure == .critical || batteryInfo.currentCharge < 15 {
+            return .red
+        } else if systemService.cpuUsage > 60 || systemService.memoryInfo.pressure == .warning || batteryInfo.currentCharge < 25 {
+            return .orange
+        } else {
+            return .green
+        }
+    }
+    
+    private var systemStatusText: String {
+        if systemService.cpuUsage > 80 || systemService.memoryInfo.pressure == .critical {
+            return "System under stress"
+        } else if systemService.cpuUsage > 60 || systemService.memoryInfo.pressure == .warning {
+            return "Moderate system load"
+        } else {
+            return "All systems optimal"
+        }
+    }
+}
+
+// Elegant compact widget with system monitoring
+struct CompactSystemWidget: View {
+    let batteryInfo: BatteryInfo
+    @StateObject private var systemService = SystemMonitoringService.shared
+    
+    var body: some View {
+        HStack(spacing: 16) {
+            // Battery with clean typography
+            VStack(spacing: 2) {
+                Image(systemName: batteryInfo.isCharging ? "bolt.fill" : "battery.100percent")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(.white)
+                Text("\(batteryInfo.currentCharge)%")
+                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+                    .foregroundColor(.white)
+            }
+            
+            // CPU with proper contrast
+            VStack(spacing: 2) {
+                Image(systemName: "cpu")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(.white.opacity(0.9))
+                Text("\(Int(systemService.cpuUsage))%")
+                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+                    .foregroundColor(.white)
+            }
+            
+            // Memory with clear visibility
+            VStack(spacing: 2) {
+                Image(systemName: "memorychip")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(.white.opacity(0.9))
+                Text("\(Int(systemService.memoryInfo.usagePercentage))%")
+                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+                    .foregroundColor(.white)
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .widgetBackground()
+        .frame(width: DesignSystem.WidgetSize.compact.width, 
+               height: DesignSystem.WidgetSize.compact.height)
+    }
+}
+
+// Johnny Ive-inspired detailed system widget
+struct DetailedSystemWidget: View {
+    let batteryInfo: BatteryInfo
+    @StateObject private var systemService = SystemMonitoringService.shared
+    
+    var body: some View {
+        VStack(spacing: 12) {
+            // Header with clear hierarchy
+            VStack(spacing: 6) {
+                HStack {
+                    Text("SYSTEM")
+                        .font(.system(size: 11, weight: .semibold, design: .rounded))
+                        .foregroundColor(.white.opacity(0.7))
+                        .tracking(1.2)
+                    
+                    Spacer()
+                    
+                    Circle()
+                        .fill(systemHealthColor)
+                        .frame(width: 8, height: 8)
+                }
+                
+                HStack {
+                    // Large battery percentage
+                    HStack(spacing: 4) {
+                        if batteryInfo.isCharging {
+                            Image(systemName: "bolt.fill")
+                                .font(.system(size: 16, weight: .medium))
+                                .foregroundColor(.white)
+                        }
+                        Text("\(batteryInfo.currentCharge)%")
+                            .font(.system(size: 24, weight: .bold, design: .rounded))
+                            .foregroundColor(.white)
+                    }
+                    
+                    Spacer()
+                }
+            }
+            
+            // Elegant metrics grid
+            HStack(spacing: 0) {
+                // CPU Metric
+                MetricCard(
+                    icon: "cpu",
+                    value: "\(Int(systemService.cpuUsage))%",
+                    label: "CPU",
+                    color: cpuColor
+                )
+                
+                Spacer()
+                
+                // Memory Metric
+                MetricCard(
+                    icon: "memorychip", 
+                    value: "\(Int(systemService.memoryInfo.usagePercentage))%",
+                    label: "Memory",
+                    color: memoryColor
+                )
+                
+                Spacer()
+                
+                // Health Metric
+                MetricCard(
+                    icon: "heart.fill",
+                    value: "\(Int(batteryInfo.health * 100))%",
+                    label: "Health",
+                    color: .white.opacity(0.9)
+                )
+            }
+            
+            // Subtle warning for memory pressure
+            if systemService.memoryInfo.pressure != .normal {
+                HStack(spacing: 6) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.system(size: 10))
+                        .foregroundColor(.orange)
+                    
+                    Text("Memory pressure elevated")
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundColor(.white.opacity(0.8))
+                }
+                .padding(.top, 4)
+            }
+        }
+        .padding(16)
+        .widgetBackground()
+        .frame(width: DesignSystem.WidgetSize.detailed.width,
+               height: DesignSystem.WidgetSize.detailed.height)
+    }
+    
+    private var systemHealthColor: Color {
+        if systemService.cpuUsage > 80 || systemService.memoryInfo.pressure == .critical {
+            return .red
+        } else if systemService.cpuUsage > 50 || systemService.memoryInfo.pressure == .warning {
+            return .orange
+        } else {
+            return .green
+        }
+    }
+    
+    private var cpuColor: Color {
+        systemService.cpuUsage > 80 ? .red : systemService.cpuUsage > 50 ? .orange : .blue
+    }
+    
+    private var memoryColor: Color {
+        systemService.memoryInfo.pressure == .critical ? .red : 
+        systemService.memoryInfo.pressure == .warning ? .orange : .purple
+    }
+}
+
+// Elegant metric card component
+struct MetricCard: View {
+    let icon: String
+    let value: String
+    let label: String
+    let color: Color
+    
+    var body: some View {
+        VStack(spacing: 3) {
+            Image(systemName: icon)
+                .font(.system(size: 12, weight: .medium))
+                .foregroundColor(color)
+            
+            Text(value)
+                .font(.system(size: 14, weight: .bold, design: .rounded))
+                .foregroundColor(.white)
+            
+            Text(label.uppercased())
+                .font(.system(size: 8, weight: .semibold))
+                .foregroundColor(.white.opacity(0.7))
+                .tracking(0.8)
+        }
+        .frame(maxWidth: .infinity)
     }
 }

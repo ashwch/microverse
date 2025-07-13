@@ -40,6 +40,17 @@ class BatteryViewModel: ObservableObject {
         }
     }
     
+    @Published var showSystemInfoInWidget = false {
+        didSet {
+            saveSetting("showSystemInfoInWidget", value: showSystemInfoInWidget)
+            // Recreate widget to apply changes
+            if showDesktopWidget {
+                widgetManager?.hideWidget()
+                widgetManager?.showWidget()
+            }
+        }
+    }
+    
     
     private let reader = BatteryReader()
     private var timer: Timer?
@@ -179,6 +190,7 @@ class BatteryViewModel: ObservableObject {
            let style = WidgetStyle(rawValue: styleRaw) {
             widgetStyle = style
         }
+        showSystemInfoInWidget = defaults.bool(forKey: "showSystemInfoInWidget")
     }
     
     private func saveSetting(_ key: String, value: Any) {

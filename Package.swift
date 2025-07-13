@@ -14,12 +14,17 @@ let package = Package(
     targets: [
         .executableTarget(
             name: "Microverse",
-            dependencies: ["BatteryCore"]
+            dependencies: ["BatteryCore", "SystemCore"]
         ),
         .target(
             name: "BatteryCore",
             dependencies: [],
             path: "Sources/BatteryCore"
+        ),
+        .target(
+            name: "SystemCore",
+            dependencies: [],
+            path: "Sources/SystemCore"
         )
     ]
 )
