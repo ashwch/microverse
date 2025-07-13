@@ -16,16 +16,25 @@ enum DesignSystem {
         } else if info.isCharging {
             return .green
         } else {
-            return .white
+            return .primary
         }
     }
     
     /// Battery icon name based on charge level and charging state
     static func batteryIconName(for info: BatteryInfo) -> String {
-        let baseIcon = info.currentCharge <= 10 ? "battery.0" :
-                      info.currentCharge <= 25 ? "battery.25" :
-                      info.currentCharge <= 50 ? "battery.50" :
-                      info.currentCharge <= 75 ? "battery.75" : "battery.100"
+        let baseIcon: String
+        
+        if info.currentCharge >= 100 {
+            baseIcon = "battery.100"
+        } else if info.currentCharge >= 75 {
+            baseIcon = "battery.75"
+        } else if info.currentCharge >= 50 {
+            baseIcon = "battery.50"  
+        } else if info.currentCharge >= 25 {
+            baseIcon = "battery.25"
+        } else {
+            baseIcon = "battery.0"
+        }
         
         return info.isCharging ? "\(baseIcon).bolt" : baseIcon
     }
@@ -58,6 +67,12 @@ enum DesignSystem {
         static let body = Font.system(size: 15)
         static let caption = Font.system(size: 13)
         static let smallCaption = Font.system(size: 11)
+        
+        // Specific UI fonts
+        static let batteryPercentage = Font.system(size: 48)
+        static let buttonIcon = Font.system(size: 14)
+        static let settingsIcon = Font.system(size: 22)
+        static let statValue = Font.system(size: 17, weight: .semibold, design: .rounded)
     }
     
     // MARK: - Corner Radius
@@ -92,6 +107,19 @@ enum DesignSystem {
         static let compact = CGSize(width: 160, height: 50)
         static let standard = CGSize(width: 180, height: 100)
         static let detailed = CGSize(width: 240, height: 120)
+    }
+    
+    // MARK: - Layout
+    
+    enum Layout {
+        static let mainViewWidth: CGFloat = 280
+        static let settingsViewWidth: CGFloat = 320
+        static let settingsViewHeight: CGFloat = 400
+        static let dividerHeight: CGFloat = 20
+        static let statItemSpacing: CGFloat = 4
+        static let actionBarSpacing: CGFloat = 12
+        static let buttonPaddingHorizontal: CGFloat = 12
+        static let buttonPaddingVertical: CGFloat = 6
     }
     
     // MARK: - Opacity

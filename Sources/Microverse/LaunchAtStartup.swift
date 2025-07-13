@@ -1,7 +1,9 @@
 import Foundation
 import ServiceManagement
+import os.log
 
 class LaunchAtStartup {
+    private static let logger = Logger(subsystem: "com.microverse.app", category: "LaunchAtStartup")
     private static let appIdentifier = "com.microverse.app"
     
     static var isEnabled: Bool {
@@ -22,12 +24,12 @@ class LaunchAtStartup {
                         try SMAppService.mainApp.unregister()
                     }
                 } catch {
-                    print("Failed to \(newValue ? "enable" : "disable") launch at startup: \(error)")
+                    logger.error("Failed to \(newValue ? "enable" : "disable") launch at startup: \(error)")
                 }
             } else {
                 // Fallback for older macOS versions
                 UserDefaults.standard.set(newValue, forKey: "launchAtStartup")
-                print("Launch at startup is not fully supported on macOS < 13.0")
+                logger.warning("Launch at startup is not fully supported on macOS < 13.0")
             }
         }
     }

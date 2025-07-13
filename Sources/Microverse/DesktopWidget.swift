@@ -162,10 +162,10 @@ struct MinimalWidget: View {
             
             Text("\(batteryInfo.currentCharge)%")
                 .font(DesignSystem.Typography.widgetBody)
-                .foregroundColor(DesignSystem.batteryColor(for: batteryInfo))
+                .foregroundColor(.primary)
         }
         .padding(DesignSystem.Spacing.small) // Padding INSIDE the frame
-        .darkBackground() // Use design system background
+        .widgetBackground() // Use consistent blur background
         .frame(width: DesignSystem.WidgetSize.minimal.width, 
                height: DesignSystem.WidgetSize.minimal.height) // Explicit frame MUST match window size
     }
@@ -178,37 +178,42 @@ struct CompactWidget: View {
     let batteryInfo: BatteryInfo
     
     var body: some View {
-        HStack(spacing: DesignSystem.Spacing.medium) {
-            // Battery percentage section
+        HStack(spacing: 0) {
+            // Battery percentage section with fixed width
             HStack(spacing: DesignSystem.Spacing.micro) {
-                Image(systemName: batteryInfo.isCharging ? "bolt.fill" : "battery.100")
+                Image(systemName: batteryInfo.isCharging ? "bolt.fill" : DesignSystem.batteryIconName(for: batteryInfo))
                     .font(DesignSystem.Typography.widgetCaption)
                     .foregroundColor(DesignSystem.batteryColor(for: batteryInfo))
                 
                 Text("\(batteryInfo.currentCharge)%")
                     .font(.system(size: 14, weight: .medium, design: .rounded))
-                    .foregroundColor(DesignSystem.batteryColor(for: batteryInfo))
+                    .foregroundColor(.primary)
             }
+            .frame(width: 70, alignment: .leading) // Fixed width to prevent layout shifts
             
             // Visual separator
             Rectangle()
-                .fill(Color.white.opacity(DesignSystem.Opacity.divider))
+                .fill(Color.primary.opacity(DesignSystem.Opacity.divider))
                 .frame(width: 1, height: 20) // Fixed height divider
+                .padding(.horizontal, DesignSystem.Spacing.small)
             
             // Time remaining section
-            if let timeString = batteryInfo.timeRemainingFormatted {
-                Text(timeString)
-                    .font(.system(size: 14, weight: .medium, design: .rounded))
-                    .foregroundColor(.white)
-            } else {
-                Text("—")
-                    .font(.system(size: 14))
-                    .foregroundColor(.white.opacity(DesignSystem.Opacity.secondaryText))
+            Group {
+                if let timeString = batteryInfo.timeRemainingFormatted {
+                    Text(timeString)
+                        .font(.system(size: 14, weight: .medium, design: .rounded))
+                        .foregroundColor(.primary)
+                } else {
+                    Text("—")
+                        .font(.system(size: 14))
+                        .foregroundColor(.primary.opacity(DesignSystem.Opacity.secondaryText))
+                }
             }
+            .frame(maxWidth: .infinity, alignment: .trailing)
         }
         .padding(.horizontal, DesignSystem.Spacing.small + 2) // Horizontal padding for content
         .padding(.vertical, DesignSystem.Spacing.small)    // Vertical padding for content
-        .darkBackground(cornerRadius: DesignSystem.CornerRadius.large)
+        .widgetBackground()
         .frame(width: DesignSystem.WidgetSize.compact.width, 
                height: DesignSystem.WidgetSize.compact.height) // MUST match window size exactly
     }

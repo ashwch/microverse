@@ -37,18 +37,22 @@ git clone git@github.com:ashwch/microverse.git
 cd microverse
 ```
 
-2. Build using Swift Package Manager:
+2. Build and install using Make:
 ```bash
-swift build --product Microverse --configuration release
+make install  # Builds and installs to /Applications (requires admin password)
 ```
 
-3. The built app will be in `.build/release/Microverse`
+Or for manual control:
+```bash
+make build    # Build only
+make help     # See all available commands
+```
 
 ### Running the App
 
-1. Copy the built binary to Applications folder
-2. Launch Microverse from Applications
-3. Look for the battery icon in your menu bar
+After installation with `make install`, the app will automatically launch. You can also:
+- Launch from `/Applications/Microverse.app`
+- Look for the battery icon in your menu bar
 
 ## Usage
 
@@ -114,4 +118,3 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 - Built with ❤️ for the macOS community
 - Inspired by the need for a simple, beautiful battery monitor
-- Thanks to all contributors and users

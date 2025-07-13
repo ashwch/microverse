@@ -53,7 +53,12 @@ public class BatteryReader {
     private func getCycleCount() -> Int {
         // Use IOKit directly to get cycle count - no subprocess needed!
         let matching = IOServiceMatching("IOPMPowerSource")
-        let entry = IOServiceGetMatchingService(kIOMasterPortDefault, matching)
+        let entry: io_object_t
+        if #available(macOS 12.0, *) {
+            entry = IOServiceGetMatchingService(kIOMainPortDefault, matching)
+        } else {
+            entry = IOServiceGetMatchingService(kIOMasterPortDefault, matching)
+        }
         
         guard entry != IO_OBJECT_NULL else {
             logger.warning("Could not find IOPMPowerSource service")

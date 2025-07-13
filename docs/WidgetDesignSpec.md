@@ -39,10 +39,16 @@
 - **Critical** (≤10%): System Red
 - **Warning** (≤20%): System Orange  
 - **Charging**: System Green
-- **Normal**: Primary/White
+- **Normal**: Primary (adapts to light/dark mode)
 - **Secondary Text**: 60% opacity
 - **Dividers**: 20% opacity
-- **Background**: Black 50% opacity (minimal/compact), Blur effect (standard/detailed)
+- **Background**: Consistent blur effect for ALL widgets (visual coherence)
+
+### Design Principle: Visual Consistency
+- All widgets use the same blur background effect for family coherence
+- All text uses `.primary` color which automatically adapts to system appearance
+- This creates a unified widget family that feels cohesive on the desktop
+- The blur effect integrates better with macOS design language
 
 ## Widget Specifications (UPDATED)
 

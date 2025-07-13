@@ -20,27 +20,25 @@ struct CleanMainView: View {
                 StatItem(label: "Cycles", value: "\(viewModel.batteryInfo.cycleCount)")
                 
                 Divider()
-                    .frame(height: 20)
-                    .padding(.horizontal, 16)
+                    .frame(height: DesignSystem.Layout.dividerHeight)
+                    .padding(.horizontal, DesignSystem.Spacing.medium)
                 
                 StatItem(label: "Health", value: String(format: "%.0f%%", viewModel.batteryInfo.health * 100))
             }
-            .padding(.vertical, 12)
+            .padding(.vertical, DesignSystem.Spacing.small + DesignSystem.Spacing.micro)
             
             Divider()
             
             // Action Bar
-            HStack(spacing: 12) {
+            HStack(spacing: DesignSystem.Layout.actionBarSpacing) {
                 Button(action: { 
-                    print("Settings button clicked, current state: \(showingSettings)")
                     showingSettings = true
-                    print("Settings state after click: \(showingSettings)")
                 }) {
-                    HStack(spacing: 4) {
+                    HStack(spacing: DesignSystem.Spacing.micro) {
                         Image(systemName: "gearshape")
-                            .font(.system(size: 14))
+                            .font(DesignSystem.Typography.buttonIcon)
                         Text("Settings")
-                            .font(.system(size: 13))
+                            .font(DesignSystem.Typography.caption)
                     }
                     .foregroundColor(.primary)
                 }
@@ -51,16 +49,16 @@ struct CleanMainView: View {
                 
                 Button(action: { viewModel.refreshBatteryInfo() }) {
                     Image(systemName: "arrow.clockwise")
-                        .font(.system(size: 14))
+                        .font(DesignSystem.Typography.buttonIcon)
                         .foregroundColor(.primary)
                 }
                 .buttonStyle(FlatButtonStyle())
                 .help("Refresh battery info")
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 8)
+            .padding(.horizontal, DesignSystem.Spacing.medium)
+            .padding(.vertical, DesignSystem.Spacing.small)
         }
-        .frame(width: 280)
+        .frame(width: DesignSystem.Layout.mainViewWidth)
         .background(Color(NSColor.controlBackgroundColor))
         .onAppear {
             viewModel.refreshBatteryInfo()
@@ -89,13 +87,19 @@ struct BatteryStatusView: View {
         VStack(spacing: DesignSystem.Spacing.small) {
             // Battery Icon
             Image(systemName: DesignSystem.batteryIconName(for: batteryInfo))
-                .font(.system(size: 48))
+                .font(DesignSystem.Typography.batteryPercentage)
                 .foregroundColor(DesignSystem.batteryColor(for: batteryInfo))
             
-            // Percentage
-            Text("\(batteryInfo.currentCharge)%")
-                .font(DesignSystem.Typography.largeTitle)
-                .foregroundColor(DesignSystem.batteryColor(for: batteryInfo))
+            // Percentage - show loading if 0%
+            if batteryInfo.currentCharge == 0 && !batteryInfo.isCharging {
+                Text("Loading...")
+                    .font(DesignSystem.Typography.largeTitle)
+                    .foregroundColor(.secondary)
+            } else {
+                Text("\(batteryInfo.currentCharge)%")
+                    .font(DesignSystem.Typography.largeTitle)
+                    .foregroundColor(DesignSystem.batteryColor(for: batteryInfo))
+            }
             
             // Status
             Text(statusText)
@@ -117,11 +121,11 @@ struct StatItem: View {
     let value: String
     
     var body: some View {
-        VStack(spacing: 4) {
+        VStack(spacing: DesignSystem.Layout.statItemSpacing) {
             Text(value)
-                .font(.system(size: 17, weight: .semibold, design: .rounded))
+                .font(DesignSystem.Typography.statValue)
             Text(label)
-                .font(.system(size: 11))
+                .font(DesignSystem.Typography.smallCaption)
                 .foregroundColor(.secondary)
         }
         .frame(maxWidth: .infinity)
@@ -133,14 +137,14 @@ struct FlatButtonStyle: ButtonStyle {
     
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
+            .padding(.horizontal, DesignSystem.Layout.buttonPaddingHorizontal)
+            .padding(.vertical, DesignSystem.Layout.buttonPaddingVertical)
             .background(
-                RoundedRectangle(cornerRadius: 6)
+                RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.small)
                     .fill(configuration.isPressed ? Color.secondary.opacity(0.2) : 
                           isHovered ? Color.secondary.opacity(0.1) : Color.clear)
             )
-            .contentShape(RoundedRectangle(cornerRadius: 6))
+            .contentShape(RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.small))
             .onHover { hovering in
                 isHovered = hovering
             }
@@ -157,11 +161,11 @@ struct SettingsView: View {
             // Header
             HStack {
                 Text("Settings")
-                    .font(.system(size: 17, weight: .semibold))
+                    .font(DesignSystem.Typography.headline)
                 Spacer()
                 Button(action: { isPresented = false }) {
                     Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 22))
+                        .font(DesignSystem.Typography.settingsIcon)
                         .foregroundColor(.secondary)
                 }
                 .buttonStyle(PlainButtonStyle())
@@ -234,7 +238,7 @@ struct SettingsView: View {
                 .padding(.vertical)
             }
         }
-        .frame(width: 320, height: 400)
+        .frame(width: DesignSystem.Layout.settingsViewWidth, height: DesignSystem.Layout.settingsViewHeight)
         .background(Color(NSColor.windowBackgroundColor))
     }
 }
