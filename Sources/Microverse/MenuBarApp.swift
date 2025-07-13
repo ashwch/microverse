@@ -62,10 +62,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         popover.contentSize = NSSize(width: 380, height: 500)
         popover.behavior = .transient
         
-        let contentView = ContentView()
+        let cleanMainView = CleanMainView()
             .environmentObject(viewModel)
         
-        popover.contentViewController = NSHostingController(rootView: contentView)
+        popover.contentViewController = NSHostingController(rootView: cleanMainView)
         
         // Update periodically
         Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in

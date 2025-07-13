@@ -12,7 +12,6 @@ class BatteryViewModel: ObservableObject {
     
     // Settings that actually work
     @Published var targetChargeLimit: Int = 80
-    @Published var chargingEnabled = true
     @Published var showAdminFeatures = false
     
     // App settings
@@ -51,8 +50,6 @@ class BatteryViewModel: ObservableObject {
     private let reader = BatteryReader()
     private let privilegedController = BatteryControllerPrivileged()
     private let modernAuth = ModernAuthHelper()
-    private let helperManager = HelperManager()
-    private let simpleBatteryControl = SimpleBatteryControl()
     private var timer: Timer?
     private var cancellables = Set<AnyCancellable>()
     private let logger = Logger(subsystem: "com.microverse.app", category: "BatteryViewModel")
@@ -92,9 +89,8 @@ class BatteryViewModel: ObservableObject {
     func checkCapabilities() {
         capabilities = reader.getCapabilities()
         
-        // Check available battery control features
-        // Remove unused SMC features check
-        showAdminFeatures = false  // No fake controls
+        // No admin features in simplified version
+        showAdminFeatures = false
         
         logger.info("Battery monitoring ready")
     }
@@ -103,13 +99,8 @@ class BatteryViewModel: ObservableObject {
         isRequestingAdminAccess = true
         lastError = nil
         
-        // First check if helper is already installed
-        if helperManager.isHelperInstalled() {
-            showAdminFeatures = true
-            isRequestingAdminAccess = false
-            logger.info("Helper tool already available")
-            return
-        }
+        // For now, just show the guide
+        // In a real implementation, this would check for helper installation
         
         // Show battery control guide
         showBatteryControlGuide = true
@@ -140,32 +131,6 @@ class BatteryViewModel: ObservableObject {
         }
     }
     
-    func toggleCharging() {
-        guard showAdminFeatures else {
-            lastError = "Admin access required"
-            return
-        }
-        
-        Task {
-            let result = privilegedController.setChargingEnabled(!chargingEnabled)
-            
-            await MainActor.run {
-                switch result {
-                case .success:
-                    chargingEnabled.toggle()
-                    lastError = nil
-                case .requiresAuthentication:
-                    requestAdminAccess()
-                case .notSupported(let reason):
-                    lastError = "Not supported: \(reason)"
-                    logger.warning("Charge limit not supported: \(reason)")
-                case .failed(let error):
-                    lastError = "Failed: \(error.localizedDescription)"
-                    logger.error("Charge limit failed: \(error)")
-                }
-            }
-        }
-    }
     
     // MARK: - Private Methods
     

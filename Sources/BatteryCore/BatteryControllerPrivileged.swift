@@ -1,13 +1,11 @@
 import Foundation
 import os.log
-import SMCKit
 
 /// Handles battery control operations that require elevated privileges
 public class BatteryControllerPrivileged {
     private let logger = Logger(subsystem: "com.microverse.app", category: "BatteryControllerPrivileged")
     private let reader = BatteryReader()
     private let authHelper = AuthorizationHelper()
-    private let smcController = SMCBatteryController()
     
     public init() {}
     
@@ -99,43 +97,31 @@ public class BatteryControllerPrivileged {
         }
     }
     
-    /// Enable/disable charging (requires admin)
+    /// Enable/disable charging (requires admin) - NOT IMPLEMENTED
     public func setChargingEnabled(_ enabled: Bool) -> BatteryControlResult {
-        // Use real SMC controller
-        let result = smcController.setChargingEnabled(enabled)
-        
-        switch result {
-        case .success:
-            return .success
-        case .requiresRoot:
-            return .requiresAuthentication
-        case .failed(let error):
-            return .failed(error: NSError(domain: "SMC", code: 2, userInfo: [NSLocalizedDescriptionKey: error]))
-        case .notSupported:
-            return .notSupported(reason: "Charging control not supported on this Mac")
-        }
+        return .notSupported(reason: "Charging control is not implemented")
     }
     
-    // MARK: - Additional SMC Functions
+    // MARK: - Additional Functions (removed SMC dependencies)
     
-    /// Get current charge limit from SMC
+    /// Get current charge limit from macOS settings
     public func getCurrentChargeLimit() -> Int? {
-        return smcController.getChargeLimit()
+        return getCurrentEffectiveChargeLimit()
     }
     
-    /// Check if charging is currently enabled
+    /// Check if charging is currently enabled - NOT IMPLEMENTED
     public func isChargingEnabled() -> Bool? {
-        return smcController.isChargingEnabled()
+        return nil
     }
     
-    /// Get battery temperature from SMC
+    /// Get battery temperature - NOT IMPLEMENTED
     public func getBatteryTemperature() -> Double? {
-        return smcController.getBatteryTemperature()
+        return nil
     }
     
-    /// List available battery SMC keys for debugging
+    /// List available battery keys for debugging - NOT IMPLEMENTED
     public func getAvailableBatteryKeys() -> [String] {
-        return smcController.listAvailableBatteryKeys()
+        return []
     }
     
 }

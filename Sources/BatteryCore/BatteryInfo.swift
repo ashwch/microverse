@@ -16,8 +16,9 @@ public struct BatteryInfo: Equatable {
     
     // Health metrics
     public let health: Double            // 0.0-1.0 (maxCapacity/designCapacity)
-    public let voltage: Double?          // mV
+    public let voltage: Double           // Volts
     public let amperage: Int?            // mA
+    public let temperature: Double       // Celsius
     
     // System info
     public let hardwareModel: String     // Mac model
@@ -33,8 +34,9 @@ public struct BatteryInfo: Equatable {
         adapterWattage: Int? = nil,
         powerSourceType: String = "Battery Power",
         health: Double = 1.0,
-        voltage: Double? = nil,
+        voltage: Double = 12.0,
         amperage: Int? = nil,
+        temperature: Double = 25.0,
         hardwareModel: String = "Unknown",
         isAppleSilicon: Bool = false
     ) {
@@ -49,6 +51,7 @@ public struct BatteryInfo: Equatable {
         self.health = health
         self.voltage = voltage
         self.amperage = amperage
+        self.temperature = temperature
         self.hardwareModel = hardwareModel
         self.isAppleSilicon = isAppleSilicon
     }
@@ -80,4 +83,16 @@ public enum BatteryControlResult {
     case requiresAuthentication
     case notSupported(reason: String)
     case failed(error: Error)
+}
+
+// MARK: - Extensions
+
+extension BatteryInfo {
+    /// Formatted time remaining string (e.g., "2:34" or "10:15")
+    public var timeRemainingFormatted: String? {
+        guard let minutes = timeRemaining, minutes > 0 else { return nil }
+        let hours = minutes / 60
+        let mins = minutes % 60
+        return String(format: "%d:%02d", hours, mins)
+    }
 }

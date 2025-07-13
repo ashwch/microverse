@@ -7,35 +7,23 @@ let package = Package(
         .macOS(.v11)
     ],
     products: [
-        .executable(name: "Microverse", targets: ["Microverse"]),
-        .executable(name: "HelperTool", targets: ["HelperTool"]),
-        .library(name: "SMCKit", targets: ["SMCKit"])
+        .executable(name: "Microverse", targets: ["Microverse"])
     ],
     dependencies: [
     ],
     targets: [
         .executableTarget(
             name: "Microverse",
-            dependencies: ["SMCKit", "BatteryCore"]
-        ),
-        .executableTarget(
-            name: "HelperTool",
-            dependencies: ["SMCKit", "BatteryCore"],
-            path: "Sources/HelperTool"
-        ),
-        .target(
-            name: "SMCKit",
-            dependencies: [],
-            path: "Sources/SMCKit"
+            dependencies: ["BatteryCore"]
         ),
         .target(
             name: "BatteryCore",
-            dependencies: ["SMCKit"],
+            dependencies: [],
             path: "Sources/BatteryCore"
         ),
         .testTarget(
             name: "MicroverseTests",
-            dependencies: ["Microverse", "BatteryCore", "SMCKit"],
+            dependencies: ["Microverse", "BatteryCore"],
             path: "Tests/MicroverseTests"
         )
     ]
