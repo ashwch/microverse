@@ -11,6 +11,9 @@ env:
   SCHEME_NAME: Microverse
   CONFIGURATION: Release
 
+permissions:
+  contents: write
+
 jobs:
   build-and-release:
     runs-on: macos-latest
