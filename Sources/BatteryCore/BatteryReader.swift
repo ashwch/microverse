@@ -19,19 +19,24 @@ public class BatteryReader {
         for source in sources {
             if let description = IOPSGetPowerSourceDescription(snapshot, source as CFTypeRef)?.takeUnretainedValue() as? [String: Any] {
                 // Basic battery stats
+                // Get cycle count efficiently from IOKit
+                let cycleCount = getCycleCount()
+                
+                // Calculate time remaining based on charging state
+                let timeRemaining: Int? = if description[kIOPSIsChargingKey] as? Bool == true {
+                    description[kIOPSTimeToFullChargeKey] as? Int
+                } else {
+                    description[kIOPSTimeToEmptyKey] as? Int
+                }
+                
                 info = BatteryInfo(
                     currentCharge: description[kIOPSCurrentCapacityKey] as? Int ?? 0,
                     isCharging: description[kIOPSIsChargingKey] as? Bool ?? false,
                     isPluggedIn: description[kIOPSPowerSourceStateKey] as? String == kIOPSACPowerValue,
-                    cycleCount: getCycleCount(),
+                    cycleCount: cycleCount,
                     maxCapacity: description[kIOPSMaxCapacityKey] as? Int ?? 100,
-                    timeRemaining: description[kIOPSTimeToEmptyKey] as? Int,
-                    adapterWattage: (description["AdapterDetails"] as? [String: Any])?["Watts"] as? Int,
-                    powerSourceType: description[kIOPSPowerSourceStateKey] as? String ?? "Unknown",
-                    health: calculateHealth(maxCapacity: description[kIOPSMaxCapacityKey] as? Int ?? 100),
-                    amperage: description["Amperage"] as? Int,
-                    hardwareModel: getHardwareModel(),
-                    isAppleSilicon: isAppleSilicon()
+                    timeRemaining: timeRemaining,
+                    health: calculateHealth(maxCapacity: description[kIOPSMaxCapacityKey] as? Int ?? 100)
                 )
                 
                 logger.debug("Battery info: \(info.currentCharge)%, charging: \(info.isCharging), plugged: \(info.isPluggedIn)")
@@ -42,99 +47,50 @@ public class BatteryReader {
         return info
     }
     
-    /// Get battery control capabilities for this system
-    public func getCapabilities() -> BatteryControlCapabilities {
-        if isAppleSilicon() {
-            // Apple Silicon: Limited to 80% and 100%
-            return BatteryControlCapabilities(
-                canSetChargeLimit: true,
-                canDisableCharging: true,
-                canReadSMC: false,
-                supportedChargeLimits: [80, 100]
-            )
-        } else {
-            // Intel: Full range 50-100%
-            return BatteryControlCapabilities(
-                canSetChargeLimit: true,
-                canDisableCharging: true,
-                canReadSMC: true,
-                supportedChargeLimits: Array(stride(from: 50, through: 100, by: 5))
-            )
-        }
-    }
     
     // MARK: - Private Helpers
     
     private func getCycleCount() -> Int {
-        let task = Process()
-        task.launchPath = "/usr/sbin/system_profiler"
-        task.arguments = ["SPPowerDataType", "-detailLevel", "mini"]
+        // Use IOKit directly to get cycle count - no subprocess needed!
+        let matching = IOServiceMatching("IOPMPowerSource")
+        let entry = IOServiceGetMatchingService(kIOMasterPortDefault, matching)
         
-        let pipe = Pipe()
-        task.standardOutput = pipe
-        
-        do {
-            try task.run()
-            
-            // Add timeout
-            let deadline = DispatchTime.now() + .seconds(3)
-            let result = DispatchGroup()
-            result.enter()
-            
-            DispatchQueue.global().async {
-                task.waitUntilExit()
-                result.leave()
-            }
-            
-            if result.wait(timeout: deadline) == .timedOut {
-                task.terminate()
-                logger.error("Cycle count fetch timed out")
-                return 0
-            }
-            
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            if let output = String(data: data, encoding: .utf8) {
-                // Parse cycle count from output
-                let lines = output.components(separatedBy: .newlines)
-                for line in lines {
-                    if line.contains("Cycle Count:") || line.contains("Cycle count:") {
-                        let components = line.components(separatedBy: ":")
-                        if components.count >= 2 {
-                            let cycleString = components[1].trimmingCharacters(in: .whitespaces)
-                            if let cycles = Int(cycleString) {
-                                logger.info("Found cycle count: \(cycles)")
-                                return cycles
-                            }
-                        }
-                    }
-                }
-                logger.warning("Could not find cycle count in output")
-            }
-        } catch {
-            logger.error("Failed to get cycle count: \(error)")
+        guard entry != IO_OBJECT_NULL else {
+            logger.warning("Could not find IOPMPowerSource service")
+            return 0
         }
         
+        defer { IOObjectRelease(entry) }
+        
+        // Try to get the cycle count property
+        if let cycleCountRef = IORegistryEntryCreateCFProperty(entry, 
+                                                               "CycleCount" as CFString,
+                                                               kCFAllocatorDefault,
+                                                               0) {
+            if let cycleCount = cycleCountRef.takeRetainedValue() as? Int {
+                logger.debug("Got cycle count from IOKit: \(cycleCount)")
+                return cycleCount
+            }
+        }
+        
+        // Fallback: Check BatteryData dictionary
+        if let batteryDataRef = IORegistryEntryCreateCFProperty(entry,
+                                                                "BatteryData" as CFString,
+                                                                kCFAllocatorDefault,
+                                                                0) {
+            if let batteryData = batteryDataRef.takeRetainedValue() as? [String: Any],
+               let cycleCount = batteryData["CycleCount"] as? Int {
+                logger.debug("Got cycle count from BatteryData: \(cycleCount)")
+                return cycleCount
+            }
+        }
+        
+        logger.warning("Could not get cycle count from IOKit")
         return 0
     }
     
     private func calculateHealth(maxCapacity: Int) -> Double {
         // Health is current max capacity vs design capacity (100)
         return Double(maxCapacity) / 100.0
-    }
-    
-    private func getHardwareModel() -> String {
-        var size = 0
-        sysctlbyname("hw.model", nil, &size, nil, 0)
-        var model = [CChar](repeating: 0, count: size)
-        sysctlbyname("hw.model", &model, &size, nil, 0)
-        return String(cString: model)
-    }
-    
-    private func isAppleSilicon() -> Bool {
-        #if arch(arm64)
-        return true
-        #else
-        return false
-        #endif
     }
 }

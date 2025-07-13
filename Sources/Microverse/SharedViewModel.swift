@@ -4,4 +4,7 @@ import Foundation
 @MainActor
 class SharedViewModel {
     static let shared = BatteryViewModel()
+    
+    // Store widget manager to maintain strong reference
+    static var widgetManager: DesktopWidgetManager?
 }

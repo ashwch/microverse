@@ -8,9 +8,6 @@ import BatteryCore
 class BatteryViewModel: ObservableObject {
     // Real battery info
     @Published var batteryInfo = BatteryInfo()
-    @Published var capabilities = BatteryControlCapabilities()
-    
-    // App settings only
     
     // App settings
     @Published var launchAtStartup = LaunchAtStartup.isEnabled {
@@ -40,26 +37,25 @@ class BatteryViewModel: ObservableObject {
         }
     }
     
-    // UI State
-    @Published var lastError: String?
     
     private let reader = BatteryReader()
     private var timer: Timer?
     private var cancellables = Set<AnyCancellable>()
     private let logger = Logger(subsystem: "com.microverse.app", category: "BatteryViewModel")
-    private var widgetManager: DesktopWidgetManager?
+    private weak var widgetManager: DesktopWidgetManager?
     
     init() {
         logger.info("BatteryViewModel initializing...")
         
         loadSettings()
         refreshBatteryInfo()
-        checkCapabilities()
         startMonitoring()
         setupBindings()
         
         // Initialize widget manager
-        widgetManager = DesktopWidgetManager(viewModel: self)
+        let manager = DesktopWidgetManager(viewModel: self)
+        SharedViewModel.widgetManager = manager  // Store strong reference
+        widgetManager = manager  // Keep weak reference for access
         
         // Show widget if it was enabled
         if showDesktopWidget {
@@ -80,20 +76,6 @@ class BatteryViewModel: ObservableObject {
         logger.debug("Battery: \(self.batteryInfo.currentCharge)%, \(self.batteryInfo.isCharging ? "charging" : "not charging")")
     }
     
-    func checkCapabilities() {
-        capabilities = reader.getCapabilities()
-        logger.info("Battery monitoring ready")
-    }
-    
-    func requestAdminAccess() {
-        // Admin access not implemented in simplified version
-        lastError = "Admin features not available"
-    }
-    
-    func setChargeLimit(_ limit: Int) {
-        // Charge limit control not available in simplified version
-        lastError = "Charge limit control requires admin privileges"
-    }
     
     
     // MARK: - Private Methods

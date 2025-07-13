@@ -23,7 +23,7 @@ enum WidgetStyle: String, CaseIterable {
 class DesktopWidgetManager: ObservableObject {
     private var window: DesktopWidgetWindow?
     private var hostingView: NSHostingView<AnyView>?
-    weak var viewModel: BatteryViewModel?
+    private weak var viewModel: BatteryViewModel?
     
     init(viewModel: BatteryViewModel) {
         self.viewModel = viewModel

@@ -1,6 +1,7 @@
 import SwiftUI
 import AppKit
 import os.log
+import Combine
 
 @main
 struct MicroverseApp: App {
@@ -24,6 +25,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     var popover: NSPopover!
     var viewModel: BatteryViewModel!
     var popoverContentViewController: NSViewController?
+    private var cancellables = Set<AnyCancellable>()
     
     private let logger = Logger(subsystem: "com.microverse.app", category: "AppDelegate")
     
@@ -70,12 +72,14 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         popoverContentViewController = NSHostingController(rootView: cleanMainView)
         popover.contentViewController = popoverContentViewController
         
-        // Update periodically
-        Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
-            Task { @MainActor in
+        // Update menu bar display when battery info changes
+        // Use Combine to observe changes instead of polling
+        viewModel.$batteryInfo
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
                 self?.updateMenuBarDisplay()
             }
-        }
+            .store(in: &cancellables)
         
         logger.info("Battery manager setup complete")
     }
