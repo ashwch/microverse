@@ -1,131 +1,405 @@
-# Microverse UI Design Document v3.0  
+# Microverse Design System v3.0
 
-**⚠️ DEPRECATED: This document reflects the old single-panel design. See [Current Architecture](CURRENT_ARCHITECTURE.md) and [Design Mockups](DESIGN_MOCKUPS.md) for current implementation.**
+## Design Philosophy
 
-## Current Design Philosophy (Updated)
-- **Johnny Ive Inspired**: Clarity, deference, depth through semantic hierarchy
-- **Unified System**: Tabbed interface for Battery, CPU, Memory, and Overview
-- **Semantic Colors**: Green=energy, Blue=computing, Purple=memory, White=system
-- **Glass Effects**: Elegant blur backgrounds with subtle borders
-- **Adaptive Interface**: Responsive to system state and user needs
+### Johnny Ive Principles
+- **Clarity**: Information hierarchy through semantic color and typography
+- **Deference**: UI serves content, never competes with system metrics
+- **Depth**: Layered information through blur effects and proper spacing
 
-## Main Popover (280×Auto)
+### Core Values
+- **Semantic Color System**: Green=energy, Blue=computing, Purple=memory, White=system
+- **Unified Interface**: Consistent design language across tabs and widgets
+- **Adaptive Behavior**: Responsive to system state and user context
+- **Glass Aesthetics**: Elegant blur backgrounds with subtle borders
 
-### Layout
+## Current Interface (v3.0)
+
+### Main Popover (280×500)
 ```
 ┌─────────────────────────────────┐
-│         [Battery Icon]          │
-│            59%                  │
-│          Charging               │
+│ ◐ Overview  ⚡ Battery  ⚙ CPU   │ <- Tab Bar
+│           🧠 Memory             │    
+├─────────────────────────────────┤
+│                                 │
+│     [Dynamic Tab Content]       │ <- 400px content area
 │                                 │
 ├─────────────────────────────────┤
-│   30      │      100%           │
-│  Cycles   │     Health          │
-├─────────────────────────────────┤
-│ ⚙ Settings            ↻         │
+│ ⚙ Settings     About    Quit   │ <- Action Bar
 └─────────────────────────────────┘
 ```
 
-### Components
-1. **Battery Status** (Center-aligned)
-   - Large battery icon (48pt) with dynamic fill
-   - Percentage text (28pt bold)
-   - Status text (15pt regular)
-   - Time remaining (13pt) when applicable
+### Tab Content Areas
 
-2. **Stats Row** (Equal width columns)
-   - Cycle count and health percentage
-   - Separated by divider
-   - Value (17pt semibold) above label (11pt)
+#### Overview Tab
+- Unified metrics display with consistent spacing
+- Battery, CPU, Memory status in semantic colors
+- Clean typography hierarchy
 
-3. **Action Bar**
-   - Settings button (left): Icon + "Settings" text
-   - Refresh button (right): Icon only
-   - Flat button style with hover states
+#### Battery Tab  
+- Large percentage display (32pt SF Pro Rounded)
+- Health metrics and cycle count
+- Time remaining with proper contrast
 
-## Settings Sheet (320×400)
+#### CPU Tab
+- Real-time usage percentage
+- Basic system information
+- Consistent with overall design language
 
-### Sections
-1. **Display**
-   - Show percentage in menu bar toggle
+#### Memory Tab
+- Memory usage and pressure indicators
+- Clean metric presentation
+- Unified color coding
 
-2. **Desktop Widget**  
-   - Enable widget toggle
-   - Style picker (when enabled)
+## Widget System (6 Styles)
 
-3. **General**
-   - Launch at startup toggle
-   - Refresh interval picker
+### Battery Widgets
+1. **Minimal (100×40)**: `⚡ 85%` - Essential info only
+2. **Compact (160×50)**: Battery + time in horizontal layout
+3. **Standard (180×100)**: Large percentage with status text
+4. **Detailed (240×120)**: Complete battery statistics
 
-## Desktop Widgets
+### System Widgets  
+5. **CPU (160×80)**: Dedicated CPU monitoring with progress bar
+6. **Memory (160×80)**: Memory pressure with usage metrics
+7. **System (240×100)**: Unified overview of all metrics
 
-### Minimal (100×40)
+### Unified Widget Background
+```swift
+.background(
+    RoundedRectangle(cornerRadius: 16)
+        .fill(Color.black.opacity(0.85))
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(Color.white.opacity(0.1), lineWidth: 1)
+        )
+)
 ```
-┌─────────────┐
-│  ⚡ 59%     │
-└─────────────┘
-```
-- Simple percentage display
-- Charging bolt when applicable
-- Dark semi-transparent background
 
-### Compact (160×60)
-```
-┌───────────────────┐
-│ ⚡ 59%    1:45    │
-└───────────────────┘
-```
-- Battery percentage + time remaining
-- Horizontal layout
-- Dark background
+## Design Tokens
 
-### Standard (180×100)
+### Color System
+```swift
+enum Colors {
+    // Semantic colors
+    static let battery = success      // Energy = green
+    static let processor = neutral    // Computing = blue  
+    static let memory = Color.purple  // Storage = purple
+    static let system = accent        // Overall = white
+    
+    // Status colors
+    static let success = Color.green
+    static let warning = Color.orange  
+    static let critical = Color.red
+    static let neutral = Color.blue
+}
 ```
-┌───────────────────┐
-│       59%         │
-│    Charging       │
-│      1:45         │
-└───────────────────┘
+
+### Typography Hierarchy
+```swift
+enum Typography {
+    static let display = Font.system(size: 32, weight: .bold, design: .rounded)    // Hero numbers
+    static let largeTitle = Font.system(size: 24, weight: .bold, design: .rounded) // Section headers
+    static let title = Font.system(size: 18, weight: .semibold, design: .rounded)  // Subsection headers
+    static let body = Font.system(size: 14, weight: .medium, design: .rounded)     // Content
+    static let caption = Font.system(size: 12, weight: .medium, design: .rounded)  // Labels
+    static let label = Font.system(size: 10, weight: .semibold)                    // Small labels (uppercase)
+}
 ```
-- Centered layout
-- Large percentage (32pt)
-- Vibrancy background
 
-### Detailed (200×120)
+### Layout System
+```swift
+enum Layout {
+    static let space1: CGFloat = 4    // micro
+    static let space2: CGFloat = 8    // small  
+    static let space3: CGFloat = 12   // medium
+    static let space4: CGFloat = 16   // large
+    static let space5: CGFloat = 24   // xlarge
+    static let space6: CGFloat = 32   // xxlarge
+    
+    static let cornerRadius: CGFloat = 12
+    static let cornerRadiusLarge: CGFloat = 16
+}
 ```
-┌───────────────────┐
-│ ⚡ 59%   Charging │
-│                   │
-│ Cycles  Health    │
-│   30     100%     │
-└───────────────────┘
+
+## Component Library
+
+### UnifiedMetric Component
+Consistent metric display across all tabs:
+```swift
+UnifiedMetric(
+    style: MicroverseDesign.batteryMetric,
+    value: "85%",
+    subtitle: "3:42 remaining"
+)
 ```
-- Comprehensive info
-- Clean grid layout
-- Vibrancy background
 
-## Colors
+### SectionHeader Component
+Consistent section labeling:
+```swift
+SectionHeader("BATTERY HEALTH", systemIcon: "heart.fill")
+```
 
-### Battery Status Colors
-- **Normal**: System primary
-- **Charging**: System green
-- **Low (≤20%)**: System orange  
-- **Critical (≤10%)**: System red
-
-### Widget Colors
-- **Text**: White/primary (adaptive)
-- **Background**: Black 50% opacity or vibrancy
-- **Border**: White 10% opacity
-
-## Typography
-- **Large numbers**: SF Pro Rounded
-- **Body text**: SF Pro Text
-- **All sizes**: System dynamic type
+### InsightRow Component  
+Status and alert display:
+```swift
+InsightRow(
+    icon: "checkmark.circle.fill",
+    message: "Battery health is excellent",
+    level: .normal
+)
+```
 
 ## Implementation Guidelines
-1. Use SwiftUI native components
-2. Respect system appearance (dark/light)
-3. Use SF Symbols for all icons
-4. Apply consistent spacing (8pt grid)
-5. Add subtle animations (0.2s ease)
-6. Ensure keyboard accessibility
+
+### Visual Consistency
+- All components use semantic color system
+- Typography follows established hierarchy  
+- Spacing adheres to 4px grid system
+- Corner radius consistent across components
+
+### Interaction Design
+- 0.3s spring animations for state changes
+- Hover states with subtle opacity changes
+- Tab transitions with slide + fade effect
+- Button interactions with haptic feedback
+
+### Accessibility
+- High contrast mode support
+- VoiceOver descriptions for all metrics
+- Keyboard navigation between tabs
+- Reduced motion respect for animations
+
+## Future Considerations
+
+### Expandability
+- Design system supports additional metric types
+- Color palette accommodates new categories
+- Layout system scales to more complex interfaces
+- Component library enables rapid feature development
+
+### Performance
+- Efficient rendering with minimal redraws
+- Cached color and font objects
+- Optimized animation performance
+- Lazy loading for complex views
+
+## Detailed Implementation Specifications
+
+### Tab Implementation Details
+
+#### Tab Button Design (TabbedMainView.swift:140-168)
+```swift
+struct TabButton: View {
+    // Fixed dimensions: maxWidth: .infinity, minHeight: 36
+    // Background: RoundedRectangle(cornerRadius: 8)
+    // Selected state: Color.black.opacity(0.3)
+    // Icon: 14pt weight .medium
+    // Text: 9pt weight .medium, tracking 0.5, uppercase
+    // Color: .white (selected) vs .white.opacity(0.6) (unselected)
+}
+```
+
+#### Section Header Pattern (UnifiedDesignSystem.swift:152-177)
+```swift
+struct SectionHeader: View {
+    // Standard implementation across all tabs
+    // Text: uppercased with tracking 1.2
+    // Icon: 12pt weight .medium, optional leading icon
+    // Color: accentSubtle (white.opacity(0.6))
+    // Spacing: HStack with Spacer() trailing
+}
+```
+
+### Widget Rendering Specifications
+
+#### Widget Size Constraints
+```swift
+// DesktopWidget.swift:80-90
+private func sizeForStyle(_ style: WidgetStyle) -> NSSize {
+    switch style {
+    case .minimal: return NSSize(width: 100, height: 40)
+    case .compact: return NSSize(width: 160, height: 50)  
+    case .standard: return NSSize(width: 180, height: 100)
+    case .detailed: return NSSize(width: 240, height: 120)
+    case .cpu, .memory: return NSSize(width: 160, height: 80)
+    case .system: return NSSize(width: 240, height: 100) // Compact to prevent cropping
+    }
+}
+```
+
+#### Widget Background Implementation
+```swift
+// DesktopWidget.swift:388-404
+extension View {
+    func widgetBackground() -> some View {
+        self.background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color.black.opacity(0.85))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(Color.white.opacity(0.1), lineWidth: 1)
+                )
+        )
+    }
+}
+```
+
+### Color Threshold Specifications
+
+#### Battery Color Logic (UnifiedBatteryTab.swift:111-121)
+```swift
+private var batteryColor: Color {
+    if viewModel.batteryInfo.currentCharge <= 10 {
+        return MicroverseDesign.Colors.critical  // Red
+    } else if viewModel.batteryInfo.currentCharge <= 20 {
+        return MicroverseDesign.Colors.warning   // Orange
+    } else if viewModel.batteryInfo.isCharging {
+        return MicroverseDesign.Colors.success   // Green
+    } else {
+        return MicroverseDesign.Colors.battery   // White/Green
+    }
+}
+```
+
+#### CPU Color Thresholds (UnifiedCPUTab.swift:82-90)
+```swift
+private var cpuColor: Color {
+    if systemService.cpuUsage > 80 {
+        return MicroverseDesign.Colors.critical  // Red
+    } else if systemService.cpuUsage > 60 {
+        return MicroverseDesign.Colors.warning   // Orange
+    } else {
+        return MicroverseDesign.Colors.processor // Blue
+    }
+}
+```
+
+#### Memory Pressure Colors (UnifiedMemoryTab.swift:99-112)
+```swift
+private var memoryColor: Color {
+    switch systemService.memoryInfo.pressure {
+    case .critical: return MicroverseDesign.Colors.critical  // Red
+    case .warning: return MicroverseDesign.Colors.warning    // Orange
+    case .normal:
+        if systemService.memoryInfo.usagePercentage > 80 {
+            return MicroverseDesign.Colors.warning           // Orange
+        } else {
+            return MicroverseDesign.Colors.memory            // Purple
+        }
+    }
+}
+```
+
+### Animation Specifications
+
+#### Progress Bar Animations (UnifiedCPUTab.swift:34)
+```swift
+.animation(MicroverseDesign.Animation.standard, value: systemService.cpuUsage)
+
+// Where Animation.standard = SwiftUI.Animation.easeInOut(duration: 0.3)
+```
+
+#### Widget Recreation Animation (BatteryViewModel.swift:95-110)
+```swift
+// No explicit animation - immediate hide/show for setting changes
+if showDesktopWidget {
+    widgetManager?.hideWidget()
+    widgetManager?.showWidget()
+}
+```
+
+### Typography Implementation
+
+#### Display Typography Usage
+- **32pt Display**: CPU/Memory percentage displays, system health text
+- **24pt Large Title**: Battery percentage in main tab
+- **18pt Title**: Memory usage "X.X / Y.Y GB" format
+- **14pt Body**: Standard content text, time remaining
+- **12pt Caption**: Status text, info row labels
+- **10pt Label**: Uppercase section headers, widget labels
+
+#### Font Weight Strategy
+- **Bold**: Hero numbers, important percentages
+- **Semibold**: Section headers, subsection titles
+- **Medium**: Body content, button text, metric labels
+- **Regular**: Secondary information, descriptions
+
+### Spacing Implementation
+
+#### Card Padding Standards
+```swift
+// All cards use consistent 12pt internal padding
+.padding(12)
+.background(MicroverseDesign.cardBackground())
+
+// Tab content uses 8pt external padding for breathing room
+.padding(8)
+
+// Widget cards use smaller 6pt external padding
+.padding(6)
+```
+
+#### Element Spacing Patterns
+```swift
+// VStack spacing between cards: 8pt
+VStack(spacing: 8) { ... }
+
+// VStack spacing within cards: MicroverseDesign.Layout.space3 (12pt)
+VStack(spacing: MicroverseDesign.Layout.space3) { ... }
+
+// HStack spacing for metrics: 12pt
+HStack(spacing: 12) { ... }
+
+// Small element spacing: MicroverseDesign.Layout.space2 (8pt)
+HStack(spacing: MicroverseDesign.Layout.space2) { ... }
+```
+
+### Error State Design
+
+#### Default Value Strategy
+```swift
+// BatteryInfo defaults when system access fails
+BatteryInfo(
+    currentCharge: 0,
+    isCharging: false,
+    isPluggedIn: false,
+    cycleCount: 0,
+    maxCapacity: 100,
+    timeRemaining: nil,
+    health: 1.0
+)
+
+// MemoryInfo defaults for system call failures  
+MemoryInfo(
+    totalMemory: 0,
+    usedMemory: 0,
+    pressure: .normal,
+    compressionRatio: 0
+)
+```
+
+#### Fallback UI Patterns
+- **Missing Time**: Show "—" dash character
+- **Zero Values**: Display as 0% or 0 GB with normal styling
+- **System Access Denied**: Graceful degradation with logging
+
+### Accessibility Specifications
+
+#### VoiceOver Support
+- All metrics include descriptive labels
+- Status indicators have semantic meaning
+- Tab navigation follows logical order
+- Button states are clearly announced
+
+#### High Contrast Adaptation
+- Color meanings preserved in high contrast mode
+- Border weights increased for better definition
+- Focus indicators meet WCAG standards
+
+#### Reduced Motion Support
+- Progress bar animations can be disabled
+- Tab transitions respect motion preferences
+- Widget updates remain functional without animation
+
+This comprehensive design specification ensures consistent implementation and provides clear guidance for future development and maintenance.
