@@ -10,8 +10,8 @@ struct CleanMainView: View {
         VStack(spacing: 0) {
             // Battery Status Section
             BatteryStatusView(batteryInfo: viewModel.batteryInfo)
-                .padding(.horizontal, 20)
-                .padding(.vertical, 24)
+                .padding(.horizontal, DesignSystem.Spacing.large)
+                .padding(.vertical, DesignSystem.Spacing.large)
             
             Divider()
             
@@ -75,27 +75,6 @@ struct CleanMainView: View {
 struct BatteryStatusView: View {
     let batteryInfo: BatteryInfo
     
-    var batteryColor: Color {
-        if batteryInfo.currentCharge <= 10 {
-            return .red
-        } else if batteryInfo.currentCharge <= 20 {
-            return .orange
-        } else if batteryInfo.isCharging {
-            return .green
-        } else {
-            return .primary
-        }
-    }
-    
-    var batteryIconName: String {
-        let baseIcon = batteryInfo.currentCharge <= 10 ? "battery.0" :
-                      batteryInfo.currentCharge <= 25 ? "battery.25" :
-                      batteryInfo.currentCharge <= 50 ? "battery.50" :
-                      batteryInfo.currentCharge <= 75 ? "battery.75" : "battery.100"
-        
-        return batteryInfo.isCharging ? "\(baseIcon).bolt" : baseIcon
-    }
-    
     var statusText: String {
         if batteryInfo.isCharging {
             return "Charging"
@@ -107,26 +86,26 @@ struct BatteryStatusView: View {
     }
     
     var body: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: DesignSystem.Spacing.small) {
             // Battery Icon
-            Image(systemName: batteryIconName)
+            Image(systemName: DesignSystem.batteryIconName(for: batteryInfo))
                 .font(.system(size: 48))
-                .foregroundColor(batteryColor)
+                .foregroundColor(DesignSystem.batteryColor(for: batteryInfo))
             
             // Percentage
             Text("\(batteryInfo.currentCharge)%")
-                .font(.system(size: 28, weight: .bold, design: .rounded))
-                .foregroundColor(batteryColor)
+                .font(DesignSystem.Typography.largeTitle)
+                .foregroundColor(DesignSystem.batteryColor(for: batteryInfo))
             
             // Status
             Text(statusText)
-                .font(.system(size: 15))
+                .font(DesignSystem.Typography.body)
                 .foregroundColor(.secondary)
             
             // Time remaining (if applicable)
             if let timeString = batteryInfo.timeRemainingFormatted {
                 Text(batteryInfo.isCharging ? "Time to full: \(timeString)" : "Time remaining: \(timeString)")
-                    .font(.system(size: 13))
+                    .font(DesignSystem.Typography.caption)
                     .foregroundColor(.secondary)
             }
         }

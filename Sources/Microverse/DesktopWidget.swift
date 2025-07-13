@@ -70,13 +70,17 @@ class DesktopWidgetManager: ObservableObject {
     private func getWidgetSize(for style: WidgetStyle) -> NSSize {
         switch style {
         case .minimal:
-            return NSSize(width: 100, height: 40)
+            let size = DesignSystem.WidgetSize.minimal
+            return NSSize(width: size.width, height: size.height)
         case .compact:
-            return NSSize(width: 160, height: 50)
+            let size = DesignSystem.WidgetSize.compact
+            return NSSize(width: size.width, height: size.height)
         case .standard:
-            return NSSize(width: 180, height: 100)
+            let size = DesignSystem.WidgetSize.standard
+            return NSSize(width: size.width, height: size.height)
         case .detailed:
-            return NSSize(width: 240, height: 120)
+            let size = DesignSystem.WidgetSize.detailed
+            return NSSize(width: size.width, height: size.height)
         }
     }
     
@@ -147,41 +151,23 @@ struct DesktopWidgetView: View {
 struct MinimalWidget: View {
     let batteryInfo: BatteryInfo
     
-    var batteryColor: Color {
-        if batteryInfo.currentCharge <= 10 {
-            return .red
-        } else if batteryInfo.currentCharge <= 20 {
-            return .orange  
-        } else if batteryInfo.isCharging {
-            return .green
-        } else {
-            return .white
-        }
-    }
-    
     var body: some View {
         // Main content in simple HStack
-        HStack(spacing: 4) {
+        HStack(spacing: DesignSystem.Spacing.micro) {
             if batteryInfo.isCharging {
                 Image(systemName: "bolt.fill")
                     .font(.system(size: 12))
-                    .foregroundColor(batteryColor)
+                    .foregroundColor(DesignSystem.batteryColor(for: batteryInfo))
             }
             
             Text("\(batteryInfo.currentCharge)%")
-                .font(.system(size: 16, weight: .medium, design: .rounded))
-                .foregroundColor(batteryColor)
+                .font(DesignSystem.Typography.widgetBody)
+                .foregroundColor(DesignSystem.batteryColor(for: batteryInfo))
         }
-        .padding(8) // Padding INSIDE the frame
-        .background( // Background AFTER content and padding
-            RoundedRectangle(cornerRadius: 8)
-                .fill(Color.black.opacity(0.7))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(Color.white.opacity(0.1), lineWidth: 0.5)
-                )
-        )
-        .frame(width: 100, height: 40) // Explicit frame MUST match window size
+        .padding(DesignSystem.Spacing.small) // Padding INSIDE the frame
+        .darkBackground() // Use design system background
+        .frame(width: DesignSystem.WidgetSize.minimal.width, 
+               height: DesignSystem.WidgetSize.minimal.height) // Explicit frame MUST match window size
     }
 }
 
@@ -191,34 +177,22 @@ struct MinimalWidget: View {
 struct CompactWidget: View {
     let batteryInfo: BatteryInfo
     
-    var batteryColor: Color {
-        if batteryInfo.currentCharge <= 10 {
-            return .red
-        } else if batteryInfo.currentCharge <= 20 {
-            return .orange
-        } else if batteryInfo.isCharging {
-            return .green
-        } else {
-            return .white
-        }
-    }
-    
     var body: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: DesignSystem.Spacing.medium) {
             // Battery percentage section
-            HStack(spacing: 3) {
+            HStack(spacing: DesignSystem.Spacing.micro) {
                 Image(systemName: batteryInfo.isCharging ? "bolt.fill" : "battery.100")
-                    .font(.system(size: 12)) // Small icon to fit
-                    .foregroundColor(batteryColor)
+                    .font(DesignSystem.Typography.widgetCaption)
+                    .foregroundColor(DesignSystem.batteryColor(for: batteryInfo))
                 
                 Text("\(batteryInfo.currentCharge)%")
                     .font(.system(size: 14, weight: .medium, design: .rounded))
-                    .foregroundColor(batteryColor)
+                    .foregroundColor(DesignSystem.batteryColor(for: batteryInfo))
             }
             
             // Visual separator
             Rectangle()
-                .fill(Color.white.opacity(0.2))
+                .fill(Color.white.opacity(DesignSystem.Opacity.divider))
                 .frame(width: 1, height: 20) // Fixed height divider
             
             // Time remaining section
@@ -229,20 +203,14 @@ struct CompactWidget: View {
             } else {
                 Text("—")
                     .font(.system(size: 14))
-                    .foregroundColor(.white.opacity(0.6))
+                    .foregroundColor(.white.opacity(DesignSystem.Opacity.secondaryText))
             }
         }
-        .padding(.horizontal, 10) // Horizontal padding for content
-        .padding(.vertical, 8)    // Vertical padding for content
-        .background( // Apply background AFTER padding
-            RoundedRectangle(cornerRadius: 10)
-                .fill(Color.black.opacity(0.7))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 10)
-                        .stroke(Color.white.opacity(0.1), lineWidth: 0.5)
-                )
-        )
-        .frame(width: 160, height: 50) // MUST match window size exactly
+        .padding(.horizontal, DesignSystem.Spacing.small + 2) // Horizontal padding for content
+        .padding(.vertical, DesignSystem.Spacing.small)    // Vertical padding for content
+        .darkBackground(cornerRadius: DesignSystem.CornerRadius.large)
+        .frame(width: DesignSystem.WidgetSize.compact.width, 
+               height: DesignSystem.WidgetSize.compact.height) // MUST match window size exactly
     }
 }
 
@@ -252,53 +220,35 @@ struct CompactWidget: View {
 struct StandardWidget: View {
     let batteryInfo: BatteryInfo
     
-    var batteryColor: Color {
-        if batteryInfo.currentCharge <= 10 {
-            return .red
-        } else if batteryInfo.currentCharge <= 20 {
-            return .orange
-        } else if batteryInfo.isCharging {
-            return .green
-        } else {
-            return .white
-        }
-    }
-    
     var body: some View {
-        VStack(spacing: 6) {
+        VStack(spacing: DesignSystem.Spacing.small) {
             // Battery percentage
             Text("\(batteryInfo.currentCharge)%")
-                .font(.system(size: 24, weight: .bold, design: .rounded))
-                .foregroundColor(batteryColor)
+                .font(DesignSystem.Typography.widgetTitle)
+                .foregroundColor(DesignSystem.batteryColor(for: batteryInfo))
             
             // Status with icon
-            HStack(spacing: 3) {
+            HStack(spacing: DesignSystem.Spacing.micro) {
                 if batteryInfo.isCharging {
                     Image(systemName: "bolt.fill")
-                        .font(.system(size: 10))
+                        .font(DesignSystem.Typography.widgetSmallCaption)
                 }
                 Text(batteryInfo.isCharging ? "Charging" : "On Battery")
-                    .font(.system(size: 11))
+                    .font(DesignSystem.Typography.smallCaption)
             }
             .foregroundColor(.secondary)
             
             // Time if available
             if let timeString = batteryInfo.timeRemainingFormatted {
                 Text(timeString)
-                    .font(.system(size: 12, weight: .medium, design: .rounded))
+                    .font(DesignSystem.Typography.widgetCaption.weight(.medium))
                     .foregroundColor(.primary)
             }
         }
-        .padding(12)
-        .frame(width: 180, height: 100)
-        .background(
-            VisualEffectBlur(material: .hudWindow, blendingMode: .behindWindow)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(Color.white.opacity(0.1), lineWidth: 0.5)
-                )
-        )
+        .padding(DesignSystem.Spacing.medium)
+        .frame(width: DesignSystem.WidgetSize.standard.width,
+               height: DesignSystem.WidgetSize.standard.height)
+        .widgetBackground()
     }
 }
 
@@ -308,44 +258,32 @@ struct StandardWidget: View {
 struct DetailedWidget: View {
     let batteryInfo: BatteryInfo
     
-    var batteryColor: Color {
-        if batteryInfo.currentCharge <= 10 {
-            return .red
-        } else if batteryInfo.currentCharge <= 20 {
-            return .orange
-        } else if batteryInfo.isCharging {
-            return .green
-        } else {
-            return .primary
-        }
-    }
-    
     var body: some View {
-        VStack(spacing: 10) {
+        VStack(spacing: DesignSystem.Spacing.small) {
             // Header row
             HStack {
                 // Percentage
-                HStack(spacing: 3) {
+                HStack(spacing: DesignSystem.Spacing.micro) {
                     if batteryInfo.isCharging {
                         Image(systemName: "bolt.fill")
-                            .font(.system(size: 12))
-                            .foregroundColor(batteryColor)
+                            .font(DesignSystem.Typography.widgetCaption)
+                            .foregroundColor(DesignSystem.batteryColor(for: batteryInfo))
                     }
                     Text("\(batteryInfo.currentCharge)%")
-                        .font(.system(size: 18, weight: .bold, design: .rounded))
-                        .foregroundColor(batteryColor)
+                        .font(DesignSystem.Typography.widgetHeadline)
+                        .foregroundColor(DesignSystem.batteryColor(for: batteryInfo))
                 }
                 
                 Spacer()
                 
                 // Status
                 Text(batteryInfo.isCharging ? "Charging" : "On Battery")
-                    .font(.system(size: 10))
+                    .font(DesignSystem.Typography.widgetSmallCaption)
                     .foregroundColor(.secondary)
             }
             
             Divider()
-                .background(Color.white.opacity(0.2))
+                .background(Color.white.opacity(DesignSystem.Opacity.divider))
             
             // Stats row
             HStack {
@@ -355,7 +293,7 @@ struct DetailedWidget: View {
                         .font(.system(size: 9))
                         .foregroundColor(.secondary)
                     Text("\(batteryInfo.cycleCount)")
-                        .font(.system(size: 12, weight: .medium))
+                        .font(DesignSystem.Typography.widgetCaption.weight(.medium))
                 }
                 
                 Spacer()
@@ -366,7 +304,7 @@ struct DetailedWidget: View {
                         .font(.system(size: 9))
                         .foregroundColor(.secondary)
                     Text("\(Int(batteryInfo.health * 100))%")
-                        .font(.system(size: 12, weight: .medium))
+                        .font(DesignSystem.Typography.widgetCaption.weight(.medium))
                 }
                 
                 Spacer()
@@ -378,24 +316,18 @@ struct DetailedWidget: View {
                         .foregroundColor(.secondary)
                     if let timeString = batteryInfo.timeRemainingFormatted {
                         Text(timeString)
-                            .font(.system(size: 12, weight: .medium))
+                            .font(DesignSystem.Typography.widgetCaption.weight(.medium))
                     } else {
                         Text("—")
-                            .font(.system(size: 12, weight: .medium))
+                            .font(DesignSystem.Typography.widgetCaption.weight(.medium))
                     }
                 }
             }
         }
-        .padding(12)
-        .frame(width: 240, height: 120)
-        .background(
-            VisualEffectBlur(material: .hudWindow, blendingMode: .behindWindow)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(Color.white.opacity(0.1), lineWidth: 0.5)
-                )
-        )
+        .padding(DesignSystem.Spacing.medium)
+        .frame(width: DesignSystem.WidgetSize.detailed.width,
+               height: DesignSystem.WidgetSize.detailed.height)
+        .widgetBackground()
     }
 }
 
