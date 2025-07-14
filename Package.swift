@@ -14,7 +14,10 @@ let package = Package(
     targets: [
         .executableTarget(
             name: "Microverse",
-            dependencies: ["BatteryCore", "SystemCore"]
+            dependencies: ["BatteryCore", "SystemCore"],
+            resources: [
+                .copy("Resources/AppIcon.icns")
+            ]
         ),
         .target(
             name: "BatteryCore",

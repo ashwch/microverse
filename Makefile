@@ -57,6 +57,7 @@ app: build
 	@mkdir -p $(TEMP_DIR)/$(APP_NAME).app/Contents/{MacOS,Resources}
 	@cp .build/release/$(APP_NAME) $(TEMP_DIR)/$(APP_NAME).app/Contents/MacOS/
 	@cp Info.plist $(TEMP_DIR)/$(APP_NAME).app/Contents/
+	@if [ -f Resources/AppIcon.icns ]; then cp Resources/AppIcon.icns $(TEMP_DIR)/$(APP_NAME).app/Contents/Resources/; fi
 	@echo 'APPL????' > $(TEMP_DIR)/$(APP_NAME).app/Contents/PkgInfo
 	@chmod +x $(TEMP_DIR)/$(APP_NAME).app/Contents/MacOS/$(APP_NAME)
 	@rm -rf /tmp/$(APP_NAME).app
@@ -71,6 +72,7 @@ debug-app: build-debug
 	@mkdir -p $(TEMP_DIR)/$(APP_NAME).app/Contents/{MacOS,Resources}
 	@cp .build/debug/$(APP_NAME) $(TEMP_DIR)/$(APP_NAME).app/Contents/MacOS/
 	@cp Info.plist $(TEMP_DIR)/$(APP_NAME).app/Contents/
+	@if [ -f Resources/AppIcon.icns ]; then cp Resources/AppIcon.icns $(TEMP_DIR)/$(APP_NAME).app/Contents/Resources/; fi
 	@echo 'APPL????' > $(TEMP_DIR)/$(APP_NAME).app/Contents/PkgInfo
 	@chmod +x $(TEMP_DIR)/$(APP_NAME).app/Contents/MacOS/$(APP_NAME)
 	@rm -rf /tmp/$(APP_NAME).app

@@ -20,6 +20,12 @@
     <string>1</string>
     <key>LSMinimumSystemVersion</key>
     <string>11.0</string>
+    <key>CFBundleIconFile</key>
+    <string>AppIcon</string>
+    <key>CFBundleDisplayName</key>
+    <string>Microverse</string>
+    <key>NSHumanReadableCopyright</key>
+    <string>Copyright © 2024 Ashwini Chaudhary. All rights reserved.</string>
     <key>NSPrincipalClass</key>
     <string>NSApplication</string>
     <key>LSUIElement</key>
