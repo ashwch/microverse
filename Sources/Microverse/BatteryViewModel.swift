@@ -16,6 +16,7 @@ class BatteryViewModel: ObservableObject {
     @Published var launchAtStartup = LaunchAtStartup.isEnabled {
         didSet {
             LaunchAtStartup.isEnabled = launchAtStartup
+            saveSetting("launchAtStartup", value: launchAtStartup)
         }
     }
     @Published var showPercentageInMenuBar = true {
@@ -26,7 +27,8 @@ class BatteryViewModel: ObservableObject {
     @Published var refreshInterval: TimeInterval = 5.0 {
         didSet {
             saveSetting("refreshInterval", value: refreshInterval)
-            // Timer will use new interval on next refresh
+            // Restart monitoring with new interval
+            startMonitoring()
         }
     }
     
@@ -164,33 +166,30 @@ class BatteryViewModel: ObservableObject {
     }
     
     private func setupBindings() {
-        // Launch at startup is now handled by the didSet observer
-        
-        $showPercentageInMenuBar
-            .sink { [weak self] enabled in
-                self?.saveSetting("showPercentageInMenuBar", value: enabled)
-            }
-            .store(in: &cancellables)
-        
-        $refreshInterval
-            .sink { [weak self] interval in
-                self?.saveSetting("refreshInterval", value: interval)
-                self?.startMonitoring()
-            }
-            .store(in: &cancellables)
+        // All settings are now handled by didSet observers
     }
     
     private func loadSettings() {
         let defaults = UserDefaults.standard
-        // Removed targetChargeLimit loading
-        // launchAtStartup is now loaded from LaunchAtStartup.isEnabled in the property declaration
-        showPercentageInMenuBar = defaults.bool(forKey: "showPercentageInMenuBar")
-        refreshInterval = defaults.double(forKey: "refreshInterval") == 0 ? 5.0 : defaults.double(forKey: "refreshInterval")
+        
+        // Load all settings with defaults
+        if defaults.object(forKey: "showPercentageInMenuBar") != nil {
+            showPercentageInMenuBar = defaults.bool(forKey: "showPercentageInMenuBar")
+        }
+        
+        let savedInterval = defaults.double(forKey: "refreshInterval")
+        if savedInterval > 0 {
+            refreshInterval = savedInterval
+        }
+        
         showDesktopWidget = defaults.bool(forKey: "showDesktopWidget")
+        
         if let styleRaw = defaults.string(forKey: "widgetStyle"),
            let style = WidgetStyle(rawValue: styleRaw) {
             widgetStyle = style
         }
+        
+        // Note: launchAtStartup is already loaded from LaunchAtStartup.isEnabled
     }
     
     private func saveSetting(_ key: String, value: Any) {

@@ -82,6 +82,14 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             }
             .store(in: &cancellables)
         
+        // Also update when showPercentageInMenuBar changes
+        viewModel.$showPercentageInMenuBar
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.updateMenuBarDisplay()
+            }
+            .store(in: &cancellables)
+        
         logger.info("Battery manager setup complete")
     }
     
