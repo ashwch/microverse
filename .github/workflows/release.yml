@@ -186,76 +186,54 @@ jobs:
       run: |
         echo "Generating changelog for v${{ steps.version.outputs.new_version }}"
         
-        # Create a comprehensive changelog
+        # Create changelog from commit messages
         cat > CHANGELOG.md << EOF
         # Microverse v${{ steps.version.outputs.new_version }}
         
-        **Release Date:** $(date '+%Y-%m-%d')
-        **Author:** Ashwini Chaudhary
+        A unified system monitoring app for macOS with elegant desktop widgets.
         
-        ## 🎉 Features
-        
-        ### System Monitoring
-        - 🔋 **Advanced Battery Monitoring**: Real-time battery health, cycle count, and time estimates
-        - ⚙️ **CPU Monitoring**: Live processor usage tracking with Apple Silicon support
-        - 🧠 **Memory Monitoring**: Memory pressure tracking with usage breakdown
-        - 📊 **Unified Overview**: System health dashboard with intelligent insights
-        
-        ### Interface Design
-        - 🎯 **Tabbed Interface**: Clean navigation between Overview, Battery, CPU, and Memory
-        - 🖥️ **Desktop Widgets**: 6 beautiful widget styles for any workflow
-        - 🎨 **Johnny Ive Design**: Semantic color system and elegant glass effects
-        - 🌙 **Adaptive UI**: Seamless light/dark mode integration
-        
-        ### Performance
-        - ⚡ **Adaptive Refresh**: Smart polling rates based on battery state
-        - 🚀 **Async Architecture**: Non-blocking system monitoring
-        - 💾 **Memory Efficient**: <50MB footprint with <1% CPU impact
-        - 🔄 **Real-time Updates**: Live system metrics with smooth animations
-        
-        ## 🏗️ Technical Architecture
-        
-        - **Frameworks**: BatteryCore + SystemCore for modular monitoring
-        - **Design System**: Unified design tokens following Apple's HIG
-        - **Performance**: Direct IOKit/mach access for optimal efficiency
-        - **Compatibility**: macOS 11.0+, Intel & Apple Silicon support
-        
-        ## 📋 Recent Changes
+        ## What's Changed
         
         EOF
         
         # Add commit messages since last tag
         if [ -n "${{ steps.version.outputs.commits_since_tag }}" ]; then
-          echo "${{ steps.version.outputs.commits_since_tag }}" | head -10 | while read line; do
-            echo "- $line" >> CHANGELOG.md
+          # Parse commit messages and group by type
+          echo "${{ steps.version.outputs.commits_since_tag }}" | while read line; do
+            # Extract commit type and message
+            if [[ "$line" =~ ^[a-f0-9]+[[:space:]]+(feat|fix|docs|style|refactor|test|chore)(\(.+\))?:[[:space:]](.+)$ ]]; then
+              type="${BASH_REMATCH[1]}"
+              message="${BASH_REMATCH[3]}"
+              
+              case "$type" in
+                feat) echo "- ✨ **Feature**: $message" >> CHANGELOG.md ;;
+                fix) echo "- 🐛 **Fix**: $message" >> CHANGELOG.md ;;
+                docs) echo "- 📚 **Docs**: $message" >> CHANGELOG.md ;;
+                *) echo "- $message" >> CHANGELOG.md ;;
+              esac
+            else
+              # If not conventional commit, just add the message
+              echo "- ${line#* }" >> CHANGELOG.md
+            fi
           done
         else
-          echo "- Initial release of Microverse" >> CHANGELOG.md
+          cat >> CHANGELOG.md << EOF
+        - Initial release with battery, CPU, and memory monitoring
+        - 6 desktop widget styles for different workflows  
+        - Elegant tabbed interface with system overview
+        - Menu bar integration with customizable display
+        EOF
         fi
         
         cat >> CHANGELOG.md << EOF
         
-        ## 🎯 What's Next
+        ## Installation
         
-        - Process monitoring with smart app categorization
-        - Historical trend tracking and analytics
-        - Advanced network and thermal monitoring
-        - Custom dashboard builder
-        
-        ## 📦 Installation
-        
-        1. Download the DMG file
+        1. Download the DMG file below
         2. Open the DMG and drag Microverse to Applications
-        3. Launch Microverse from Applications or Spotlight
-        4. Look for the system monitoring icon in your menu bar
+        3. Launch from Applications or Spotlight
         
-        ## 🔗 Links
-        
-        - **Documentation**: Complete architecture and design specifications included
-        - **Source Code**: Open source and available on GitHub
-        - **License**: MIT License - free for everyone
-        
-        **Built with ❤️ for the macOS development community**
+        **Requires macOS 11.0 or later**
         EOF
         
         # Set output for release notes
