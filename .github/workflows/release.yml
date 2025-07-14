@@ -40,37 +40,56 @@ jobs:
     - name: Determine version bump
       id: version
       run: |
-        # Get the last version tag
-        LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
-        echo "Last tag: $LAST_TAG"
-        
-        # Extract version from last tag
-        LAST_VERSION="${LAST_TAG#v}"
-        IFS='.' read -ra VERSION_PARTS <<< "$LAST_VERSION"
-        MAJOR="${VERSION_PARTS[0]:-0}"
-        MINOR="${VERSION_PARTS[1]:-0}"
-        PATCH="${VERSION_PARTS[2]:-0}"
-        
-        # Check commit messages since last tag for version bumping
-        COMMITS_SINCE_TAG=$(git log $LAST_TAG..HEAD --oneline 2>/dev/null || git log --oneline)
-        
-        # Determine version bump type
-        if echo "$COMMITS_SINCE_TAG" | grep -q "BREAKING CHANGE\|major:"; then
-          MAJOR=$((MAJOR + 1))
-          MINOR=0
-          PATCH=0
-          VERSION_TYPE="major"
-        elif echo "$COMMITS_SINCE_TAG" | grep -q "feat:\|feature:"; then
-          MINOR=$((MINOR + 1))
-          PATCH=0
-          VERSION_TYPE="minor"  
+        # Check if this is an initial release (v1.0.0 tag exists on current commit)
+        CURRENT_COMMIT=$(git rev-parse HEAD)
+        if git rev-parse v1.0.0 >/dev/null 2>&1; then
+          TAG_COMMIT=$(git rev-parse v1.0.0)
+          if [ "$CURRENT_COMMIT" = "$TAG_COMMIT" ]; then
+            # This is the v1.0.0 release
+            NEW_VERSION="1.0.0"
+            NEW_TAG="v1.0.0"
+            COMMITS_SINCE_TAG=""
+          else
+            # v1.0.0 exists but on different commit, proceed with normal versioning
+            LAST_TAG="v1.0.0"
+          fi
         else
-          PATCH=$((PATCH + 1))
-          VERSION_TYPE="patch"
+          # Get the last version tag
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
         fi
         
-        NEW_VERSION="$MAJOR.$MINOR.$PATCH"
-        NEW_TAG="v$NEW_VERSION"
+        # Only do version bumping if we haven't set NEW_VERSION already
+        if [ -z "$NEW_VERSION" ]; then
+          echo "Last tag: $LAST_TAG"
+          
+          # Extract version from last tag
+          LAST_VERSION="${LAST_TAG#v}"
+          IFS='.' read -ra VERSION_PARTS <<< "$LAST_VERSION"
+          MAJOR="${VERSION_PARTS[0]:-0}"
+          MINOR="${VERSION_PARTS[1]:-0}"
+          PATCH="${VERSION_PARTS[2]:-0}"
+          
+          # Check commit messages since last tag for version bumping
+          COMMITS_SINCE_TAG=$(git log $LAST_TAG..HEAD --oneline 2>/dev/null || git log --oneline)
+          
+          # Determine version bump type
+          if echo "$COMMITS_SINCE_TAG" | grep -q "BREAKING CHANGE\|major:"; then
+            MAJOR=$((MAJOR + 1))
+            MINOR=0
+            PATCH=0
+            VERSION_TYPE="major"
+          elif echo "$COMMITS_SINCE_TAG" | grep -q "feat:\|feature:"; then
+            MINOR=$((MINOR + 1))
+            PATCH=0
+            VERSION_TYPE="minor"  
+          else
+            PATCH=$((PATCH + 1))
+            VERSION_TYPE="patch"
+          fi
+          
+          NEW_VERSION="$MAJOR.$MINOR.$PATCH"
+          NEW_TAG="v$NEW_VERSION"
+        fi
         
         echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
         echo "new_tag=$NEW_TAG" >> $GITHUB_OUTPUT
