@@ -12,15 +12,17 @@ import SystemCore
 // 5. Keep font sizes small to ensure content fits
 // 6. Test with edge cases: 100% battery, long time strings, etc.
 
-// Widget style enum
+// Widget style enum - Clear naming for system monitoring
 enum WidgetStyle: String, CaseIterable {
-    case minimal = "Minimal"    // 100×40: Just percentage
-    case compact = "Compact"    // 160×50: Percentage + time
-    case standard = "Standard"  // 180×100: Vertical layout
-    case detailed = "Detailed"  // 240×120: Full stats
-    case cpu = "CPU"           // 160×80: CPU focused
-    case memory = "Memory"     // 160×80: Memory focused
-    case system = "System"     // 240×120: All metrics
+    // Single metric widgets
+    case batterySimple = "Battery Simple"      // 100×40: Just battery %
+    case cpuMonitor = "CPU Monitor"            // 160×80: CPU usage + graph
+    case memoryMonitor = "Memory Monitor"      // 160×80: Memory usage + pressure
+    
+    // Multi-metric widgets
+    case systemGlance = "System Glance"        // 160×50: Battery + CPU + Memory %
+    case systemStatus = "System Status"        // 240×80: All metrics with basic info
+    case systemDashboard = "System Dashboard"  // 240×120: Full detailed view
 }
 
 // Desktop widget manager
@@ -43,10 +45,10 @@ class DesktopWidgetManager: ObservableObject {
         let size = getWidgetSize(for: viewModel.widgetStyle)
         window = DesktopWidgetWindow(size: size)
         
-        // Create widget view without any frame modifier
-        // The individual widget views will handle their own sizing
+        // Create widget view that observes viewModel changes
         let widgetView = AnyView(
-            DesktopWidgetView(viewModel: viewModel)
+            DesktopWidgetView()
+                .environmentObject(viewModel)
         )
         
         // Create hosting view with exact window size
@@ -73,18 +75,16 @@ class DesktopWidgetManager: ObservableObject {
     // Any mismatch will cause content to be clipped or not fill the window
     private func getWidgetSize(for style: WidgetStyle) -> NSSize {
         switch style {
-        case .minimal:
+        case .batterySimple:
             return NSSize(width: 100, height: 40)
-        case .compact:
-            return NSSize(width: 160, height: 50)
-        case .standard:
-            return NSSize(width: 180, height: 100)
-        case .detailed:
-            return NSSize(width: 240, height: 120)
-        case .cpu, .memory:
+        case .cpuMonitor, .memoryMonitor:
             return NSSize(width: 160, height: 80)
-        case .system:
-            return NSSize(width: 240, height: 100) // Compact to prevent cropping
+        case .systemGlance:
+            return NSSize(width: 160, height: 50)
+        case .systemStatus:
+            return NSSize(width: 240, height: 80)
+        case .systemDashboard:
+            return NSSize(width: 240, height: 120)
         }
     }
     
@@ -131,227 +131,193 @@ class DesktopWidgetWindow: NSWindow {
 
 // Widget view
 struct DesktopWidgetView: View {
-    @ObservedObject var viewModel: BatteryViewModel
+    @EnvironmentObject var viewModel: BatteryViewModel
     
     var body: some View {
         Group {
             switch viewModel.widgetStyle {
-            case .minimal:
-                MinimalWidget(batteryInfo: viewModel.batteryInfo)
-            case .compact:
-                if viewModel.showSystemInfoInWidget {
-                    CompactSystemWidget(batteryInfo: viewModel.batteryInfo)
-                } else {
-                    CompactWidget(batteryInfo: viewModel.batteryInfo)
-                }
-            case .standard:
-                StandardWidget(batteryInfo: viewModel.batteryInfo)
-            case .detailed:
-                if viewModel.showSystemInfoInWidget {
-                    DetailedSystemWidget(batteryInfo: viewModel.batteryInfo)
-                } else {
-                    DetailedWidget(batteryInfo: viewModel.batteryInfo)
-                }
-            case .cpu:
-                CPUWidget()
-            case .memory:
-                MemoryWidget()
-            case .system:
-                SystemOverviewWidget(batteryInfo: viewModel.batteryInfo)
+            case .batterySimple:
+                BatterySimpleWidget(batteryInfo: viewModel.batteryInfo)
+            case .cpuMonitor:
+                CPUMonitorWidget()
+            case .memoryMonitor:
+                MemoryMonitorWidget()
+            case .systemGlance:
+                SystemGlanceWidget(batteryInfo: viewModel.batteryInfo)
+            case .systemStatus:
+                SystemStatusWidget(batteryInfo: viewModel.batteryInfo)
+            case .systemDashboard:
+                SystemDashboardWidget(batteryInfo: viewModel.batteryInfo)
             }
         }
     }
 }
 
-// Minimal widget - Just percentage
-// Design: Simple horizontal stack with icon + percentage
-// Key approach: NO ZStack, explicit frame at the end, padding inside frame
-struct MinimalWidget: View {
+// MARK: - Single Metric Widgets
+
+// Battery Simple - Just battery percentage
+struct BatterySimpleWidget: View {
     let batteryInfo: BatteryInfo
     
     var body: some View {
-        // Main content in simple HStack
         HStack(spacing: MicroverseDesign.Layout.space1) {
             if batteryInfo.isCharging {
                 Image(systemName: "bolt.fill")
                     .font(.system(size: 12, weight: .bold))
-                    .foregroundColor(.green)
+                    .foregroundColor(MicroverseDesign.Colors.success)
             }
             
             Text("\(batteryInfo.currentCharge)%")
                 .font(.system(size: 16, weight: .bold, design: .rounded))
                 .foregroundColor(.white)
         }
-        .padding(MicroverseDesign.Layout.space2) // Padding INSIDE the frame
-        .widgetBackground() // Use consistent blur background
-        .frame(width: 100, height: 40) // Explicit frame MUST match window size
+        .padding(MicroverseDesign.Layout.space2)
+        .frame(width: 100, height: 40)
+        .widgetBackground()
     }
 }
 
-// Compact widget - Horizontal layout with time
-// Design: Battery % | divider | time remaining
-// Key approach: Fixed frame size, horizontal layout with divider
-struct CompactWidget: View {
+// MARK: - Multi-Metric Widgets
+
+// System Glance - Compact view of all three metrics
+struct SystemGlanceWidget: View {
     let batteryInfo: BatteryInfo
+    @StateObject private var systemService = SystemMonitoringService.shared
     
     var body: some View {
         HStack(spacing: 0) {
-            // Battery percentage section with fixed width
-            HStack(spacing: MicroverseDesign.Layout.space1) {
+            // Battery
+            VStack(spacing: 1) {
                 Image(systemName: batteryInfo.isCharging ? "bolt.fill" : "battery.100percent")
-                    .font(.system(size: 14, weight: .bold))
-                    .foregroundColor(batteryInfo.isCharging ? .green : .white)
-                
-                Text("\(batteryInfo.currentCharge)%")
-                    .font(.system(size: 16, weight: .bold, design: .rounded))
-                    .foregroundColor(.white)
-            }
-            .frame(width: 70, alignment: .leading) // Fixed width to prevent layout shifts
-            
-            // Visual separator
-            Rectangle()
-                .fill(MicroverseDesign.Colors.divider)
-                .frame(width: 1, height: 20) // Fixed height divider
-                .padding(.horizontal, MicroverseDesign.Layout.space2)
-            
-            // Time remaining section
-            Group {
-                if let timeString = batteryInfo.timeRemainingFormatted {
-                    Text(timeString)
-                        .font(.system(size: 14, weight: .bold, design: .rounded))
-                        .foregroundColor(.white)
-                } else {
-                    Text("—")
-                        .font(.system(size: 14, weight: .bold))
-                        .foregroundColor(.white)
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .trailing)
-        }
-        .padding(.horizontal, MicroverseDesign.Layout.space2 + 2) // Horizontal padding for content
-        .padding(.vertical, MicroverseDesign.Layout.space2)    // Vertical padding for content
-        .widgetBackground()
-        .frame(width: 160, height: 50) // MUST match window size exactly
-    }
-}
-
-// Elegant standard widget with improved contrast
-struct StandardWidget: View {
-    let batteryInfo: BatteryInfo
-    
-    var body: some View {
-        VStack(spacing: MicroverseDesign.Layout.space2) {
-            // Battery percentage with clear hierarchy
-            Text("\(batteryInfo.currentCharge)%")
-                .font(.system(size: 28, weight: .bold, design: .rounded))
-                .foregroundColor(.white)
-            
-            // Status with improved visibility
-            HStack(spacing: MicroverseDesign.Layout.space1) {
-                if batteryInfo.isCharging {
-                    Image(systemName: "bolt.fill")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(.white.opacity(0.9))
-                }
-                Text(batteryInfo.isCharging ? "Charging" : "On Battery")
                     .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(.white.opacity(0.8))
-            }
-            
-            // Time if available with better contrast
-            if let timeString = batteryInfo.timeRemainingFormatted {
-                Text(timeString)
-                    .font(.system(size: 14, weight: .semibold, design: .rounded))
+                    .foregroundColor(batteryInfo.isCharging ? MicroverseDesign.Colors.success : .white)
+                Text("\(batteryInfo.currentCharge)")
+                    .font(.system(size: 15, weight: .bold, design: .rounded))
                     .foregroundColor(.white)
+                Text("...") // Visual separator
+                    .font(.system(size: 6))
+                    .foregroundColor(.white.opacity(0.3))
             }
+            .frame(maxWidth: .infinity)
+            
+            // CPU
+            VStack(spacing: 1) {
+                Image(systemName: "cpu")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(MicroverseDesign.Colors.processor)
+                Text("\(Int(systemService.cpuUsage))")
+                    .font(.system(size: 15, weight: .bold, design: .rounded))
+                    .foregroundColor(.white)
+                Text("...") // Visual separator
+                    .font(.system(size: 6))
+                    .foregroundColor(.white.opacity(0.3))
+            }
+            .frame(maxWidth: .infinity)
+            
+            // Memory
+            VStack(spacing: 1) {
+                Image(systemName: "memorychip")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(MicroverseDesign.Colors.memory)
+                Text("\(Int(systemService.memoryInfo.usagePercentage))")
+                    .font(.system(size: 15, weight: .bold, design: .rounded))
+                    .foregroundColor(.white)
+                Text("%") // Percent indicator
+                    .font(.system(size: 6))
+                    .foregroundColor(.white.opacity(0.5))
+            }
+            .frame(maxWidth: .infinity)
         }
-        .padding(16)
+        .padding(.vertical, 6)
+        .padding(.horizontal, 8)
+        .frame(width: 160, height: 50)
         .widgetBackground()
-        .frame(width: 180, height: 100)
     }
 }
 
-// Detailed widget - Full stats display
-// Design: Header with % and status, divider, then stats grid
-// Key approach: Compact layout to fit all info in 240×120
-struct DetailedWidget: View {
+// System Status - Medium view with all metrics
+struct SystemStatusWidget: View {
     let batteryInfo: BatteryInfo
+    @StateObject private var systemService = SystemMonitoringService.shared
     
     var body: some View {
-        VStack(spacing: MicroverseDesign.Layout.space2) {
-            // Header row
-            HStack {
-                // Percentage
-                HStack(spacing: MicroverseDesign.Layout.space1) {
-                    if batteryInfo.isCharging {
-                        Image(systemName: "bolt.fill")
-                            .font(MicroverseDesign.Typography.caption)
-                            .foregroundColor(.green)
-                    }
-                    Text("\(batteryInfo.currentCharge)%")
-                        .font(MicroverseDesign.Typography.title)
-                        .foregroundColor(.green)
-                }
-                
-                Spacer()
-                
-                // Status
-                Text(batteryInfo.isCharging ? "Charging" : "On Battery")
-                    .font(MicroverseDesign.Typography.label)
+        HStack(spacing: MicroverseDesign.Layout.space4) {
+            // Battery Column
+            VStack(spacing: MicroverseDesign.Layout.space1) {
+                Image(systemName: batteryInfo.isCharging ? "bolt.fill" : "battery.100percent")
+                    .font(MicroverseDesign.Typography.body)
+                    .foregroundColor(batteryColor)
+                Text("\(batteryInfo.currentCharge)%")
+                    .font(MicroverseDesign.Typography.title)
                     .foregroundColor(.white)
+                Text("BATTERY")
+                    .font(MicroverseDesign.Typography.label)
+                    .foregroundColor(.white.opacity(0.7))
+                    .tracking(0.6)
             }
             
             Divider()
+                .frame(width: 1)
                 .background(MicroverseDesign.Colors.divider)
             
-            // Stats row
-            HStack {
-                // Cycles
-                VStack(spacing: 2) {
-                    Text("Cycles")
-                        .font(.system(size: 9))
-                        .foregroundColor(.white)
-                    Text("\(batteryInfo.cycleCount)")
-                        .font(MicroverseDesign.Typography.caption.weight(.medium))
-                        .foregroundColor(.white)
-                }
-                
-                Spacer()
-                
-                // Health
-                VStack(spacing: 2) {
-                    Text("Health")
-                        .font(.system(size: 9))
-                        .foregroundColor(.white)
-                    Text("\(Int(batteryInfo.health * 100))%")
-                        .font(MicroverseDesign.Typography.caption.weight(.medium))
-                        .foregroundColor(.white)
-                }
-                
-                Spacer()
-                
-                // Time
-                VStack(spacing: 2) {
-                    Text("Time")
-                        .font(.system(size: 9))
-                        .foregroundColor(.white)
-                    if let timeString = batteryInfo.timeRemainingFormatted {
-                        Text(timeString)
-                            .font(MicroverseDesign.Typography.caption.weight(.medium))
-                            .foregroundColor(.white)
-                    } else {
-                        Text("—")
-                            .font(MicroverseDesign.Typography.caption.weight(.medium))
-                            .foregroundColor(.white)
-                    }
-                }
+            // CPU Column
+            VStack(spacing: MicroverseDesign.Layout.space1) {
+                Image(systemName: "cpu")
+                    .font(MicroverseDesign.Typography.body)
+                    .foregroundColor(cpuColor)
+                Text("\(Int(systemService.cpuUsage))%")
+                    .font(MicroverseDesign.Typography.title)
+                    .foregroundColor(.white)
+                Text("CPU")
+                    .font(MicroverseDesign.Typography.label)
+                    .foregroundColor(.white.opacity(0.7))
+                    .tracking(0.6)
+            }
+            
+            Divider()
+                .frame(width: 1)
+                .background(MicroverseDesign.Colors.divider)
+            
+            // Memory Column
+            VStack(spacing: MicroverseDesign.Layout.space1) {
+                Image(systemName: "memorychip")
+                    .font(MicroverseDesign.Typography.body)
+                    .foregroundColor(memoryColor)
+                Text("\(Int(systemService.memoryInfo.usagePercentage))%")
+                    .font(MicroverseDesign.Typography.title)
+                    .foregroundColor(.white)
+                Text("MEMORY")
+                    .font(MicroverseDesign.Typography.label)
+                    .foregroundColor(.white.opacity(0.7))
+                    .tracking(0.6)
             }
         }
         .padding(MicroverseDesign.Layout.space3)
-        .frame(width: 240, height: 120)
+        .frame(width: 240, height: 80)
         .widgetBackground()
     }
+    
+    private var batteryColor: Color {
+        if batteryInfo.currentCharge <= 20 { return MicroverseDesign.Colors.warning }
+        else if batteryInfo.isCharging { return MicroverseDesign.Colors.success }
+        else { return .white }
+    }
+    
+    private var cpuColor: Color {
+        if systemService.cpuUsage > 80 { return MicroverseDesign.Colors.critical }
+        else if systemService.cpuUsage > 60 { return MicroverseDesign.Colors.warning }
+        else { return MicroverseDesign.Colors.processor }
+    }
+    
+    private var memoryColor: Color {
+        switch systemService.memoryInfo.pressure {
+        case .critical: return MicroverseDesign.Colors.critical
+        case .warning: return MicroverseDesign.Colors.warning
+        case .normal: return MicroverseDesign.Colors.memory
+        }
+    }
 }
+
 
 // Visual effect blur
 struct VisualEffectBlur: NSViewRepresentable {
@@ -392,42 +358,40 @@ extension View {
 extension WidgetStyle {
     var displayName: String {
         switch self {
-        case .minimal: return "Minimal"
-        case .compact: return "Compact"
-        case .standard: return "Standard"
-        case .detailed: return "Detailed"
-        case .cpu: return "CPU"
-        case .memory: return "Memory"
-        case .system: return "System"
+        case .batterySimple: return "Battery Simple"
+        case .cpuMonitor: return "CPU Monitor"
+        case .memoryMonitor: return "Memory Monitor"
+        case .systemGlance: return "System Glance"
+        case .systemStatus: return "System Status"
+        case .systemDashboard: return "System Dashboard"
         }
     }
 }
 
-// MARK: - Dedicated CPU Widget
-
-struct CPUWidget: View {
+// CPU Monitor - Dedicated CPU tracking
+struct CPUMonitorWidget: View {
     @StateObject private var systemService = SystemMonitoringService.shared
     
     var body: some View {
         VStack(spacing: MicroverseDesign.Layout.space2) {
-            // CPU Header
+            // Header
             HStack {
                 Image(systemName: "cpu")
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(.blue)
+                    .font(MicroverseDesign.Typography.body)
+                    .foregroundColor(MicroverseDesign.Colors.processor)
                 
                 Text("CPU")
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(MicroverseDesign.Typography.caption.weight(.semibold))
                     .foregroundColor(.white)
                 
                 Spacer()
                 
                 Text("\(Int(systemService.cpuUsage))%")
-                    .font(.system(size: 18, weight: .bold, design: .rounded))
-                    .foregroundColor(.blue)
+                    .font(MicroverseDesign.Typography.title)
+                    .foregroundColor(cpuColor)
             }
             
-            // CPU Progress Bar
+            // Progress Bar
             GeometryReader { geometry in
                 ZStack(alignment: .leading) {
                     RoundedRectangle(cornerRadius: 3)
@@ -437,14 +401,14 @@ struct CPUWidget: View {
                     RoundedRectangle(cornerRadius: 3)
                         .fill(cpuColor)
                         .frame(width: geometry.size.width * (systemService.cpuUsage / 100), height: 6)
-                        .animation(.easeInOut(duration: 0.3), value: systemService.cpuUsage)
+                        .animation(MicroverseDesign.Animation.standard, value: systemService.cpuUsage)
                 }
             }
             .frame(height: 6)
             
             // Status
             Text(cpuStatusText)
-                .font(.system(size: 10, weight: .medium))
+                .font(MicroverseDesign.Typography.label)
                 .foregroundColor(.white.opacity(0.8))
         }
         .padding(MicroverseDesign.Layout.space3)
@@ -453,9 +417,9 @@ struct CPUWidget: View {
     }
     
     private var cpuColor: Color {
-        if systemService.cpuUsage > 80 { return .red }
-        else if systemService.cpuUsage > 60 { return .orange }
-        else { return .blue }
+        if systemService.cpuUsage > 80 { return MicroverseDesign.Colors.critical }
+        else if systemService.cpuUsage > 60 { return MicroverseDesign.Colors.warning }
+        else { return MicroverseDesign.Colors.processor }
     }
     
     private var cpuStatusText: String {
@@ -465,31 +429,30 @@ struct CPUWidget: View {
     }
 }
 
-// MARK: - Dedicated Memory Widget
-
-struct MemoryWidget: View {
+// Memory Monitor - Dedicated memory tracking
+struct MemoryMonitorWidget: View {
     @StateObject private var systemService = SystemMonitoringService.shared
     
     var body: some View {
         VStack(spacing: MicroverseDesign.Layout.space2) {
-            // Memory Header
+            // Header
             HStack {
                 Image(systemName: "memorychip")
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(.purple)
+                    .font(MicroverseDesign.Typography.body)
+                    .foregroundColor(MicroverseDesign.Colors.memory)
                 
                 Text("MEMORY")
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(MicroverseDesign.Typography.caption.weight(.semibold))
                     .foregroundColor(.white)
                 
                 Spacer()
                 
                 Text("\(Int(systemService.memoryInfo.usagePercentage))%")
-                    .font(.system(size: 18, weight: .bold, design: .rounded))
-                    .foregroundColor(.purple)
+                    .font(MicroverseDesign.Typography.title)
+                    .foregroundColor(memoryColor)
             }
             
-            // Memory Progress Bar
+            // Progress Bar
             GeometryReader { geometry in
                 ZStack(alignment: .leading) {
                     RoundedRectangle(cornerRadius: 3)
@@ -499,14 +462,14 @@ struct MemoryWidget: View {
                     RoundedRectangle(cornerRadius: 3)
                         .fill(memoryColor)
                         .frame(width: geometry.size.width * (systemService.memoryInfo.usagePercentage / 100), height: 6)
-                        .animation(.easeInOut(duration: 0.3), value: systemService.memoryInfo.usagePercentage)
+                        .animation(MicroverseDesign.Animation.standard, value: systemService.memoryInfo.usagePercentage)
                 }
             }
             .frame(height: 6)
             
-            // Memory Usage
+            // Usage details
             Text("\(String(format: "%.1f", systemService.memoryInfo.usedMemory)) / \(String(format: "%.1f", systemService.memoryInfo.totalMemory)) GB")
-                .font(.system(size: 10, weight: .medium))
+                .font(MicroverseDesign.Typography.label)
                 .foregroundColor(.white.opacity(0.8))
         }
         .padding(MicroverseDesign.Layout.space3)
@@ -516,288 +479,157 @@ struct MemoryWidget: View {
     
     private var memoryColor: Color {
         switch systemService.memoryInfo.pressure {
-        case .critical: return .red
-        case .warning: return .orange
-        case .normal: return .purple
+        case .critical: return MicroverseDesign.Colors.critical
+        case .warning: return MicroverseDesign.Colors.warning
+        case .normal: return MicroverseDesign.Colors.memory
         }
     }
 }
 
-// MARK: - System Overview Widget (Replaces DetailedSystemWidget)
 
-struct SystemOverviewWidget: View {
+
+// System Dashboard - Full detailed view
+struct SystemDashboardWidget: View {
     let batteryInfo: BatteryInfo
     @StateObject private var systemService = SystemMonitoringService.shared
     
     var body: some View {
-        VStack(spacing: 6) {
-            // Header with battery prominently displayed
+        VStack(spacing: 4) {
+            // Compact header
             HStack {
-                HStack(spacing: MicroverseDesign.Layout.space1) {
-                    Image(systemName: "bolt.fill")
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(.green)
+                HStack(spacing: 4) {
+                    if batteryInfo.isCharging {
+                        Image(systemName: "bolt.fill")
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundColor(MicroverseDesign.Colors.success)
+                    }
                     Text("\(batteryInfo.currentCharge)%")
-                        .font(.system(size: 18, weight: .bold, design: .rounded))
+                        .font(.system(size: 20, weight: .bold, design: .rounded))
                         .foregroundColor(.white)
                 }
                 
                 Spacer()
                 
-                Circle()
-                    .fill(systemHealthColor)
-                    .frame(width: 6, height: 6)
+                HStack(spacing: 4) {
+                    Circle()
+                        .fill(systemHealthColor)
+                        .frame(width: 6, height: 6)
+                    Text(systemHealthText)
+                        .font(.system(size: 11))
+                        .foregroundColor(.white.opacity(0.8))
+                }
             }
+            .padding(.top, 2)
             
-            // Compact two-column metrics  
-            HStack(spacing: 16) {
+            Divider()
+                .background(MicroverseDesign.Colors.divider)
+            
+            // Three metrics
+            HStack(spacing: 0) {
                 // CPU
-                VStack(spacing: 2) {
+                VStack(spacing: 1) {
                     Image(systemName: "cpu")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(.blue)
+                        .font(.system(size: 12))
+                        .foregroundColor(cpuColor)
                     Text("\(Int(systemService.cpuUsage))%")
                         .font(.system(size: 14, weight: .bold, design: .rounded))
                         .foregroundColor(.white)
                     Text("CPU")
-                        .font(.system(size: 8, weight: .semibold))
-                        .foregroundColor(.white.opacity(0.7))
-                        .tracking(0.8)
+                        .font(.system(size: 8, weight: .medium))
+                        .foregroundColor(.white.opacity(0.6))
+                        .tracking(0.5)
                 }
                 .frame(maxWidth: .infinity)
                 
                 // Memory
-                VStack(spacing: 2) {
+                VStack(spacing: 1) {
                     Image(systemName: "memorychip")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(.purple)
+                        .font(.system(size: 12))
+                        .foregroundColor(memoryColor)
                     Text("\(Int(systemService.memoryInfo.usagePercentage))%")
                         .font(.system(size: 14, weight: .bold, design: .rounded))
                         .foregroundColor(.white)
                     Text("MEMORY")
-                        .font(.system(size: 8, weight: .semibold))
-                        .foregroundColor(.white.opacity(0.7))
-                        .tracking(0.8)
+                        .font(.system(size: 8, weight: .medium))
+                        .foregroundColor(.white.opacity(0.6))
+                        .tracking(0.5)
                 }
                 .frame(maxWidth: .infinity)
                 
                 // Health
-                VStack(spacing: 2) {
+                VStack(spacing: 1) {
                     Image(systemName: "heart.fill")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(.white)
+                        .font(.system(size: 12))
+                        .foregroundColor(.white.opacity(0.9))
                     Text("\(Int(batteryInfo.health * 100))%")
                         .font(.system(size: 14, weight: .bold, design: .rounded))
                         .foregroundColor(.white)
                     Text("HEALTH")
-                        .font(.system(size: 8, weight: .semibold))
-                        .foregroundColor(.white.opacity(0.7))
-                        .tracking(0.8)
+                        .font(.system(size: 8, weight: .medium))
+                        .foregroundColor(.white.opacity(0.6))
+                        .tracking(0.5)
                 }
                 .frame(maxWidth: .infinity)
             }
+            .padding(.vertical, 2)
+            
+            Divider()
+                .background(MicroverseDesign.Colors.divider)
+            
+            // Bottom info
+            HStack {
+                Text("Cycles: \(batteryInfo.cycleCount)")
+                    .font(.system(size: 10))
+                    .foregroundColor(.white.opacity(0.7))
+                
+                Spacer()
+                
+                if let timeString = batteryInfo.timeRemainingFormatted {
+                    Text(timeString)
+                        .font(.system(size: 10))
+                        .foregroundColor(.white.opacity(0.7))
+                }
+            }
+            .padding(.bottom, 2)
         }
-        .padding(MicroverseDesign.Layout.space3)
-        .frame(width: 240, height: 100)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .frame(width: 240, height: 120)
         .widgetBackground()
     }
     
     private var systemHealthColor: Color {
         if systemService.cpuUsage > 80 || systemService.memoryInfo.pressure == .critical || batteryInfo.currentCharge < 15 {
-            return .red
+            return MicroverseDesign.Colors.critical
         } else if systemService.cpuUsage > 60 || systemService.memoryInfo.pressure == .warning || batteryInfo.currentCharge < 25 {
-            return .orange
+            return MicroverseDesign.Colors.warning
         } else {
-            return .green
+            return MicroverseDesign.Colors.success
         }
     }
     
-    private var systemStatusText: String {
+    private var systemHealthText: String {
         if systemService.cpuUsage > 80 || systemService.memoryInfo.pressure == .critical {
-            return "System under stress"
+            return "High Load"
         } else if systemService.cpuUsage > 60 || systemService.memoryInfo.pressure == .warning {
-            return "Moderate system load"
+            return "Moderate"
         } else {
-            return "All systems optimal"
-        }
-    }
-}
-
-// Elegant compact widget with system monitoring
-struct CompactSystemWidget: View {
-    let batteryInfo: BatteryInfo
-    @StateObject private var systemService = SystemMonitoringService.shared
-    
-    var body: some View {
-        HStack(spacing: 16) {
-            // Battery with clean typography
-            VStack(spacing: 2) {
-                Image(systemName: batteryInfo.isCharging ? "bolt.fill" : "battery.100percent")
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(.white)
-                Text("\(batteryInfo.currentCharge)%")
-                    .font(.system(size: 13, weight: .semibold, design: .rounded))
-                    .foregroundColor(.white)
-            }
-            
-            // CPU with proper contrast
-            VStack(spacing: 2) {
-                Image(systemName: "cpu")
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(.white.opacity(0.9))
-                Text("\(Int(systemService.cpuUsage))%")
-                    .font(.system(size: 13, weight: .semibold, design: .rounded))
-                    .foregroundColor(.white)
-            }
-            
-            // Memory with clear visibility
-            VStack(spacing: 2) {
-                Image(systemName: "memorychip")
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(.white.opacity(0.9))
-                Text("\(Int(systemService.memoryInfo.usagePercentage))%")
-                    .font(.system(size: 13, weight: .semibold, design: .rounded))
-                    .foregroundColor(.white)
-            }
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
-        .widgetBackground()
-        .frame(width: 160, height: 50)
-    }
-}
-
-// Elegant detailed system widget
-struct DetailedSystemWidget: View {
-    let batteryInfo: BatteryInfo
-    @StateObject private var systemService = SystemMonitoringService.shared
-    
-    var body: some View {
-        VStack(spacing: 12) {
-            // Header with clear hierarchy
-            VStack(spacing: 6) {
-                HStack {
-                    Text("SYSTEM")
-                        .font(.system(size: 11, weight: .semibold, design: .rounded))
-                        .foregroundColor(.white.opacity(0.7))
-                        .tracking(1.2)
-                    
-                    Spacer()
-                    
-                    Circle()
-                        .fill(systemHealthColor)
-                        .frame(width: 8, height: 8)
-                }
-                
-                HStack {
-                    // Large battery percentage
-                    HStack(spacing: MicroverseDesign.Layout.space1) {
-                        if batteryInfo.isCharging {
-                            Image(systemName: "bolt.fill")
-                                .font(.system(size: 16, weight: .medium))
-                                .foregroundColor(.white)
-                        }
-                        Text("\(batteryInfo.currentCharge)%")
-                            .font(.system(size: 24, weight: .bold, design: .rounded))
-                            .foregroundColor(.white)
-                    }
-                    
-                    Spacer()
-                }
-            }
-            
-            // Elegant metrics grid
-            HStack(spacing: 0) {
-                // CPU Metric
-                MetricCard(
-                    icon: "cpu",
-                    value: "\(Int(systemService.cpuUsage))%",
-                    label: "CPU",
-                    color: cpuColor
-                )
-                
-                Spacer()
-                
-                // Memory Metric
-                MetricCard(
-                    icon: "memorychip", 
-                    value: "\(Int(systemService.memoryInfo.usagePercentage))%",
-                    label: "Memory",
-                    color: memoryColor
-                )
-                
-                Spacer()
-                
-                // Health Metric
-                MetricCard(
-                    icon: "heart.fill",
-                    value: "\(Int(batteryInfo.health * 100))%",
-                    label: "Health",
-                    color: .white.opacity(0.9)
-                )
-            }
-            
-            // Subtle warning for memory pressure
-            if systemService.memoryInfo.pressure != .normal {
-                HStack(spacing: 6) {
-                    Image(systemName: "exclamationmark.triangle.fill")
-                        .font(.system(size: 10))
-                        .foregroundColor(.orange)
-                    
-                    Text("Memory pressure elevated")
-                        .font(.system(size: 10, weight: .medium))
-                        .foregroundColor(.white.opacity(0.8))
-                }
-                .padding(.top, 4)
-            }
-        }
-        .padding(16)
-        .widgetBackground()
-        .frame(width: 240, height: 120)
-    }
-    
-    private var systemHealthColor: Color {
-        if systemService.cpuUsage > 80 || systemService.memoryInfo.pressure == .critical {
-            return .red
-        } else if systemService.cpuUsage > 50 || systemService.memoryInfo.pressure == .warning {
-            return .orange
-        } else {
-            return .green
+            return "Optimal"
         }
     }
     
     private var cpuColor: Color {
-        systemService.cpuUsage > 80 ? .red : systemService.cpuUsage > 50 ? .orange : .blue
+        if systemService.cpuUsage > 80 { return MicroverseDesign.Colors.critical }
+        else if systemService.cpuUsage > 60 { return MicroverseDesign.Colors.warning }
+        else { return MicroverseDesign.Colors.processor }
     }
     
     private var memoryColor: Color {
-        systemService.memoryInfo.pressure == .critical ? .red : 
-        systemService.memoryInfo.pressure == .warning ? .orange : .purple
+        switch systemService.memoryInfo.pressure {
+        case .critical: return MicroverseDesign.Colors.critical
+        case .warning: return MicroverseDesign.Colors.warning
+        case .normal: return MicroverseDesign.Colors.memory
+        }
     }
 }
 
-// Elegant metric card component
-struct MetricCard: View {
-    let icon: String
-    let value: String
-    let label: String
-    let color: Color
-    
-    var body: some View {
-        VStack(spacing: 3) {
-            Image(systemName: icon)
-                .font(.system(size: 12, weight: .medium))
-                .foregroundColor(color)
-            
-            Text(value)
-                .font(.system(size: 14, weight: .bold, design: .rounded))
-                .foregroundColor(.white)
-            
-            Text(label.uppercased())
-                .font(.system(size: 8, weight: .semibold))
-                .foregroundColor(.white.opacity(0.7))
-                .tracking(0.8)
-        }
-        .frame(maxWidth: .infinity)
-    }
-}

@@ -32,18 +32,10 @@ class BatteryViewModel: ObservableObject {
             saveSetting("showDesktopWidget", value: showDesktopWidget)
         }
     }
-    @Published var widgetStyle = WidgetStyle.standard {
+    @Published var widgetStyle = WidgetStyle.systemGlance {
         didSet {
             saveSetting("widgetStyle", value: widgetStyle.rawValue)
-            // Note: Widget will be recreated when user toggles it off/on
-            // This avoids crashes from rapid window recreation
-        }
-    }
-    
-    @Published var showSystemInfoInWidget = false {
-        didSet {
-            saveSetting("showSystemInfoInWidget", value: showSystemInfoInWidget)
-            // Recreate widget to apply changes
+            // Recreate widget to apply new style
             if showDesktopWidget {
                 widgetManager?.hideWidget()
                 widgetManager?.showWidget()
@@ -190,7 +182,6 @@ class BatteryViewModel: ObservableObject {
            let style = WidgetStyle(rawValue: styleRaw) {
             widgetStyle = style
         }
-        showSystemInfoInWidget = defaults.bool(forKey: "showSystemInfoInWidget")
     }
     
     private func saveSetting(_ key: String, value: Any) {

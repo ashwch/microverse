@@ -197,10 +197,16 @@ struct SettingsView: View {
                 VStack(alignment: .leading, spacing: 20) {
                     // Menu Bar Section
                     VStack(alignment: .leading, spacing: 12) {
-                        Text("Menu Bar")
-                            .font(.headline)
+                        HStack {
+                            Image(systemName: "menubar.rectangle")
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundColor(MicroverseDesign.Colors.accent)
+                            Text("Menu Bar")
+                                .font(.headline)
+                        }
                         
-                        Toggle("Show percentage in menu bar", isOn: $viewModel.showPercentageInMenuBar)
+                        Toggle("Show battery percentage", isOn: $viewModel.showPercentageInMenuBar)
+                            .toggleStyle(SwitchToggleStyle(tint: MicroverseDesign.Colors.success))
                     }
                     .padding(.horizontal)
                     
@@ -208,26 +214,52 @@ struct SettingsView: View {
                     
                     // Desktop Widget Section
                     VStack(alignment: .leading, spacing: 12) {
-                        Text("Desktop Widget")
-                            .font(.headline)
+                        HStack {
+                            Image(systemName: "rectangle.badge.checkmark")
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundColor(MicroverseDesign.Colors.accent)
+                            Text("Desktop Widget")
+                                .font(.headline)
+                        }
                         
-                        Toggle("Enable widget", isOn: $viewModel.showDesktopWidget)
+                        Toggle("Enable floating widget", isOn: $viewModel.showDesktopWidget)
+                            .toggleStyle(SwitchToggleStyle(tint: MicroverseDesign.Colors.success))
                         
                         if viewModel.showDesktopWidget {
-                            HStack {
-                                Text("Style:")
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("Widget Type")
+                                    .font(MicroverseDesign.Typography.caption)
+                                    .foregroundColor(.secondary)
+                                
                                 Picker("", selection: $viewModel.widgetStyle) {
-                                    ForEach(WidgetStyle.allCases, id: \.self) { style in
-                                        Text(style.displayName).tag(style)
+                                    // Single Metric Section
+                                    Section(header: Text("Single Metric")) {
+                                        Text("🔋 Battery Simple").tag(WidgetStyle.batterySimple)
+                                        Text("🖥️ CPU Monitor").tag(WidgetStyle.cpuMonitor)
+                                        Text("🧠 Memory Monitor").tag(WidgetStyle.memoryMonitor)
+                                    }
+                                    
+                                    Divider()
+                                    
+                                    // Multi-Metric Section
+                                    Section(header: Text("System Overview")) {
+                                        Text("👀 System Glance").tag(WidgetStyle.systemGlance)
+                                        Text("📊 System Status").tag(WidgetStyle.systemStatus)
+                                        Text("📈 System Dashboard").tag(WidgetStyle.systemDashboard)
                                     }
                                 }
                                 .labelsHidden()
                                 .pickerStyle(MenuPickerStyle())
-                                .fixedSize()
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                
+                                // Widget preview hint
+                                Text(widgetDescription)
+                                    .font(.system(size: 10))
+                                    .foregroundColor(.secondary)
+                                    .padding(.top, 4)
                             }
-                            
-                            Toggle("Show system info", isOn: $viewModel.showSystemInfoInWidget)
-                                .font(MicroverseDesign.Typography.caption)
+                            .padding(12)
+                            .background(MicroverseDesign.cardBackground())
                         }
                     }
                     .padding(.horizontal)
@@ -236,22 +268,30 @@ struct SettingsView: View {
                     
                     // General Section
                     VStack(alignment: .leading, spacing: 12) {
-                        Text("General")
-                            .font(.headline)
+                        HStack {
+                            Image(systemName: "gear")
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundColor(MicroverseDesign.Colors.accent)
+                            Text("General")
+                                .font(.headline)
+                        }
                         
                         Toggle("Launch at startup", isOn: $viewModel.launchAtStartup)
+                            .toggleStyle(SwitchToggleStyle(tint: MicroverseDesign.Colors.success))
                         
-                        HStack {
-                            Text("Refresh interval:")
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("System refresh rate")
+                                .font(MicroverseDesign.Typography.caption)
+                                .foregroundColor(.secondary)
+                            
                             Picker("", selection: $viewModel.refreshInterval) {
-                                Text("2 seconds").tag(2.0)
-                                Text("5 seconds").tag(5.0)
-                                Text("10 seconds").tag(10.0)
-                                Text("30 seconds").tag(30.0)
+                                Text("Fast (2 sec)").tag(2.0)
+                                Text("Normal (5 sec)").tag(5.0)
+                                Text("Balanced (10 sec)").tag(10.0)
+                                Text("Power Saver (30 sec)").tag(30.0)
                             }
                             .labelsHidden()
-                            .pickerStyle(MenuPickerStyle())
-                            .fixedSize()
+                            .pickerStyle(SegmentedPickerStyle())
                         }
                     }
                     .padding(.horizontal)
@@ -261,5 +301,22 @@ struct SettingsView: View {
         }
         .frame(width: 400, height: 500)
         .background(Color(NSColor.windowBackgroundColor))
+    }
+    
+    private var widgetDescription: String {
+        switch viewModel.widgetStyle {
+        case .batterySimple:
+            return "Minimal 100×40 widget showing battery percentage"
+        case .cpuMonitor:
+            return "160×80 widget with CPU usage and progress bar"
+        case .memoryMonitor:
+            return "160×80 widget with memory usage and pressure"
+        case .systemGlance:
+            return "Compact 160×50 widget with all three metrics"
+        case .systemStatus:
+            return "Medium 240×80 widget with detailed metrics"
+        case .systemDashboard:
+            return "Large 240×120 widget with full system details"
+        }
     }
 }

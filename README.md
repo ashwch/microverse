@@ -36,16 +36,15 @@ Microverse transforms your Mac into a comprehensive system intelligence hub - yo
 
 ## Widget Styles
 
-### Battery Focused
-- **Minimal (100×40)**: Battery percentage only
-- **Compact (160×50)**: Battery + time remaining  
-- **Standard (180×100)**: Large percentage with status
-- **Detailed (240×120)**: Complete battery statistics
+### Single Metric Widgets
+- **Battery Simple (100×40)**: Just battery percentage with charging indicator
+- **CPU Monitor (160×80)**: CPU usage with progress bar and status text
+- **Memory Monitor (160×80)**: Memory usage percentage with pressure indicator
 
-### System Monitoring
-- **CPU (160×80)**: Dedicated CPU usage monitoring
-- **Memory (160×80)**: Memory pressure and usage
-- **System (240×100)**: Unified overview of all metrics
+### Multi-Metric System Widgets
+- **System Glance (160×50)**: Compact view of Battery + CPU + Memory percentages
+- **System Status (240×80)**: Three-column layout with icons and percentages for all metrics
+- **System Dashboard (240×120)**: Full detailed view with system health, all metrics, battery cycles, and time remaining
 
 ## 📦 Installation
 
@@ -104,10 +103,11 @@ After installation, Microverse will:
 - **Widget Positioning**: Drag widgets anywhere on desktop
 
 ### Desktop Widgets
-- **System-aware**: Automatically show system information when enabled
-- **Adaptive Content**: Different metrics based on widget style
-- **Glass Design**: Elegant blur effects matching macOS design language
-- **Always Accessible**: Stay on top for continuous monitoring
+- **6 Widget Styles**: From single-metric focused to comprehensive system dashboard
+- **Clear Naming**: Each widget clearly indicates its purpose (Battery Simple, CPU Monitor, etc.)
+- **Glass Design**: Elegant blur effects with 85% opacity matching macOS aesthetics
+- **Always Accessible**: Floating widgets that stay on top for continuous monitoring
+- **Instant Switching**: Change widget styles on-the-fly from settings
 
 ## Architecture
 
@@ -202,10 +202,11 @@ We welcome contributions! Here's how to get started:
 - **System Health Indicators**: Visual status with predictive warnings
 
 ### Desktop Widget System
-- **6 Widget Styles**: From minimal (100×40) to comprehensive (240×120)
-- **Adaptive Content**: Contextual information based on system state
-- **Always-on-Top**: Non-intrusive monitoring during intensive tasks
+- **6 Widget Styles**: Single-metric (Battery/CPU/Memory) and multi-metric (Glance/Status/Dashboard)
+- **Smart Layouts**: Optimized spacing and typography for each widget size
+- **Instant Updates**: Real-time data with smooth animations
 - **Drag & Position**: Place widgets anywhere on your desktop
+- **Live Style Switching**: Change widget types without closing/reopening
 
 ### Developer-Focused Design
 - **Menu Bar Integration**: Quick access without window switching

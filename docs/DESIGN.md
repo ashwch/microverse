@@ -53,16 +53,15 @@
 
 ## Widget System (6 Styles)
 
-### Battery Widgets
-1. **Minimal (100×40)**: `⚡ 85%` - Essential info only
-2. **Compact (160×50)**: Battery + time in horizontal layout
-3. **Standard (180×100)**: Large percentage with status text
-4. **Detailed (240×120)**: Complete battery statistics
+### Single Metric Widgets
+1. **Battery Simple (100×40)**: Just battery percentage with charging indicator
+2. **CPU Monitor (160×80)**: CPU usage with progress bar and status text
+3. **Memory Monitor (160×80)**: Memory usage percentage with pressure indicator
 
-### System Widgets  
-5. **CPU (160×80)**: Dedicated CPU monitoring with progress bar
-6. **Memory (160×80)**: Memory pressure with usage metrics
-7. **System (240×100)**: Unified overview of all metrics
+### Multi-Metric System Widgets
+4. **System Glance (160×50)**: Compact horizontal view of Battery + CPU + Memory percentages
+5. **System Status (240×80)**: Three-column layout with icons and percentages for all metrics
+6. **System Dashboard (240×120)**: Full detailed view with system health, all metrics, battery cycles, and time remaining
 
 ### Unified Widget Background
 ```swift
@@ -210,6 +209,15 @@ struct SectionHeader: View {
     // Spacing: HStack with Spacer() trailing
 }
 ```
+
+### Widget Layout Specifications
+
+#### DetailedSystemWidget (240×120)
+- **Content**: Battery percentage, CPU/Memory/Health metrics
+- **Layout**: Simplified without "SYSTEM" header to fit content
+- **Padding**: Layout.space2 (8px) for maximum content area
+- **Spacing**: Minimal (space1 = 4px) between elements
+- **Note**: Removed status text to prevent cropping
 
 ### Widget Rendering Specifications
 
