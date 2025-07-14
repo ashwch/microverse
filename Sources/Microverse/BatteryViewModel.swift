@@ -18,8 +18,17 @@ class BatteryViewModel: ObservableObject {
             LaunchAtStartup.isEnabled = launchAtStartup
         }
     }
-    @Published var showPercentageInMenuBar = true
-    @Published var refreshInterval: TimeInterval = 5.0
+    @Published var showPercentageInMenuBar = true {
+        didSet {
+            saveSetting("showPercentageInMenuBar", value: showPercentageInMenuBar)
+        }
+    }
+    @Published var refreshInterval: TimeInterval = 5.0 {
+        didSet {
+            saveSetting("refreshInterval", value: refreshInterval)
+            // Timer will use new interval on next refresh
+        }
+    }
     
     // Widget settings
     @Published var showDesktopWidget = false {

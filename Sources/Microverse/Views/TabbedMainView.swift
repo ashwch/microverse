@@ -177,107 +177,127 @@ struct SettingsView: View {
             // Header
             HStack {
                 Text("Settings")
-                    .font(.title2)
-                    .fontWeight(.bold)
+                    .font(MicroverseDesign.Typography.largeTitle)
+                    .foregroundColor(.primary)
                 
                 Spacer()
                 
                 Button(action: { isPresented = false }) {
                     Image(systemName: "xmark.circle.fill")
-                        .font(.title3)
+                        .font(.system(size: 20))
                         .foregroundColor(.secondary)
                 }
                 .buttonStyle(PlainButtonStyle())
             }
-            .padding()
-            
-            Divider()
+            .padding(MicroverseDesign.Layout.space4)
             
             ScrollView {
-                VStack(alignment: .leading, spacing: MicroverseDesign.Layout.space3) {
-                    // Menu Bar Section
-                    VStack(alignment: .leading, spacing: MicroverseDesign.Layout.space2) {
-                        Text("MENU BAR")
-                            .font(MicroverseDesign.Typography.label)
-                            .foregroundColor(MicroverseDesign.Colors.accentSubtle)
-                            .tracking(1.2)
-                        
-                        Toggle("Show battery percentage", isOn: $viewModel.showPercentageInMenuBar)
-                    }
-                    .padding(MicroverseDesign.Layout.space3)
-                    .background(MicroverseDesign.cardBackground())
-                    .padding(.horizontal)
+                VStack(spacing: 0) {
+                    // Menu Bar Option
+                    SettingsRow(
+                        title: "Show in Menu Bar",
+                        subtitle: "Display battery percentage",
+                        toggle: $viewModel.showPercentageInMenuBar
+                    )
                     
-                    // Desktop Widget Section
-                    VStack(alignment: .leading, spacing: MicroverseDesign.Layout.space2) {
-                        Text("DESKTOP WIDGET")
-                            .font(MicroverseDesign.Typography.label)
-                            .foregroundColor(MicroverseDesign.Colors.accentSubtle)
-                            .tracking(1.2)
-                        
-                        Toggle("Enable floating widget", isOn: $viewModel.showDesktopWidget)
-                        
-                        if viewModel.showDesktopWidget {
-                            VStack(alignment: .leading, spacing: MicroverseDesign.Layout.space3) {
-                                VStack(alignment: .leading, spacing: MicroverseDesign.Layout.space1) {
-                                    Text("Style")
-                                        .font(MicroverseDesign.Typography.caption)
-                                        .foregroundColor(MicroverseDesign.Colors.accentSubtle)
-                                    
-                                    Picker("", selection: $viewModel.widgetStyle) {
-                                        ForEach(WidgetStyle.allCases, id: \.self) { style in
-                                            Text(style.displayName).tag(style)
-                                        }
-                                    }
-                                    .labelsHidden()
-                                    .pickerStyle(MenuPickerStyle())
-                                }
+                    SettingsDivider()
+                    
+                    // Desktop Widget
+                    SettingsRow(
+                        title: "Desktop Widget",
+                        subtitle: "Floating system monitor",
+                        toggle: $viewModel.showDesktopWidget
+                    )
+                    
+                    if viewModel.showDesktopWidget {
+                        VStack(spacing: 0) {
+                            HStack {
+                                Text("Widget Style")
+                                    .font(MicroverseDesign.Typography.body)
+                                    .foregroundColor(.primary)
                                 
+                                Spacer()
+                                
+                                Picker("", selection: $viewModel.widgetStyle) {
+                                    ForEach(WidgetStyle.allCases, id: \.self) { style in
+                                        Text(style.displayName).tag(style)
+                                    }
+                                }
+                                .labelsHidden()
+                                .pickerStyle(MenuPickerStyle())
+                                .frame(width: 180)
+                            }
+                            .padding(MicroverseDesign.Layout.space3)
+                            .padding(.leading, MicroverseDesign.Layout.space4)
+                            .background(Color.gray.opacity(0.1))
+                            
+                            HStack {
                                 Text(widgetDescription)
                                     .font(MicroverseDesign.Typography.caption)
-                                    .foregroundColor(MicroverseDesign.Colors.accentMuted)
-                                    .fixedSize(horizontal: false, vertical: true)
+                                    .foregroundColor(.secondary)
+                                Spacer()
                             }
-                            .padding(.top, MicroverseDesign.Layout.space2)
+                            .padding(.horizontal, MicroverseDesign.Layout.space3)
+                            .padding(.horizontal, MicroverseDesign.Layout.space4)
+                            .padding(.bottom, MicroverseDesign.Layout.space3)
                         }
                     }
-                    .padding(MicroverseDesign.Layout.space3)
-                    .background(MicroverseDesign.cardBackground())
-                    .padding(.horizontal)
                     
-                    // General Section
-                    VStack(alignment: .leading, spacing: MicroverseDesign.Layout.space2) {
-                        Text("GENERAL")
-                            .font(MicroverseDesign.Typography.label)
-                            .foregroundColor(MicroverseDesign.Colors.accentSubtle)
-                            .tracking(1.2)
-                        
-                        Toggle("Launch at startup", isOn: $viewModel.launchAtStartup)
-                        
-                        VStack(alignment: .leading, spacing: MicroverseDesign.Layout.space2) {
-                            Text("Refresh Interval")
-                                .font(MicroverseDesign.Typography.caption)
-                                .foregroundColor(MicroverseDesign.Colors.accentSubtle)
-                            
-                            Picker("", selection: $viewModel.refreshInterval) {
-                                Text("2 seconds").tag(2.0)
-                                Text("5 seconds").tag(5.0)
-                                Text("10 seconds").tag(10.0)
-                                Text("30 seconds").tag(30.0)
+                    SettingsDivider()
+                    
+                    // Launch at Startup
+                    SettingsRow(
+                        title: "Launch at Startup",
+                        subtitle: "Start when you log in",
+                        toggle: $viewModel.launchAtStartup
+                    )
+                    
+                    SettingsDivider()
+                    
+                    // Refresh Rate
+                    VStack(alignment: .leading, spacing: MicroverseDesign.Layout.space3) {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Refresh Rate")
+                                    .font(MicroverseDesign.Typography.body)
+                                    .foregroundColor(.primary)
+                                Text("How often to update system data")
+                                    .font(MicroverseDesign.Typography.caption)
+                                    .foregroundColor(.secondary)
                             }
-                            .labelsHidden()
-                            .pickerStyle(MenuPickerStyle())
+                            Spacer()
                         }
-                        .padding(.top, MicroverseDesign.Layout.space1)
+                        .padding(.horizontal, MicroverseDesign.Layout.space3)
+                        
+                        HStack(spacing: MicroverseDesign.Layout.space2) {
+                            ForEach([2.0, 5.0, 10.0, 30.0], id: \.self) { interval in
+                                Button(action: { viewModel.refreshInterval = interval }) {
+                                    VStack(spacing: 2) {
+                                        Text("\(Int(interval))")
+                                            .font(MicroverseDesign.Typography.body.weight(.semibold))
+                                        Text("sec")
+                                            .font(MicroverseDesign.Typography.caption)
+                                    }
+                                    .foregroundColor(viewModel.refreshInterval == interval ? .white : .primary)
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, MicroverseDesign.Layout.space2)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 8)
+                                            .fill(viewModel.refreshInterval == interval ? MicroverseDesign.Colors.processor : Color.gray.opacity(0.1))
+                                    )
+                                }
+                                .buttonStyle(PlainButtonStyle())
+                            }
+                        }
+                        .padding(.horizontal, MicroverseDesign.Layout.space3)
                     }
-                    .padding(MicroverseDesign.Layout.space3)
-                    .background(MicroverseDesign.cardBackground())
-                    .padding(.horizontal)
+                    .padding(.vertical, MicroverseDesign.Layout.space3)
+                    
+                    Spacer(minLength: MicroverseDesign.Layout.space4)
                 }
-                .padding(.vertical)
             }
         }
-        .frame(width: 400, height: 500)
+        .frame(width: 420, height: 500)
         .background(Color(NSColor.windowBackgroundColor))
     }
     
@@ -296,5 +316,39 @@ struct SettingsView: View {
         case .systemDashboard:
             return "Large 240×120 widget with full system details"
         }
+    }
+}
+
+// MARK: - Settings Helper Components
+
+struct SettingsRow: View {
+    let title: String
+    let subtitle: String
+    @Binding var toggle: Bool
+    
+    var body: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                    .font(MicroverseDesign.Typography.body)
+                    .foregroundColor(.primary)
+                Text(subtitle)
+                    .font(MicroverseDesign.Typography.caption)
+                    .foregroundColor(.secondary)
+            }
+            Spacer()
+            Toggle("", isOn: $toggle)
+                .labelsHidden()
+                .toggleStyle(SwitchToggleStyle())
+        }
+        .padding(MicroverseDesign.Layout.space3)
+    }
+}
+
+struct SettingsDivider: View {
+    var body: some View {
+        Divider()
+            .background(MicroverseDesign.Colors.divider)
+            .padding(.horizontal, MicroverseDesign.Layout.space3)
     }
 }
