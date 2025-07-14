@@ -55,7 +55,8 @@ Microverse transforms your Mac into a comprehensive system intelligence hub - yo
 1. Download the `Microverse-v1.0.0.dmg` file from releases
 2. Open the DMG and drag Microverse to Applications  
 3. Launch Microverse from Applications or Spotlight
-4. Look for the system monitoring icon in your menu bar
+4. **Important**: See [macOS Security Permissions](#️-important-macos-security-permissions) section below
+5. Look for the system monitoring icon in your menu bar
 
 ### Building from Source
 
@@ -75,9 +76,23 @@ swift build -c release
 make install  # Builds and installs to /Applications
 ```
 
+### ⚠️ Important: macOS Security Permissions
+
+**When you first launch Microverse, macOS will block it because it's not from an identified developer.**
+
+To run Microverse:
+
+1. **First attempt**: Double-click Microverse → You'll see "Microverse can't be opened"
+2. **Open System Settings** → Privacy & Security
+3. **Scroll down** to see "Microverse was blocked from use because it is not from an identified developer"
+4. **Click "Open Anyway"** → Enter your password if prompted
+5. **Click "Open"** in the popup dialog
+
+*This is a one-time process. After allowing it once, Microverse will launch normally.*
+
 ### First Launch
 
-After installation, Microverse will:
+After granting permission, Microverse will:
 - Add a system monitoring icon to your menu bar
 - Allow access to system information (battery, CPU, memory)
 - Show the tabbed interface when you click the menu bar icon
