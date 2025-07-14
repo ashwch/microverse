@@ -98,7 +98,14 @@ struct TabbedMainView: View {
                 Spacer()
                 
                 Button(action: {
-                    NSApplication.shared.orderFrontStandardAboutPanel(nil)
+                    // Switch to regular app mode temporarily for About panel
+                    NSApp.setActivationPolicy(.regular)
+                    NSApp.activate(ignoringOtherApps: true)
+                    
+                    // Show the about panel
+                    NSApp.orderFrontStandardAboutPanel(nil)
+                    
+                    // Don't switch back immediately - let the user close it
                 }) {
                     HStack(spacing: 4) {
                         Image(systemName: "info.circle")
