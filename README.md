@@ -88,7 +88,7 @@ To run Microverse:
 4. **Click "Open Anyway"** → Enter your password if prompted
 5. **Click "Open"** in the popup dialog
 
-*This is a one-time process. After allowing it once, Microverse will launch normally.*
+*This is a one-time process. After allowing it once, Microverse will launch normally from Applications.*
 
 ### First Launch
 
