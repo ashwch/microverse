@@ -129,6 +129,10 @@ jobs:
             <string>????</string>
             <key>LSMinimumSystemVersion</key>
             <string>11.0</string>
+            <key>CFBundleIconFile</key>
+            <string>AppIcon</string>
+            <key>NSHumanReadableCopyright</key>
+            <string>Copyright © 2024 Ashwini Chaudhary. All rights reserved.</string>
             <key>NSHighResolutionCapable</key>
             <true/>
             <key>LSUIElement</key>
@@ -144,7 +148,9 @@ jobs:
         EOF
         
         # Copy app icon if it exists
-        if [ -f "Resources/AppIcon.icns" ]; then
+        if [ -f "Sources/Microverse/Resources/AppIcon.icns" ]; then
+          cp "Sources/Microverse/Resources/AppIcon.icns" "$APP_PATH/Contents/Resources/"
+        elif [ -f "Resources/AppIcon.icns" ]; then
           cp "Resources/AppIcon.icns" "$APP_PATH/Contents/Resources/"
         elif [ -f "AppIcon.icns" ]; then
           cp "AppIcon.icns" "$APP_PATH/Contents/Resources/"
