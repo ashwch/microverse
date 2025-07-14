@@ -59,7 +59,7 @@ class BatteryViewModel: ObservableObject {
     private var timer: Timer?
     private var cancellables = Set<AnyCancellable>()
     private let logger = Logger(subsystem: "com.microverse.app", category: "BatteryViewModel")
-    private weak var widgetManager: DesktopWidgetManager?
+    private var widgetManager: DesktopWidgetManager?
     
     init() {
         logger.info("BatteryViewModel initializing...")
@@ -70,9 +70,7 @@ class BatteryViewModel: ObservableObject {
         setupBindings()
         
         // Initialize widget manager
-        let manager = DesktopWidgetManager(viewModel: self)
-        // Store widget manager reference for lifecycle management
-        widgetManager = manager  // Keep weak reference for access
+        widgetManager = DesktopWidgetManager(viewModel: self)
         
         // Show widget if it was enabled
         if showDesktopWidget {
