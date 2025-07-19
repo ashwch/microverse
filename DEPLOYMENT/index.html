@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Deployment Guide | Microverse</title>
+  <meta name="description" content="Elegant system monitoring for macOS with beautiful desktop widgets">
+  <meta name="author" content="Ashwini Chaudhary">
+  
+  <!-- Open Graph -->
+  <meta property="og:title" content="Deployment Guide | Microverse">
+  <meta property="og:description" content="Elegant system monitoring for macOS with beautiful desktop widgets">
+  <meta property="og:image" content="https://microverse.ashwch.com/assets/images/microverse-og.png">
+  <meta property="og:url" content="https://microverse.ashwch.com/DEPLOYMENT/">
+  
+  <link rel="stylesheet" href="/assets/css/main.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="/assets/images/microverse-icon-256.png">
+</head>
+<body>
+  <script>
+    // Theme detection
+    (function() {
+      const theme = localStorage.getItem('theme') ||
+                   (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+      document.documentElement.setAttribute('data-theme', theme);
+    })();
+  </script>
+
+  <header class="site-header">
+    <div class="wrapper">
+      <div class="header-content">
+        <a class="site-title" href="/">
+          <img src="/assets/images/microverse-icon-256.png" alt="Microverse" class="site-icon"> Microverse
+        </a>
+        <nav class="site-nav">
+          
+            <a class="nav-link" href="/">Home</a>
+          
+            <a class="nav-link" href="/features/">Features</a>
+          
+            <a class="nav-link" href="/download/">Download</a>
+          
+            <a class="nav-link" href="https://github.com/ashwch/microverse/tree/main/docs">Documentation</a>
+          
+            <a class="nav-link" href="https://github.com/ashwch/microverse">GitHub</a>
+          
+          <a class="nav-link author-link" href="https://ashwch.com">ashwch.com</a>
+          <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme">
+            <span class="sun">☀️</span>
+            <span class="moon">🌙</span>
+          </button>
+        </nav>
+      </div>
+    </div>
+  </header>
+
+  <main class="page-content">
+    <h1 id="deployment-guide">Deployment Guide</h1>
+
+<h2 id="branch-strategy">Branch Strategy</h2>
+
+<ul>
+  <li><strong>main branch</strong>: Triggers app releases (DMG/ZIP files) ONLY</li>
+  <li><strong>dev branch</strong>: For development work and documentation updates</li>
+  <li><strong>gh-pages branch</strong>: Auto-created by GitHub Actions for docs deployment</li>
+</ul>
+
+<h2 id="how-it-works">How It Works</h2>
+
+<p>When you push documentation changes to the <code class="language-plaintext highlighter-rouge">dev</code> branch:</p>
+<ol>
+  <li>GitHub Actions builds the Jekyll site</li>
+  <li>Deploys it to the <code class="language-plaintext highlighter-rouge">gh-pages</code> branch</li>
+  <li>GitHub Pages serves it from <code class="language-plaintext highlighter-rouge">gh-pages</code> branch</li>
+  <li>No app release is triggered!</li>
+</ol>
+
+<h2 id="github-pages-setup">GitHub Pages Setup</h2>
+
+<h3 id="first-time-setup">First Time Setup:</h3>
+<ol>
+  <li>Push to <code class="language-plaintext highlighter-rouge">dev</code> branch first (this creates the <code class="language-plaintext highlighter-rouge">gh-pages</code> branch)</li>
+  <li>Go to Settings → Pages in your GitHub repo</li>
+  <li>Under “Build and deployment”:
+    <ul>
+      <li>Source: “Deploy from a branch”</li>
+      <li>Branch: <code class="language-plaintext highlighter-rouge">gh-pages</code> (select this instead of main)</li>
+      <li>Folder: <code class="language-plaintext highlighter-rouge">/ (root)</code></li>
+    </ul>
+  </li>
+  <li>Click Save</li>
+</ol>
+
+<h3 id="dns-setup-microverseashwchcom">DNS Setup (microverse.ashwch.com):</h3>
+<ol>
+  <li>Go to your DNS provider for ashwch.com</li>
+  <li>Add a CNAME record:
+    <ul>
+      <li>Name: <code class="language-plaintext highlighter-rouge">microverse</code></li>
+      <li>Value: <code class="language-plaintext highlighter-rouge">ashwch.github.io</code></li>
+      <li>TTL: 3600 (or default)</li>
+    </ul>
+  </li>
+  <li>Wait for DNS propagation (up to 24 hours)</li>
+</ol>
+
+<h2 id="workflow-summary">Workflow Summary</h2>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># For docs updates (NO app release):</span>
+git checkout dev
+<span class="c"># make changes to docs-site/</span>
+git add <span class="nb">.</span>
+git commit <span class="nt">-m</span> <span class="s2">"docs: update site"</span>
+git push origin dev
+<span class="c"># → Deploys docs only!</span>
+
+<span class="c"># For app releases (NO docs update):</span>
+git checkout main
+<span class="c"># make app changes</span>
+git add <span class="nb">.</span>
+git commit <span class="nt">-m</span> <span class="s2">"fix: app bug"</span>
+git push origin main
+<span class="c"># → Creates app release only!</span>
+
+<span class="c"># For both app and docs:</span>
+<span class="c"># First update docs on dev, then merge to main for app release</span>
+</code></pre></div></div>
+
+<h2 id="key-benefits">Key Benefits</h2>
+
+<p>✅ Documentation updates don’t trigger app releases
+✅ App releases don’t require documentation in the commit
+✅ Clean separation of concerns
+✅ Can update docs frequently without version bumps</p>
+
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrapper">
+      <div class="footer-content">
+        <div class="footer-section">
+          <h3>Microverse</h3>
+          <p>Elegant system monitoring for macOS</p>
+          <p class="copyright">&copy; 2025 <a href="https://ashwch.com">Ashwini Chaudhary</a></p>
+        </div>
+        <div class="footer-section">
+          <h3>Links</h3>
+          <ul>
+            <li><a href="/download/">Download</a></li>
+            <li><a href="https://github.com/ashwch/microverse">GitHub</a></li>
+            <li><a href="https://github.com/ashwch/microverse/issues">Support</a></li>
+            <li><a href="https://github.com/ashwch/microverse/blob/main/LICENSE">MIT License</a></li>
+          </ul>
+        </div>
+        <div class="footer-section">
+          <h3>Developer</h3>
+          <ul>
+            <li><a href="https://ashwch.com">ashwch.com</a></li>
+            <li><a href="https://ashwch.com/about">About</a></li>
+            <li><a href="https://github.com/ashwch">GitHub Profile</a></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    function toggleTheme() {
+      const currentTheme = document.documentElement.getAttribute('data-theme');
+      const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', newTheme);
+      localStorage.setItem('theme', newTheme);
+    }
+
+    // Smooth scroll for anchor links
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+      anchor.addEventListener('click', function (e) {
+        e.preventDefault();
+        document.querySelector(this.getAttribute('href')).scrollIntoView({
+          behavior: 'smooth'
+        });
+      });
+    });
+  </script>
+</body>
+</html>
