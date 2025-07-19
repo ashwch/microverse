@@ -33,23 +33,23 @@ description: Explore the comprehensive features of Microverse - elegant system m
       <div class="widget-item">
         <img src="/assets/images/widget-cpu-monitor.png" alt="CPU Monitor Widget">
         <h3>CPU Monitor</h3>
-        <p>Real-time CPU usage tracking with per-core breakdown. Ideal for developers and power users.</p>
+        <p>Real-time CPU load monitoring. Ideal for developers and power users.</p>
         <ul>
           <li>Overall CPU usage percentage</li>
-          <li>Individual core monitoring</li>
-          <li>Process count</li>
-          <li>200x150 compact design</li>
+          <li>Load average display</li>
+          <li>Processor architecture info</li>
+          <li>160x80 compact design</li>
         </ul>
       </div>
 
       <div class="widget-item">
         <img src="/assets/images/widget-memory-monitor.png" alt="Memory Monitor Widget">
         <h3>Memory Monitor</h3>
-        <p>Detailed memory usage analysis with pressure indicators. Essential for performance optimization.</p>
+        <p>Memory usage monitoring with pressure indicators. Essential for performance optimization.</p>
         <ul>
           <li>Memory pressure gauge</li>
-          <li>Used vs available breakdown</li>
-          <li>Swap usage tracking</li>
+          <li>Used vs free memory display</li>
+          <li>Compression ratio info</li>
           <li>Visual pressure indicators</li>
         </ul>
       </div>
@@ -60,7 +60,7 @@ description: Explore the comprehensive features of Microverse - elegant system m
         <p>Quick overview of all system metrics in a compact format. The perfect all-in-one solution.</p>
         <ul>
           <li>Battery, CPU, and memory stats</li>
-          <li>Condensed 250x200 layout</li>
+          <li>Condensed 160x50 layout</li>
           <li>Essential metrics only</li>
           <li>Clean, minimal design</li>
         </ul>
@@ -73,8 +73,8 @@ description: Explore the comprehensive features of Microverse - elegant system m
         <ul>
           <li>All system metrics</li>
           <li>Extended battery details</li>
-          <li>Process information</li>
-          <li>300x250 detailed view</li>
+          <li>Memory and CPU info</li>
+          <li>240x80 detailed view</li>
         </ul>
       </div>
 
@@ -84,9 +84,9 @@ description: Explore the comprehensive features of Microverse - elegant system m
         <p>The ultimate monitoring widget with full system details. Professional-grade monitoring on your desktop.</p>
         <ul>
           <li>Complete system overview</li>
-          <li>Historical data trends</li>
+          <li>Detailed battery information</li>
           <li>All metrics in one place</li>
-          <li>400x300 comprehensive view</li>
+          <li>240x120 comprehensive view</li>
         </ul>
       </div>
     </div>
@@ -102,7 +102,7 @@ description: Explore the comprehensive features of Microverse - elegant system m
         <h3>Advanced Battery Monitoring</h3>
         <ul>
           <li>Real-time charge percentage</li>
-          <li>Accurate time remaining estimates</li>
+          <li>Time remaining estimates</li>
           <li>Cycle count tracking</li>
           <li>Battery health status</li>
           <li>Charging state indicators</li>
@@ -115,11 +115,11 @@ description: Explore the comprehensive features of Microverse - elegant system m
         <h3>CPU Performance Tracking</h3>
         <ul>
           <li>Overall usage percentage</li>
-          <li>Per-core monitoring</li>
-          <li>Process count</li>
-          <li>System vs user CPU time</li>
+          <li>Processor count detection</li>
+          <li>Load average monitoring</li>
+          <li>Architecture detection (ARM/Intel)</li>
           <li>Real-time updates</li>
-          <li>Historical trends</li>
+          <li>Adaptive refresh rates</li>
         </ul>
       </div>
 
@@ -128,11 +128,11 @@ description: Explore the comprehensive features of Microverse - elegant system m
         <h3>Memory Management</h3>
         <ul>
           <li>Memory pressure monitoring</li>
-          <li>App, wired, compressed breakdown</li>
-          <li>Swap usage tracking</li>
-          <li>Cache statistics</li>
+          <li>Total and used memory display</li>
+          <li>Free memory calculation</li>
+          <li>Compression ratio tracking</li>
           <li>Visual pressure indicators</li>
-          <li>Memory optimization tips</li>
+          <li>Color-coded status (Normal/Warning/Critical)</li>
         </ul>
       </div>
 
