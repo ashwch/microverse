@@ -127,5 +127,3 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 **⭐ If Microverse helps you monitor your system, please star the repository to show your support!**
 
 ---
-
-*Latest version includes complete settings UI redesign and full functionality for all toggles and controls.*

@@ -17,7 +17,7 @@ description: Download Microverse - elegant system monitoring for macOS
     <div class="download-section">
       <div class="download-card">
         <h2>Latest Release</h2>
-        <p class="version">Version 1.0.0</p>
+        <p class="version" id="version-display">Loading version...</p>
         
         <div class="download-buttons">
           <a href="https://github.com/ashwch/microverse/releases/latest" class="btn btn-primary btn-large">
@@ -311,3 +311,25 @@ open Microverse.xcodeproj</code></pre>
   }
 }
 </style>
+
+<script>
+// Fetch and display the latest version from GitHub
+fetch('https://api.github.com/repos/ashwch/microverse/releases/latest')
+  .then(response => response.json())
+  .then(data => {
+    const versionElement = document.getElementById('version-display');
+    if (data && data.name) {
+      // GitHub release names are like "Microverse 0.1.1"
+      versionElement.textContent = data.name;
+    } else if (data && data.tag_name) {
+      // Fallback to tag name like "v0.1.1"
+      versionElement.textContent = `Version ${data.tag_name.replace('v', '')}`;
+    } else {
+      versionElement.textContent = 'Latest Version';
+    }
+  })
+  .catch(error => {
+    console.error('Error fetching version:', error);
+    document.getElementById('version-display').textContent = 'Latest Version';
+  });
+</script>
