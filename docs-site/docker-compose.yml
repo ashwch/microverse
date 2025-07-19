@@ -1,0 +1,16 @@
+version: '3'
+
+services:
+  jekyll:
+    build: .
+    ports:
+      - "4000:4000"
+    volumes:
+      - .:/srv/jekyll
+      - jekyll_cache:/usr/local/bundle
+    environment:
+      - JEKYLL_ENV=development
+    command: jekyll serve --host 0.0.0.0 --watch --force_polling
+
+volumes:
+  jekyll_cache:

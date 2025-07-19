@@ -1,0 +1,23 @@
+# Microverse Site Configuration
+title: Microverse
+description: "Elegant system monitoring for macOS with beautiful desktop widgets"
+author: Ashwini Chaudhary
+url: "https://microverse.ashwch.com"
+baseurl: ""
+
+# Build settings
+markdown: kramdown
+permalink: pretty
+
+# Navigation
+nav:
+  - title: Home
+    url: /
+  - title: Features
+    url: /features/
+  - title: Download
+    url: /download/
+  - title: Documentation
+    url: https://github.com/ashwch/microverse/tree/main/docs
+  - title: GitHub
+    url: https://github.com/ashwch/microverse

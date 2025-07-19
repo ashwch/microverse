@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% if page.title %}{{ page.title }} | {% endif %}{{ site.title }}</title>
+  <meta name="description" content="{{ page.description | default: site.description }}">
+  <meta name="author" content="{{ site.author }}">
+  
+  <!-- Open Graph -->
+  <meta property="og:title" content="{% if page.title %}{{ page.title }} | {% endif %}{{ site.title }}">
+  <meta property="og:description" content="{{ page.description | default: site.description }}">
+  <meta property="og:image" content="{{ site.url }}/assets/images/microverse-og.png">
+  <meta property="og:url" content="{{ site.url }}{{ page.url }}">
+  
+  <link rel="stylesheet" href="{{ '/assets/css/main.css' | relative_url }}">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="{{ '/assets/images/microverse-icon-256.png' | relative_url }}">
+</head>
+<body>
+  <script>
+    // Theme detection
+    (function() {
+      const theme = localStorage.getItem('theme') ||
+                   (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+      document.documentElement.setAttribute('data-theme', theme);
+    })();
+  </script>
+
+  <header class="site-header">
+    <div class="wrapper">
+      <div class="header-content">
+        <a class="site-title" href="{{ "/" | relative_url }}">
+          <img src="{{ '/assets/images/microverse-icon-256.png' | relative_url }}" alt="Microverse" class="site-icon"> {{ site.title }}
+        </a>
+        <nav class="site-nav">
+          {% for item in site.nav %}
+            <a class="nav-link" href="{{ item.url }}">{{ item.title }}</a>
+          {% endfor %}
+          <a class="nav-link author-link" href="https://ashwch.com">ashwch.com</a>
+          <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme">
+            <span class="sun">☀️</span>
+            <span class="moon">🌙</span>
+          </button>
+        </nav>
+      </div>
+    </div>
+  </header>
+
+  <main class="page-content">
+    {{ content }}
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrapper">
+      <div class="footer-simple">
+        &copy; {{ site.time | date: '%Y' }} <a href="https://ashwch.com">{{ site.author }}</a> | <a href="https://github.com/ashwch/microverse">View on GitHub</a> | <a href="https://github.com/ashwch/microverse/blob/main/LICENSE">MIT License</a>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    function toggleTheme() {
+      const currentTheme = document.documentElement.getAttribute('data-theme');
+      const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', newTheme);
+      localStorage.setItem('theme', newTheme);
+    }
+
+    // Smooth scroll for anchor links
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+      anchor.addEventListener('click', function (e) {
+        e.preventDefault();
+        document.querySelector(this.getAttribute('href')).scrollIntoView({
+          behavior: 'smooth'
+        });
+      });
+    });
+  </script>
+</body>
+</html>

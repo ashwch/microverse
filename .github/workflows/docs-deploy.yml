@@ -1,0 +1,41 @@
+name: Deploy Documentation
+
+on:
+  push:
+    branches: [ dev ]
+    paths:
+      - 'docs-site/**'
+      - '.github/workflows/docs-deploy.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout dev branch
+        uses: actions/checkout@v4
+        with:
+          ref: dev
+
+      - name: Setup Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.2'
+          bundler-cache: true
+          working-directory: docs-site
+
+      - name: Build site
+        run: |
+          cd docs-site
+          bundle exec jekyll build
+
+      - name: Deploy to gh-pages branch
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./docs-site/_site
+          publish_branch: gh-pages
+          cname: microverse.ashwch.com
