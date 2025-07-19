@@ -100,7 +100,7 @@
 - **Fix**: ~~Use consistent bundle ID~~
 - **Status**: ✅ Standardized to `com.microverse.app`
 
-## Remaining Critical Issues (Post v3.0)
+## Remaining Critical Issues
 
 ### 1. **Subprocess Performance Issue** - HIGH PRIORITY
 - **Location**: ~~`BatteryReader.swift:69-118`~~ ✅ **FIXED**
@@ -195,7 +195,7 @@ class SettingsService {
 - **Effort**: Moderate (requires NSLocalizedString adoption)
 - **Priority**: Low for current scope
 
-## Completed Improvements (v3.0) ✅
+## Completed Improvements (post v0.1.0) ✅
 
 ### Major Architectural Wins
 - ✅ **Eliminated Subprocess Overhead**: IOKit direct access
@@ -205,6 +205,12 @@ class SettingsService {
 - ✅ **Error Handling**: Graceful degradation with defaults
 - ✅ **Performance Optimization**: 10s intervals, efficient polling
 - ✅ **Memory Management**: Proper cleanup and weak references
+
+### User Experience Improvements
+- ✅ **First-Run Welcome Experience**: Comprehensive onboarding dialog
+- ✅ **Menu Bar Icon Consistency**: Uses actual alien app icon everywhere
+- ✅ **Blank Window Fix**: Prevented unwanted SwiftUI window creation
+- ✅ **Icon Quality**: High-resolution icons in dialogs, properly sized for menu bar
 
 ### Technical Debt Eliminated
 - ✅ **Removed Singleton Abuse**: Replaced SharedViewModel with proper architecture
@@ -237,7 +243,7 @@ Track these metrics to prevent regression:
 - **Battery Impact**: Target <2% daily drain
 - **System Call Frequency**: Monitor for efficiency
 
-This updated technical debt inventory reflects the significant improvements made in v3.0 while identifying remaining optimization opportunities for future development cycles.
+This updated technical debt inventory reflects the significant improvements made since v0.1.0 while identifying remaining optimization opportunities for future development cycles.
 
 ## Refactoring Priority Order
 
