@@ -40,6 +40,10 @@ extension BatteryInfo {
         guard let minutes = timeRemaining, minutes > 0 else { return nil }
         let hours = minutes / 60
         let mins = minutes % 60
-        return String(format: "%d:%02d", hours, mins)
+        if hours > 0 {
+            return String(format: "%d:%02d hr remaining", hours, mins)
+        } else {
+            return String(format: "%d min remaining", mins)
+        }
     }
 }
