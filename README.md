@@ -124,8 +124,15 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-**⭐ If Microverse helps you monitor your system, please star the repository to show your support!**
+## Contributors
+
+Thanks to all the contributors who have helped make Microverse better:
+
+- [@ashwch](https://github.com/ashwch) - Project creator and maintainer
+- [@napender](https://github.com/napender) - Bug fixes and improvements
 
 ---
 
-*Latest version includes complete settings UI redesign and full functionality for all toggles and controls.*
+**⭐ If Microverse helps you monitor your system, please star the repository to show your support!**
+
+---

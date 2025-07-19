@@ -142,19 +142,11 @@ struct UnifiedBatteryTab: View {
     
     private var chargingStatusText: String {
         if viewModel.batteryInfo.isCharging {
-            if let timeString = viewModel.batteryInfo.timeRemainingFormatted {
-                return "Charging (\(timeString) remaining)"
-            } else {
-                return "Charging"
-            }
+            return "Charging"
         } else if viewModel.batteryInfo.isPluggedIn {
             return "Fully Charged"
         } else {
-            if let timeString = viewModel.batteryInfo.timeRemainingFormatted {
-                return "Discharging (\(timeString) remaining)"
-            } else {
-                return "Discharging"
-            }
+            return "Discharging"
         }
     }
 }

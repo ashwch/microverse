@@ -1,0 +1,6 @@
+source "https://rubygems.org"
+
+# GitHub Pages gem includes the same versions of Jekyll and dependencies
+# that GitHub Pages uses, ensuring local/production parity
+gem "github-pages", group: :jekyll_plugins
+gem "webrick", "~> 1.7"  # Required for Ruby 3.0+
