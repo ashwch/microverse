@@ -309,35 +309,24 @@ a:hover {
 .site-footer {
   background-color: var(--background-alt);
   border-top: 1px solid var(--border-color);
-  padding: 3rem 0 2rem;
+  padding: 2rem 0;
   margin-top: 4rem;
 }
 
-.footer-content {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 2rem;
-}
-
-.footer-section h3 {
-  font-size: 1.2rem;
-  margin-bottom: 1rem;
-  margin-top: 0;
-}
-
-.footer-section ul {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-
-.footer-section li {
-  margin-bottom: 0.5rem;
-}
-
-.copyright {
+.footer-simple {
+  text-align: center;
   color: var(--text-light);
-  margin-top: 1rem;
+  font-size: 0.9rem;
+}
+
+.footer-simple a {
+  color: var(--text-light);
+  text-decoration: none;
+}
+
+.footer-simple a:hover {
+  color: var(--primary-color);
+  text-decoration: underline;
 }
 
 /* Code blocks */
