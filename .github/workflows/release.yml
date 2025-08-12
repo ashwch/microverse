@@ -40,56 +40,64 @@ jobs:
     - name: Determine version bump
       id: version
       run: |
-        # Check if this is an initial release (v1.0.0 tag exists on current commit)
-        CURRENT_COMMIT=$(git rev-parse HEAD)
-        if git rev-parse v1.0.0 >/dev/null 2>&1; then
-          TAG_COMMIT=$(git rev-parse v1.0.0)
-          if [ "$CURRENT_COMMIT" = "$TAG_COMMIT" ]; then
-            # This is the v1.0.0 release
-            NEW_VERSION="1.0.0"
-            NEW_TAG="v1.0.0"
-            COMMITS_SINCE_TAG=""
-          else
-            # v1.0.0 exists but on different commit, proceed with normal versioning
-            LAST_TAG="v1.0.0"
-          fi
+        # Get the latest release tag (not just any tag)
+        LATEST_RELEASE=$(gh release list --limit 1 --json tagName --jq '.[0].tagName // "v0.0.0"' || echo "v0.0.0")
+        
+        # Get all tags sorted by version for fallback
+        LAST_TAG=$(git tag -l 'v*' --sort=-version:refname | head -1 || echo "v0.0.0")
+        
+        # Use the latest release if it exists, otherwise use the latest tag
+        if [ "$LATEST_RELEASE" != "v0.0.0" ]; then
+          BASE_TAG="$LATEST_RELEASE"
+          echo "Using latest release as base: $BASE_TAG"
         else
-          # Get the last version tag
-          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          BASE_TAG="$LAST_TAG"
+          echo "Using latest tag as base: $BASE_TAG"
         fi
         
-        # Only do version bumping if we haven't set NEW_VERSION already
-        if [ -z "$NEW_VERSION" ]; then
-          echo "Last tag: $LAST_TAG"
-          
-          # Extract version from last tag
-          LAST_VERSION="${LAST_TAG#v}"
-          IFS='.' read -ra VERSION_PARTS <<< "$LAST_VERSION"
-          MAJOR="${VERSION_PARTS[0]:-0}"
-          MINOR="${VERSION_PARTS[1]:-0}"
-          PATCH="${VERSION_PARTS[2]:-0}"
-          
-          # Check commit messages since last tag for version bumping
-          COMMITS_SINCE_TAG=$(git log $LAST_TAG..HEAD --oneline 2>/dev/null || git log --oneline)
-          
-          # Determine version bump type
-          if echo "$COMMITS_SINCE_TAG" | grep -q "BREAKING CHANGE\|major:"; then
-            MAJOR=$((MAJOR + 1))
-            MINOR=0
-            PATCH=0
-            VERSION_TYPE="major"
-          elif echo "$COMMITS_SINCE_TAG" | grep -q "feat:\|feature:"; then
-            MINOR=$((MINOR + 1))
-            PATCH=0
-            VERSION_TYPE="minor"  
-          else
-            PATCH=$((PATCH + 1))
-            VERSION_TYPE="patch"
-          fi
-          
-          NEW_VERSION="$MAJOR.$MINOR.$PATCH"
-          NEW_TAG="v$NEW_VERSION"
+        echo "Base version for bump: $BASE_TAG"
+        
+        # Extract version from base tag
+        BASE_VERSION="${BASE_TAG#v}"
+        IFS='.' read -ra VERSION_PARTS <<< "$BASE_VERSION"
+        MAJOR="${VERSION_PARTS[0]:-0}"
+        MINOR="${VERSION_PARTS[1]:-0}"
+        PATCH="${VERSION_PARTS[2]:-0}"
+        
+        # Check commit messages since base tag for version bumping
+        if [ "$BASE_TAG" != "v0.0.0" ]; then
+          COMMITS_SINCE_TAG=$(git log $BASE_TAG..HEAD --oneline 2>/dev/null || echo "")
+        else
+          COMMITS_SINCE_TAG=$(git log --oneline)
         fi
+        
+        # Only bump version if there are new commits
+        if [ -z "$COMMITS_SINCE_TAG" ]; then
+          echo "No new commits since $BASE_TAG - skipping release"
+          echo "skip_release=true" >> $GITHUB_OUTPUT
+          exit 0
+        fi
+        
+        # Determine version bump type based on conventional commits
+        if echo "$COMMITS_SINCE_TAG" | grep -qE "^[a-f0-9]+\s+(BREAKING CHANGE|.*!:)|^[a-f0-9]+\s+\w+!:"; then
+          MAJOR=$((MAJOR + 1))
+          MINOR=0
+          PATCH=0
+          VERSION_TYPE="major"
+        elif echo "$COMMITS_SINCE_TAG" | grep -qE "^[a-f0-9]+\s+feat(\(.+\))?:"; then
+          MINOR=$((MINOR + 1))
+          PATCH=0
+          VERSION_TYPE="minor"  
+        else
+          PATCH=$((PATCH + 1))
+          VERSION_TYPE="patch"
+        fi
+        
+        NEW_VERSION="$MAJOR.$MINOR.$PATCH"
+        NEW_TAG="v$NEW_VERSION"
+        
+        echo "Version bump: $BASE_TAG -> $NEW_TAG ($VERSION_TYPE)"
+        echo "skip_release=false" >> $GITHUB_OUTPUT
         
         echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
         echo "new_tag=$NEW_TAG" >> $GITHUB_OUTPUT
@@ -97,19 +105,27 @@ jobs:
         echo "$COMMITS_SINCE_TAG" >> $GITHUB_OUTPUT
         echo "EOF" >> $GITHUB_OUTPUT
         
-    - name: Check if tag exists
-      id: tag_check
+    - name: Check if should proceed
+      id: check_proceed
       run: |
+        # Skip if no new commits
+        if [ "${{ steps.version.outputs.skip_release }}" = "true" ]; then
+          echo "should_proceed=false" >> $GITHUB_OUTPUT
+          echo "Skipping - no new commits"
+          exit 0
+        fi
+        
+        # Check if tag already exists
         if git rev-parse "refs/tags/${{ steps.version.outputs.new_tag }}" >/dev/null 2>&1; then
-          echo "tag_exists=true" >> $GITHUB_OUTPUT
-          echo "Tag ${{ steps.version.outputs.new_tag }} already exists"
+          echo "should_proceed=false" >> $GITHUB_OUTPUT
+          echo "Tag ${{ steps.version.outputs.new_tag }} already exists - skipping"
         else
-          echo "tag_exists=false" >> $GITHUB_OUTPUT
-          echo "Tag ${{ steps.version.outputs.new_tag }} does not exist"
+          echo "should_proceed=true" >> $GITHUB_OUTPUT
+          echo "Will create new release ${{ steps.version.outputs.new_tag }}"
         fi
         
     - name: Build Microverse
-      if: steps.tag_check.outputs.tag_exists == 'false'
+      if: steps.check_proceed.outputs.should_proceed == 'true'
       run: |
         echo "Building Microverse v${{ steps.version.outputs.new_version }}"
         
@@ -151,7 +167,7 @@ jobs:
             <key>CFBundleIconFile</key>
             <string>AppIcon</string>
             <key>NSHumanReadableCopyright</key>
-            <string>Copyright © 2024 Ashwini Chaudhary. All rights reserved.</string>
+            <string>Copyright © 2025 Ashwini Chaudhary. All rights reserved.</string>
             <key>NSHighResolutionCapable</key>
             <true/>
             <key>LSUIElement</key>
@@ -182,7 +198,7 @@ jobs:
         ls -la "$APP_PATH/Contents/MacOS/"
         
     - name: Create DMG
-      if: steps.tag_check.outputs.tag_exists == 'false'
+      if: steps.check_proceed.outputs.should_proceed == 'true'
       run: |
         DMG_NAME="${PRODUCT_NAME}-v${{ steps.version.outputs.new_version }}.dmg"
         
@@ -200,7 +216,7 @@ jobs:
         echo "dmg_name=$DMG_NAME" >> $GITHUB_ENV
         
     - name: Generate Changelog
-      if: steps.tag_check.outputs.tag_exists == 'false'
+      if: steps.check_proceed.outputs.should_proceed == 'true'
       id: changelog
       run: |
         echo "Generating changelog for v${{ steps.version.outputs.new_version }}"
@@ -261,7 +277,7 @@ jobs:
         echo "EOF" >> $GITHUB_OUTPUT
         
     - name: Create Release
-      if: steps.tag_check.outputs.tag_exists == 'false'
+      if: steps.check_proceed.outputs.should_proceed == 'true'
       uses: actions/create-release@v1
       id: create_release
       env:
@@ -274,7 +290,7 @@ jobs:
         prerelease: false
         
     - name: Upload DMG to Release
-      if: steps.tag_check.outputs.tag_exists == 'false'
+      if: steps.check_proceed.outputs.should_proceed == 'true'
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -285,14 +301,14 @@ jobs:
         asset_content_type: application/x-apple-diskimage
         
     - name: Upload App Bundle to Release
-      if: steps.tag_check.outputs.tag_exists == 'false'
+      if: steps.check_proceed.outputs.should_proceed == 'true'
       run: |
         # Create zip of app bundle for additional download option
         zip -r "${PRODUCT_NAME}-v${{ steps.version.outputs.new_version }}.zip" "$PRODUCT_NAME.app"
         echo "app_zip=${PRODUCT_NAME}-v${{ steps.version.outputs.new_version }}.zip" >> $GITHUB_ENV
         
     - name: Upload App Zip to Release
-      if: steps.tag_check.outputs.tag_exists == 'false'
+      if: steps.check_proceed.outputs.should_proceed == 'true'
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -303,7 +319,7 @@ jobs:
         asset_content_type: application/zip
         
     - name: Build Summary
-      if: steps.tag_check.outputs.tag_exists == 'false'
+      if: steps.check_proceed.outputs.should_proceed == 'true'
       run: |
         echo "🎉 Successfully built and released Microverse v${{ steps.version.outputs.new_version }}"
         echo "📦 Assets created:"
@@ -312,8 +328,12 @@ jobs:
         echo "🔗 Release URL: ${{ steps.create_release.outputs.html_url }}"
         echo "✅ Release is now available for download!"
         
-    - name: Skip Release (Tag Exists)
-      if: steps.tag_check.outputs.tag_exists == 'true'
+    - name: Skip Release
+      if: steps.check_proceed.outputs.should_proceed == 'false'
       run: |
-        echo "⏭️  Skipping release - tag ${{ steps.version.outputs.new_tag }} already exists"
+        if [ "${{ steps.version.outputs.skip_release }}" = "true" ]; then
+          echo "⏭️  Skipping release - no new commits since last release"
+        else
+          echo "⏭️  Skipping release - tag ${{ steps.version.outputs.new_tag }} already exists"
+        fi
         echo "ℹ️  No new release will be created for this build"
