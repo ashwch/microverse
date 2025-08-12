@@ -68,35 +68,50 @@ public class SystemMonitor {
         // Calculate memory metrics
         let totalMemory = Double(physicalMemory) / (1024 * 1024 * 1024) // GB
         let freePages = UInt64(info.free_count)
-        let activePages = UInt64(info.active_count)
         let inactivePages = UInt64(info.inactive_count)
         let wiredPages = UInt64(info.wire_count)
         let compressedPages = UInt64(info.compressor_page_count)
+        let purgeablePages = UInt64(info.purgeable_count)
+        let externalPages = UInt64(info.external_page_count)
+        let speculativePages = UInt64(info.speculative_count)
+        let internalPages = UInt64(info.internal_page_count)
         
-        let usedPages = activePages + inactivePages + wiredPages + compressedPages
-        let usedMemory = Double(usedPages * pageSize) / (1024 * 1024 * 1024) // GB
+        // Calculate memory used like Activity Monitor:
+        // App Memory = internal_page_count - purgeable_count (these are anonymous/app pages)
+        // Wired Memory = wire_count (kernel memory that can't be swapped)
+        // Compressed = compressor_page_count (compressed memory pages)
+        // Memory Used = App Memory + Wired + Compressed
+        let appMemoryPages = internalPages > purgeablePages ? internalPages - purgeablePages : 0
+        let usedMemory = Double((appMemoryPages + wiredPages + compressedPages) * pageSize) / (1024 * 1024 * 1024) // GB
         
-        // Calculate memory pressure (simplified version of macOS calculation)
-        let availablePages = freePages + inactivePages
-        let pressureRatio = Double(availablePages) / Double(usedPages + availablePages)
+        // Calculate cached files (file-backed memory that can be freed)
+        // Cached = external_page_count + purgeable_count
+        let cachedMemory = Double((externalPages + purgeablePages) * pageSize) / (1024 * 1024 * 1024) // GB
+        
+        // Calculate memory pressure based on available memory
+        // Available = Free + Inactive (can be reclaimed) + File Cache
+        let availablePages = freePages + inactivePages + externalPages + speculativePages
+        let totalPages = UInt64(physicalMemory / pageSize)
+        let pressureRatio = Double(availablePages) / Double(totalPages)
         
         let pressure: MemoryPressure
-        if pressureRatio < 0.2 {
+        if pressureRatio < 0.05 {
             pressure = .critical
-        } else if pressureRatio < 0.4 {
+        } else if pressureRatio < 0.15 {
             pressure = .warning
         } else {
             pressure = .normal
         }
         
-        let memoryString = String(format: "Memory: %.1f/%.1fGB, pressure: %@", usedMemory, totalMemory, pressure.rawValue)
+        let memoryString = String(format: "Memory: %.1f/%.1fGB, cached: %.1fGB, pressure: %@", usedMemory, totalMemory, cachedMemory, pressure.rawValue)
         logger.debug("\(memoryString)")
         
         return MemoryInfo(
             totalMemory: totalMemory,
             usedMemory: usedMemory,
+            cachedMemory: cachedMemory,
             pressure: pressure,
-            compressionRatio: Double(compressedPages) / Double(usedPages)
+            compressionRatio: Double(compressedPages) / Double(max(1, appMemoryPages + wiredPages + compressedPages))
         )
     }
 }
@@ -120,12 +135,14 @@ public enum MemoryPressure: String, CaseIterable {
 public struct MemoryInfo {
     public let totalMemory: Double // GB
     public let usedMemory: Double  // GB
+    public let cachedMemory: Double // GB
     public let pressure: MemoryPressure
     public let compressionRatio: Double // 0-1
     
-    public init(totalMemory: Double = 0, usedMemory: Double = 0, pressure: MemoryPressure = .normal, compressionRatio: Double = 0) {
+    public init(totalMemory: Double = 0, usedMemory: Double = 0, cachedMemory: Double = 0, pressure: MemoryPressure = .normal, compressionRatio: Double = 0) {
         self.totalMemory = totalMemory
         self.usedMemory = usedMemory
+        self.cachedMemory = cachedMemory
         self.pressure = pressure
         self.compressionRatio = compressionRatio
     }
