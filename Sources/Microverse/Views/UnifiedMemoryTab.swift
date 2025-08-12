@@ -73,7 +73,12 @@ struct UnifiedMemoryTab: View {
                     
                     InfoRow(
                         label: "Free Memory",
-                        value: String(format: "%.1f GB", systemService.memoryInfo.totalMemory - systemService.memoryInfo.usedMemory)
+                        value: String(format: "%.1f GB", systemService.memoryInfo.totalMemory - systemService.memoryInfo.usedMemory - systemService.memoryInfo.cachedMemory)
+                    )
+                    
+                    InfoRow(
+                        label: "Cached Files",
+                        value: String(format: "%.1f GB", systemService.memoryInfo.cachedMemory)
                     )
                     
                     InfoRow(
