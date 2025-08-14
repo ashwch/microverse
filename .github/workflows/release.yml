@@ -378,22 +378,6 @@ jobs:
         asset_name: ${{ env.app_zip }}
         asset_content_type: application/zip
         
-    - name: Setup Sparkle Signing
-      if: steps.check_proceed.outputs.should_proceed == 'true'
-      run: |
-        echo "Setting up Sparkle signing..."
-        
-        # Add the EdDSA private key to keychain as a generic password
-        # This matches how Sparkle's generate_keys tool stores the key
-        security add-generic-password \
-          -a "ed25519" \
-          -s "https://sparkle-project.org" \
-          -D "private key" \
-          -w "${{ secrets.SPARKLE_PRIVATE_KEY }}" \
-          ~/Library/Keychains/login.keychain-db
-        
-        echo "Private key imported successfully"
-        
     - name: Generate Signed Appcast
       if: steps.check_proceed.outputs.should_proceed == 'true'
       env:
@@ -433,52 +417,28 @@ jobs:
         echo "Executing generate_appcast..."
         echo "Command: ./sparkle-tools/generate_appcast releases/"
         
-        # Check if there are existing appcast files
-        echo "Looking for existing appcast files..."
-        find releases/ -name "*.xml" -o -name "appcast*" 2>/dev/null || echo "No existing appcast files found"
+        # Generate signed appcast using Sparkle (non-interactive CI approach)
+        echo "Generating signed appcast with Sparkle (CI-friendly)..."
         
-        # Try to make keychain access non-interactive
-        echo "Setting security preferences for non-interactive keychain access..."
-        security set-key-partition-list -S apple-tool:,apple: -k "" ~/Library/Keychains/login.keychain-db 2>/dev/null || true
+        # Download the ZIP file to releases directory
+        ZIP_URL=$(gh api repos/${{ github.repository }}/releases/tags/${{ steps.version.outputs.new_tag }} \
+          --jq '.assets[] | select(.name | endswith(".zip")) | .browser_download_url')
         
-        # Try running generate_appcast with minimal parameters
-        echo "Running generate_appcast in background..."
-        ./sparkle-tools/generate_appcast releases/ > appcast_output.log 2>&1 &
-        PID=$!
-        echo "Started generate_appcast with PID: $PID"
+        curl -L -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+             -o "releases/${PRODUCT_NAME}-v${{ steps.version.outputs.new_version }}.zip" \
+             "$ZIP_URL"
         
-        # Wait for up to 60 seconds
-        for i in {1..60}; do
-          if ! kill -0 $PID 2>/dev/null; then
-            echo "Process completed after $i seconds"
-            break
-          fi
-          if [ $i -eq 60 ]; then
-            echo "❌ Process still running after 60 seconds, killing it"
-            kill $PID 2>/dev/null || true
-            echo "Process output:"
-            cat appcast_output.log || echo "No output captured"
-            exit 1
-          fi
-          sleep 1
-        done
+        echo "Downloaded ZIP file:"
+        ls -la releases/
         
-        # Check the result
-        wait $PID
-        RESULT=$?
-        echo "Process exited with code: $RESULT"
-        echo "=== Process output start ==="
-        cat appcast_output.log
-        echo "=== Process output end ==="
-        
-        if [ $RESULT -ne 0 ]; then
-          echo "❌ generate_appcast command failed with exit code $RESULT"
-          echo "Current releases directory contents:"
-          ls -la releases/
-          echo "Generated files (if any):"
-          find releases/ -name "*.xml" -o -name "appcast*" 2>/dev/null || echo "No appcast files found"
-          exit $RESULT
-        fi
+        # Generate appcast.xml with EdDSA signatures using stdin for private key
+        # This avoids Keychain GUI prompts that cause hanging in CI
+        echo -n "${{ secrets.SPARKLE_PRIVATE_KEY }}" | \
+          ./sparkle-tools/generate_appcast releases/ \
+            --ed-key-file - \
+            --maximum-deltas 0 \
+            --download-url-prefix "https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.new_tag }}/" \
+            --verbose
         
         # The appcast.xml should now be generated with EdDSA signature
         if [ -f "releases/appcast.xml" ]; then
