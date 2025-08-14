@@ -54,12 +54,17 @@ install-debug: build-debug debug-app
 app: build
 	@echo "📦 Creating app bundle..."
 	$(eval TEMP_DIR := $(shell mktemp -d))
-	@mkdir -p $(TEMP_DIR)/$(APP_NAME).app/Contents/{MacOS,Resources}
+	@mkdir -p $(TEMP_DIR)/$(APP_NAME).app/Contents/{MacOS,Resources,Frameworks}
 	@cp .build/release/$(APP_NAME) $(TEMP_DIR)/$(APP_NAME).app/Contents/MacOS/
 	@cp Info.plist $(TEMP_DIR)/$(APP_NAME).app/Contents/
 	@if [ -f Resources/AppIcon.icns ]; then cp Resources/AppIcon.icns $(TEMP_DIR)/$(APP_NAME).app/Contents/Resources/; fi
+	@if [ -d .build/arm64-apple-macosx/release/Sparkle.framework ]; then \
+		cp -R .build/arm64-apple-macosx/release/Sparkle.framework $(TEMP_DIR)/$(APP_NAME).app/Contents/Frameworks/; \
+		install_name_tool -id "@rpath/Sparkle.framework/Versions/B/Sparkle" $(TEMP_DIR)/$(APP_NAME).app/Contents/Frameworks/Sparkle.framework/Versions/B/Sparkle 2>/dev/null || true; \
+	fi
 	@echo 'APPL????' > $(TEMP_DIR)/$(APP_NAME).app/Contents/PkgInfo
 	@chmod +x $(TEMP_DIR)/$(APP_NAME).app/Contents/MacOS/$(APP_NAME)
+	@install_name_tool -add_rpath "@loader_path/../Frameworks" $(TEMP_DIR)/$(APP_NAME).app/Contents/MacOS/$(APP_NAME) 2>/dev/null || true
 	@rm -rf /tmp/$(APP_NAME).app
 	@mv $(TEMP_DIR)/$(APP_NAME).app /tmp/
 	@rmdir $(TEMP_DIR)
@@ -69,12 +74,17 @@ app: build
 debug-app: build-debug
 	@echo "📦 Creating debug app bundle..."
 	$(eval TEMP_DIR := $(shell mktemp -d))
-	@mkdir -p $(TEMP_DIR)/$(APP_NAME).app/Contents/{MacOS,Resources}
+	@mkdir -p $(TEMP_DIR)/$(APP_NAME).app/Contents/{MacOS,Resources,Frameworks}
 	@cp .build/debug/$(APP_NAME) $(TEMP_DIR)/$(APP_NAME).app/Contents/MacOS/
 	@cp Info.plist $(TEMP_DIR)/$(APP_NAME).app/Contents/
 	@if [ -f Resources/AppIcon.icns ]; then cp Resources/AppIcon.icns $(TEMP_DIR)/$(APP_NAME).app/Contents/Resources/; fi
+	@if [ -d .build/arm64-apple-macosx/debug/Sparkle.framework ]; then \
+		cp -R .build/arm64-apple-macosx/debug/Sparkle.framework $(TEMP_DIR)/$(APP_NAME).app/Contents/Frameworks/; \
+		install_name_tool -id "@rpath/Sparkle.framework/Versions/B/Sparkle" $(TEMP_DIR)/$(APP_NAME).app/Contents/Frameworks/Sparkle.framework/Versions/B/Sparkle 2>/dev/null || true; \
+	fi
 	@echo 'APPL????' > $(TEMP_DIR)/$(APP_NAME).app/Contents/PkgInfo
 	@chmod +x $(TEMP_DIR)/$(APP_NAME).app/Contents/MacOS/$(APP_NAME)
+	@install_name_tool -add_rpath "@loader_path/../Frameworks" $(TEMP_DIR)/$(APP_NAME).app/Contents/MacOS/$(APP_NAME) 2>/dev/null || true
 	@rm -rf /tmp/$(APP_NAME).app
 	@mv $(TEMP_DIR)/$(APP_NAME).app /tmp/
 	@rmdir $(TEMP_DIR)

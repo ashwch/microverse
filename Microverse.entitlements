@@ -10,6 +10,14 @@
     <!-- IOPMPowerSource is accessible in sandbox without special entitlements -->
     <!-- The app uses IOPSCopyPowerSourcesInfo which works in sandbox -->
     
+    <!-- Network access for secure auto-updates via Sparkle framework -->
+    <key>com.apple.security.network.client</key>
+    <true/>
+    
+    <!-- File system access for update downloads -->
+    <key>com.apple.security.files.downloads.read-write</key>
+    <true/>
+    
     <!-- No special entitlements needed for:
          - Menu bar apps (LSUIElement)
          - UserDefaults preferences

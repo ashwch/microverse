@@ -136,9 +136,33 @@ jobs:
         APP_PATH="$PRODUCT_NAME.app"
         mkdir -p "$APP_PATH/Contents/MacOS"
         mkdir -p "$APP_PATH/Contents/Resources"
+        mkdir -p "$APP_PATH/Contents/Frameworks"
         
         # Copy executable
         cp .build/apple/Products/Release/$PRODUCT_NAME "$APP_PATH/Contents/MacOS/"
+        
+        # Copy Sparkle framework and fix rpath
+        if [ -d ".build/arm64-apple-macosx/release/Sparkle.framework" ]; then
+          echo "Copying Sparkle framework..."
+          cp -R .build/arm64-apple-macosx/release/Sparkle.framework "$APP_PATH/Contents/Frameworks/"
+          install_name_tool -id "@rpath/Sparkle.framework/Versions/B/Sparkle" "$APP_PATH/Contents/Frameworks/Sparkle.framework/Versions/B/Sparkle" 2>/dev/null || true
+        elif [ -d ".build/x86_64-apple-macosx/release/Sparkle.framework" ]; then
+          echo "Copying Sparkle framework (x86_64)..."
+          cp -R .build/x86_64-apple-macosx/release/Sparkle.framework "$APP_PATH/Contents/Frameworks/"
+          install_name_tool -id "@rpath/Sparkle.framework/Versions/B/Sparkle" "$APP_PATH/Contents/Frameworks/Sparkle.framework/Versions/B/Sparkle" 2>/dev/null || true
+        else
+          echo "Warning: Sparkle framework not found, checking other locations..."
+          SPARKLE_PATH=$(find .build -name "Sparkle.framework" -type d | head -1)
+          if [ -n "$SPARKLE_PATH" ]; then
+            cp -R "$SPARKLE_PATH" "$APP_PATH/Contents/Frameworks/"
+            install_name_tool -id "@rpath/Sparkle.framework/Versions/B/Sparkle" "$APP_PATH/Contents/Frameworks/Sparkle.framework/Versions/B/Sparkle" 2>/dev/null || true
+          else
+            echo "Error: Could not find Sparkle framework"
+          fi
+        fi
+        
+        # Fix executable rpath for framework loading
+        install_name_tool -add_rpath "@loader_path/../Frameworks" "$APP_PATH/Contents/MacOS/$PRODUCT_NAME" 2>/dev/null || true
         
         # Create Info.plist
         cat > "$APP_PATH/Contents/Info.plist" << EOF
@@ -318,6 +342,119 @@ jobs:
         asset_name: ${{ env.app_zip }}
         asset_content_type: application/zip
         
+    - name: Update Appcast
+      if: steps.check_proceed.outputs.should_proceed == 'true'
+      run: |
+        echo "📡 Updating Sparkle appcast with new release..."
+        
+        # Format changelog for appcast XML
+        APPCAST_CHANGELOG=$(cat << 'EOF'
+                <h2>What's New in ${{ steps.version.outputs.new_version }}</h2>
+                <ul>
+        EOF
+        )
+        
+        # Process changelog content and add to appcast format
+        if [ -n "${{ steps.version.outputs.commits_since_tag }}" ]; then
+          # Parse commit messages and convert to HTML list items
+          echo "${{ steps.version.outputs.commits_since_tag }}" | while IFS= read -r line; do
+            if [[ "$line" =~ ^[a-f0-9]+[[:space:]]+(feat|fix|docs|style|refactor|test|chore)(\(.+\))?:[[:space:]](.+)$ ]]; then
+              type="${BASH_REMATCH[1]}"
+              message="${BASH_REMATCH[3]}"
+              
+              case "$type" in
+                feat) echo "                    <li>✨ <strong>Feature:</strong> $message</li>" ;;
+                fix) echo "                    <li>🐛 <strong>Fix:</strong> $message</li>" ;;
+                docs) echo "                    <li>📚 <strong>Docs:</strong> $message</li>" ;;
+                *) echo "                    <li>$message</li>" ;;
+              esac
+            else
+              # If not conventional commit, just add the message
+              MESSAGE="${line#* }"
+              echo "                    <li>$MESSAGE</li>"
+            fi
+          done > commit_items.txt
+          
+          APPCAST_CHANGELOG="$APPCAST_CHANGELOG$(cat commit_items.txt)"
+        else
+          APPCAST_CHANGELOG="${APPCAST_CHANGELOG}                    <li>🚀 Initial release with comprehensive system monitoring</li>"
+        fi
+        
+        APPCAST_CHANGELOG="$APPCAST_CHANGELOG
+                </ul>
+                
+                <h3>System Requirements</h3>
+                <p>macOS 11.0 or later</p>"
+        
+        # Get current date in RFC 2822 format for appcast
+        PUBDATE=$(date -u "+%a, %d %b %Y %H:%M:%S +0000")
+        
+        # Clone gh-pages and update appcast
+        git config --global user.name "github-actions[bot]"
+        git config --global user.email "github-actions[bot]@users.noreply.github.com"
+        
+        # Clone gh-pages branch
+        git clone --depth 1 --branch gh-pages "https://${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" gh-pages-repo
+        cd gh-pages-repo
+        
+        # Create updated appcast.xml
+        cat > appcast_new.xml << 'APPCAST_EOF'
+        <?xml version="1.0" encoding="utf-8"?>
+        <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" xmlns:dc="http://purl.org/dc/elements/1.1/">
+            <channel>
+                <title>Microverse Updates</title>
+                <description>System monitoring for macOS with elegant desktop widgets</description>
+                <language>en</language>
+                <link>https://github.com/ashwch/Microverse</link>
+                
+                <!-- Latest Release -->
+                <item>
+                    <title>Microverse ${{ steps.version.outputs.new_version }}</title>
+                    <description><![CDATA[
+        APPCAST_CHANGELOG
+                    ]]></description>
+                    <pubDate>PUBDATE_PLACEHOLDER</pubDate>
+                    <enclosure url="https://github.com/ashwch/Microverse/releases/download/v${{ steps.version.outputs.new_version }}/Microverse-v${{ steps.version.outputs.new_version }}.dmg" 
+                              length="2097152" 
+                              type="application/octet-stream" 
+                              sparkle:version="${{ steps.version.outputs.new_version }}" 
+                              sparkle:shortVersionString="${{ steps.version.outputs.new_version }}"
+                              sparkle:dsaSignature="[SIGNATURE_PLACEHOLDER]" />
+                    <sparkle:minimumSystemVersion>11.0</sparkle:minimumSystemVersion>
+                </item>
+                
+        APPCAST_EOF
+        
+        # Add existing releases (preserve previous releases)
+        if [ -f appcast.xml ]; then
+          # Extract previous releases (everything after the first </item> until </channel>)
+          sed -n '/<\/item>/,/<\/channel>/{/<\/item>/!{/<\/channel>/!p}}' appcast.xml | \
+          sed '/^[[:space:]]*$/d' >> appcast_new.xml
+        else
+          cat >> appcast_new.xml << 'EOF'
+                
+            </channel>
+        </rss>
+        EOF
+        fi
+        
+        # Replace placeholders
+        sed -i.bak "s/APPCAST_CHANGELOG/${APPCAST_CHANGELOG}/g" appcast_new.xml
+        sed -i.bak "s/PUBDATE_PLACEHOLDER/${PUBDATE}/g" appcast_new.xml
+        
+        # Move new appcast into place
+        mv appcast_new.xml appcast.xml
+        
+        # Commit and push changes
+        git add appcast.xml
+        git commit -m "feat: update appcast.xml for release v${{ steps.version.outputs.new_version }}" || echo "No changes to commit"
+        git push origin gh-pages
+        
+        cd ..
+        rm -rf gh-pages-repo
+        
+        echo "✅ Appcast updated and published to GitHub Pages"
+
     - name: Build Summary
       if: steps.check_proceed.outputs.should_proceed == 'true'
       run: |
@@ -326,7 +463,8 @@ jobs:
         echo "  - ${{ env.dmg_name }} (DMG installer)"
         echo "  - ${{ env.app_zip }} (App bundle)"
         echo "🔗 Release URL: ${{ steps.create_release.outputs.html_url }}"
-        echo "✅ Release is now available for download!"
+        echo "📡 Appcast URL: https://microverse.ashwch.com/appcast.xml"
+        echo "✅ Release is now available for download and auto-update!"
         
     - name: Skip Release
       if: steps.check_proceed.outputs.should_proceed == 'false'

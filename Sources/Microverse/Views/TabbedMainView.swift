@@ -181,18 +181,18 @@ struct SettingsView: View {
     
     var body: some View {
         VStack(spacing: 0) {
-            // Header
+            // Header matching main app style
             HStack {
                 Text("Settings")
                     .font(MicroverseDesign.Typography.largeTitle)
-                    .foregroundColor(.primary)
+                    .foregroundColor(MicroverseDesign.Colors.accent)
                 
                 Spacer()
                 
                 Button(action: { isPresented = false }) {
                     Image(systemName: "xmark.circle.fill")
                         .font(.system(size: 20))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(MicroverseDesign.Colors.accentSubtle)
                 }
                 .buttonStyle(PlainButtonStyle())
             }
@@ -261,51 +261,71 @@ struct SettingsView: View {
                     
                     SettingsDivider()
                     
-                    // Refresh Rate
-                    VStack(alignment: .leading, spacing: MicroverseDesign.Layout.space3) {
+                    // Refresh Rate Section
+                    VStack(alignment: .leading, spacing: MicroverseDesign.Layout.space4) {
                         HStack {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text("Refresh Rate")
                                     .font(MicroverseDesign.Typography.body)
-                                    .foregroundColor(.primary)
+                                    .foregroundColor(.white)
                                 Text("How often to update system data")
                                     .font(MicroverseDesign.Typography.caption)
-                                    .foregroundColor(.secondary)
+                                    .foregroundColor(.white.opacity(0.6))
                             }
                             Spacer()
                         }
-                        .padding(.horizontal, MicroverseDesign.Layout.space3)
                         
                         HStack(spacing: MicroverseDesign.Layout.space2) {
                             ForEach([2.0, 5.0, 10.0, 30.0], id: \.self) { interval in
                                 Button(action: { viewModel.refreshInterval = interval }) {
                                     VStack(spacing: 2) {
                                         Text("\(Int(interval))")
-                                            .font(MicroverseDesign.Typography.body.weight(.semibold))
+                                            .font(.system(size: 16, weight: .medium))
                                         Text("sec")
-                                            .font(MicroverseDesign.Typography.caption)
+                                            .font(.system(size: 10, weight: .medium))
+                                            .opacity(0.7)
                                     }
-                                    .foregroundColor(viewModel.refreshInterval == interval ? .white : .primary)
+                                    .foregroundColor(.white)
                                     .frame(maxWidth: .infinity)
-                                    .padding(.vertical, MicroverseDesign.Layout.space2)
+                                    .padding(.vertical, 12)
                                     .background(
                                         RoundedRectangle(cornerRadius: 8)
-                                            .fill(viewModel.refreshInterval == interval ? MicroverseDesign.Colors.processor : Color.gray.opacity(0.1))
+                                            .fill(viewModel.refreshInterval == interval ? 
+                                                  MicroverseDesign.Colors.processor : 
+                                                  Color.white.opacity(0.1))
+                                            .overlay(
+                                                RoundedRectangle(cornerRadius: 8)
+                                                    .stroke(viewModel.refreshInterval == interval ? 
+                                                           MicroverseDesign.Colors.processor : 
+                                                           Color.white.opacity(0.2), 
+                                                           lineWidth: 1)
+                                            )
                                     )
                                 }
                                 .buttonStyle(PlainButtonStyle())
                             }
                         }
-                        .padding(.horizontal, MicroverseDesign.Layout.space3)
                     }
-                    .padding(.vertical, MicroverseDesign.Layout.space3)
+                    .padding(.horizontal, MicroverseDesign.Layout.space5)
+                    .padding(.vertical, MicroverseDesign.Layout.space4)
+                    
+                    SettingsDivider()
+                    
+                    // Software Updates Section
+                    ElegantUpdateSection()
+                        .environmentObject(viewModel)
                     
                     Spacer(minLength: MicroverseDesign.Layout.space4)
                 }
             }
         }
-        .frame(width: 420, height: 500)
-        .background(Color(NSColor.windowBackgroundColor))
+        .frame(width: 420, height: 520)
+        .background(MicroverseDesign.Colors.background)
+        .overlay(
+            RoundedRectangle(cornerRadius: MicroverseDesign.Layout.cornerRadiusLarge)
+                .stroke(MicroverseDesign.Colors.border, lineWidth: 1)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: MicroverseDesign.Layout.cornerRadiusLarge))
     }
     
     private var widgetDescription: String {
@@ -338,24 +358,27 @@ struct SettingsRow: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(title)
                     .font(MicroverseDesign.Typography.body)
-                    .foregroundColor(.primary)
+                    .foregroundColor(.white)
                 Text(subtitle)
                     .font(MicroverseDesign.Typography.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(.white.opacity(0.6))
             }
             Spacer()
             Toggle("", isOn: $toggle)
                 .labelsHidden()
-                .toggleStyle(SwitchToggleStyle())
+                .toggleStyle(ElegantToggleStyle())
         }
-        .padding(MicroverseDesign.Layout.space3)
+        .padding(.horizontal, MicroverseDesign.Layout.space5)
+        .padding(.vertical, MicroverseDesign.Layout.space4)
     }
 }
 
 struct SettingsDivider: View {
     var body: some View {
-        Divider()
-            .background(MicroverseDesign.Colors.divider)
-            .padding(.horizontal, MicroverseDesign.Layout.space3)
+        Rectangle()
+            .fill(Color.white.opacity(0.1))
+            .frame(height: 1)
+            .padding(.horizontal, MicroverseDesign.Layout.space5)
     }
 }
+
