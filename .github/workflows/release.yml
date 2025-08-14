@@ -129,6 +129,9 @@ jobs:
       run: |
         echo "Building Sparkle tools for signing..."
         
+        # First resolve dependencies to get Sparkle checkout
+        swift package resolve
+        
         # Build the Sparkle tools (generate_appcast is needed for signing releases)
         cd .build/checkouts/Sparkle
         xcodebuild -project Sparkle.xcodeproj -scheme generate_appcast -configuration Release
