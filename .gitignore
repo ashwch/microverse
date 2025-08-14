@@ -21,6 +21,9 @@ DerivedData/
 *.app
 *.dSYM.zip
 *.dSYM
+Symbols/
+sparkle.app/
+releases/
 
 # Temporary files
 *.moved-aside
@@ -44,3 +47,13 @@ CLAUDE.md
 **/CLAUDE.md
 *.md.tmp
 /tmp/microverse_debug.txt
+SPARKLE_SIGNING_ISSUE.md
+
+# Jekyll/docs-site build artifacts
+docs-site/_site/
+docs-site/.sass-cache/
+docs-site/Gemfile.lock
+
+# GitHub Pages files (should only be on gh-pages branch)
+CNAME
+appcast.xml
