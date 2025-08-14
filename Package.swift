@@ -10,11 +10,12 @@ let package = Package(
         .executable(name: "Microverse", targets: ["Microverse"])
     ],
     dependencies: [
+        .package(url: "https://github.com/sparkle-project/Sparkle", from: "2.0.0")
     ],
     targets: [
         .executableTarget(
             name: "Microverse",
-            dependencies: ["BatteryCore", "SystemCore"],
+            dependencies: ["BatteryCore", "SystemCore", "Sparkle"],
             resources: [
                 .copy("Resources/AppIcon.icns")
             ]

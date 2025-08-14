@@ -136,9 +136,33 @@ jobs:
         APP_PATH="$PRODUCT_NAME.app"
         mkdir -p "$APP_PATH/Contents/MacOS"
         mkdir -p "$APP_PATH/Contents/Resources"
+        mkdir -p "$APP_PATH/Contents/Frameworks"
         
         # Copy executable
         cp .build/apple/Products/Release/$PRODUCT_NAME "$APP_PATH/Contents/MacOS/"
+        
+        # Copy Sparkle framework and fix rpath
+        if [ -d ".build/arm64-apple-macosx/release/Sparkle.framework" ]; then
+          echo "Copying Sparkle framework..."
+          cp -R .build/arm64-apple-macosx/release/Sparkle.framework "$APP_PATH/Contents/Frameworks/"
+          install_name_tool -id "@rpath/Sparkle.framework/Versions/B/Sparkle" "$APP_PATH/Contents/Frameworks/Sparkle.framework/Versions/B/Sparkle" 2>/dev/null || true
+        elif [ -d ".build/x86_64-apple-macosx/release/Sparkle.framework" ]; then
+          echo "Copying Sparkle framework (x86_64)..."
+          cp -R .build/x86_64-apple-macosx/release/Sparkle.framework "$APP_PATH/Contents/Frameworks/"
+          install_name_tool -id "@rpath/Sparkle.framework/Versions/B/Sparkle" "$APP_PATH/Contents/Frameworks/Sparkle.framework/Versions/B/Sparkle" 2>/dev/null || true
+        else
+          echo "Warning: Sparkle framework not found, checking other locations..."
+          SPARKLE_PATH=$(find .build -name "Sparkle.framework" -type d | head -1)
+          if [ -n "$SPARKLE_PATH" ]; then
+            cp -R "$SPARKLE_PATH" "$APP_PATH/Contents/Frameworks/"
+            install_name_tool -id "@rpath/Sparkle.framework/Versions/B/Sparkle" "$APP_PATH/Contents/Frameworks/Sparkle.framework/Versions/B/Sparkle" 2>/dev/null || true
+          else
+            echo "Error: Could not find Sparkle framework"
+          fi
+        fi
+        
+        # Fix executable rpath for framework loading
+        install_name_tool -add_rpath "@loader_path/../Frameworks" "$APP_PATH/Contents/MacOS/$PRODUCT_NAME" 2>/dev/null || true
         
         # Create Info.plist
         cat > "$APP_PATH/Contents/Info.plist" << EOF
@@ -318,6 +342,7 @@ jobs:
         asset_name: ${{ env.app_zip }}
         asset_content_type: application/zip
         
+
     - name: Build Summary
       if: steps.check_proceed.outputs.should_proceed == 'true'
       run: |
@@ -326,7 +351,11 @@ jobs:
         echo "  - ${{ env.dmg_name }} (DMG installer)"
         echo "  - ${{ env.app_zip }} (App bundle)"
         echo "🔗 Release URL: ${{ steps.create_release.outputs.html_url }}"
-        echo "✅ Release is now available for download!"
+        echo ""
+        echo "📡 Next steps:"
+        echo "  1. Manually update appcast.xml on gh-pages branch with new release info"
+        echo "  2. Sparkle will then detect the update at https://microverse.ashwch.com/appcast.xml"
+        echo "✅ Release is ready for download!"
         
     - name: Skip Release
       if: steps.check_proceed.outputs.should_proceed == 'false'

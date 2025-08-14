@@ -54,12 +54,26 @@ class BatteryViewModel: ObservableObject {
         }
     }
     
+    // Auto-update settings
+    @Published var checkForUpdatesAutomatically = false {
+        didSet {
+            saveSetting("checkForUpdatesAutomatically", value: checkForUpdatesAutomatically)
+            SecureUpdateService.shared.setAutomaticUpdateChecking(enabled: checkForUpdatesAutomatically)
+            if checkForUpdatesAutomatically {
+                schedulePeriodicUpdateCheck()
+            } else {
+                cancelPeriodicUpdateCheck()
+            }
+        }
+    }
+    
     
     private let reader = BatteryReader()
     private var timer: Timer?
     private var cancellables = Set<AnyCancellable>()
     private let logger = Logger(subsystem: "com.microverse.app", category: "BatteryViewModel")
     private var widgetManager: DesktopWidgetManager?
+    private var updateCheckTimer: Timer?
     
     init() {
         logger.info("BatteryViewModel initializing...")
@@ -77,11 +91,17 @@ class BatteryViewModel: ObservableObject {
             widgetManager?.showWidget()
         }
         
+        // Start automatic update checking if enabled
+        if checkForUpdatesAutomatically {
+            schedulePeriodicUpdateCheck()
+        }
+        
         logger.info("BatteryViewModel initialized")
     }
     
     deinit {
         timer?.invalidate()
+        updateCheckTimer?.invalidate()
     }
     
     // MARK: - Public Methods
@@ -187,10 +207,36 @@ class BatteryViewModel: ObservableObject {
             widgetStyle = style
         }
         
+        // Load auto-update setting
+        if defaults.object(forKey: "checkForUpdatesAutomatically") != nil {
+            checkForUpdatesAutomatically = defaults.bool(forKey: "checkForUpdatesAutomatically")
+        }
+        
         // Note: launchAtStartup is already loaded from LaunchAtStartup.isEnabled
     }
     
     private func saveSetting(_ key: String, value: Any) {
         UserDefaults.standard.set(value, forKey: key)
+    }
+    
+    // MARK: - Auto-Update Methods
+    
+    private func schedulePeriodicUpdateCheck() {
+        cancelPeriodicUpdateCheck()
+        
+        // Check every 24 hours
+        updateCheckTimer = Timer.scheduledTimer(withTimeInterval: 24 * 60 * 60, repeats: true) { _ in
+            Task { @MainActor in
+                SecureUpdateService.shared.checkForUpdates()
+            }
+        }
+        
+        logger.info("Scheduled periodic update checks every 24 hours")
+    }
+    
+    private func cancelPeriodicUpdateCheck() {
+        updateCheckTimer?.invalidate()
+        updateCheckTimer = nil
+        logger.info("Cancelled periodic update checks")
     }
 }
