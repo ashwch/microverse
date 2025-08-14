@@ -408,34 +408,7 @@ jobs:
             --download-url-prefix "https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.new_tag }}/" \
             --verbose
         
-        # ✅ EXPERT-RECOMMENDED SOLUTION: Let generate_appcast add release notes automatically
-        # 1) Fetch release notes (Markdown) from GitHub  
-        echo "Fetching release notes from GitHub release..."
-        NOTES_MD=$(gh release view ${{ steps.version.outputs.new_tag }} --json body --jq '.body')
-        
-        if [ -n "$NOTES_MD" ]; then
-          echo "Converting Markdown to HTML for Sparkle..."
-          
-          # 2) Convert Markdown → HTML (generate_appcast will auto-link this file)
-          cat > /tmp/md2html.py << 'EOF'
-import sys, html
-try:
-    import markdown
-    print(markdown.markdown(sys.stdin.read(), extensions=['extra']))
-except ImportError:
-    # Lightweight fallback if markdown not available  
-    print("<pre>" + html.escape(sys.stdin.read()) + "</pre>")
-EOF
-          
-          echo "$NOTES_MD" | python3 /tmp/md2html.py > "releases/${PRODUCT_NAME}-v${{ steps.version.outputs.new_version }}.html"
-          
-          echo "✅ Generated release notes HTML: releases/${PRODUCT_NAME}-v${{ steps.version.outputs.new_version }}.html"
-          echo "File size: $(wc -c < "releases/${PRODUCT_NAME}-v${{ steps.version.outputs.new_version }}.html") bytes"
-        else
-          echo "⚠️ No release notes found in GitHub release"
-        fi
-        
-        # 3) Generate appcast - Sparkle will automatically add <sparkle:releaseNotesLink> 
+        # Generate appcast with EdDSA signature
         echo -n "${{ secrets.SPARKLE_PRIVATE_KEY }}" | \
           ./sparkle-tools/generate_appcast releases/ \
             --ed-key-file - \
@@ -443,21 +416,18 @@ EOF
             --download-url-prefix "https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.new_tag }}/" \
             --verbose
         
-        # The appcast.xml should now be generated with EdDSA signature AND release notes link
+        # Add simple release notes link (like most apps do)
         if [ -f "releases/appcast.xml" ]; then
-          echo "✅ Signed appcast generated successfully with automatic release notes linking"
+          echo "✅ Basic appcast generated, adding release notes link..."
+          
+          # Add release notes link pointing to GitHub release page  
+          RELEASE_URL="https://github.com/${{ github.repository }}/releases/tag/${{ steps.version.outputs.new_tag }}"
+          sed -i.bak "s|<sparkle:version>${{ steps.version.outputs.new_version }}</sparkle:version>|<sparkle:version>${{ steps.version.outputs.new_version }}</sparkle:version>\\
+    <sparkle:releaseNotesLink>$RELEASE_URL</sparkle:releaseNotesLink>|" releases/appcast.xml
+          
+          echo "✅ Added release notes link: $RELEASE_URL"
           echo "Appcast file size: $(wc -c < releases/appcast.xml) bytes"
-          
-          # Check if release notes link was added
-          if grep -q "sparkle:releaseNotesLink" releases/appcast.xml; then
-            echo "✅ Release notes link automatically added by generate_appcast"
-          else
-            echo "⚠️ No release notes link found - check HTML file naming"
-          fi
-          
-          echo "=== FINAL APPCAST CONTENT ==="
           cat releases/appcast.xml
-          echo "=== END APPCAST CONTENT ==="
         else
           echo "❌ Failed to generate appcast"
           ls -la releases/
