@@ -402,14 +402,22 @@ jobs:
         # Create directory for release assets
         mkdir -p releases
         
-        # Download the ZIP file that was just uploaded (this is what we'll sign)
+        # Get the download URL for the ZIP file
+        ZIP_URL=$(gh api repos/${{ github.repository }}/releases/tags/${{ steps.version.outputs.new_tag }} \
+          --jq '.assets[] | select(.name | endswith(".zip")) | .browser_download_url')
+        
+        echo "Downloading ZIP from: $ZIP_URL"
+        
+        # Download the ZIP file
         curl -L -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
              -o "releases/${PRODUCT_NAME}-v${{ steps.version.outputs.new_version }}.zip" \
-             "$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-                https://api.github.com/repos/${{ github.repository }}/releases/tags/${{ steps.version.outputs.new_tag }} \
-                | jq -r '.assets[] | select(.name | endswith(".zip")) | .browser_download_url')"
+             "$ZIP_URL"
+        
+        echo "Downloaded ZIP file:"
+        ls -la releases/
         
         # Generate appcast with signature
+        echo "Running generate_appcast tool..."
         ./sparkle-tools/generate_appcast releases/
         
         # The appcast.xml should now be generated with EdDSA signature
