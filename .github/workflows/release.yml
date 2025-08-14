@@ -383,15 +383,15 @@ jobs:
       run: |
         echo "Setting up Sparkle signing..."
         
-        # Import EdDSA private key from secrets into keychain
-        # The secret should contain the private key in base64 format
-        echo "${{ secrets.SPARKLE_PRIVATE_KEY }}" | base64 -d > sparkle_private_key.pem
-        
-        # Import into keychain (this is how Sparkle tools access it)
-        security import sparkle_private_key.pem -k ~/Library/Keychains/login.keychain-db
-        
-        # Clean up the temp key file
-        rm sparkle_private_key.pem
+        # Add the EdDSA private key to keychain as a generic password
+        # This matches how Sparkle's generate_keys tool stores the key
+        security add-generic-password \
+          -a "ed25519" \
+          -s "https://sparkle-project.org" \
+          -D "private key" \
+          -C "Private key for signing Sparkle updates" \
+          -w "${{ secrets.SPARKLE_PRIVATE_KEY }}" \
+          ~/Library/Keychains/login.keychain-db
         
         echo "Private key imported successfully"
         
