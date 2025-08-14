@@ -6,32 +6,6 @@
         <language>en</language>
         <link>https://github.com/ashwch/Microverse</link>
         
-        <!-- Latest Release -->
-        <item>
-            <title>Microverse 0.4.2</title>
-            <description><![CDATA[
-                <h2>What's New in 0.4.2</h2>
-                <ul>
-                    <li>✨ <strong>Feature:</strong> Comprehensive auto-update system with Sparkle integration</li>
-                    <li>⚙️ <strong>Enhancement:</strong> Redesigned Settings interface with elegant design system</li>
-                    <li>🔄 <strong>Feature:</strong> Automatic 24-hour background update checking toggle</li>
-                    <li>🎨 <strong>Enhancement:</strong> Enhanced UI components following unified design system</li>
-                    <li>🔧 <strong>Improvement:</strong> Reliable CI/CD pipeline with proper release management</li>
-                </ul>
-                
-                <h3>System Requirements</h3>
-                <p>macOS 11.0 or later</p>
-            ]]></description>
-            <pubDate>Wed, 14 Aug 2025 06:49:33 +0000</pubDate>
-            <enclosure url="https://github.com/ashwch/Microverse/releases/download/v0.4.2/Microverse-v0.4.2.dmg" 
-                      length="2097152" 
-                      type="application/octet-stream" 
-                      sparkle:version="0.4.2" 
-                      sparkle:shortVersionString="0.4.2" />
-            <sparkle:minimumSystemVersion>11.0</sparkle:minimumSystemVersion>
-        </item>
-        
-        <!-- Previous Releases -->
         <item>
             <title>Microverse 0.3.0</title>
             <description><![CDATA[
@@ -57,92 +31,7 @@
             <sparkle:minimumSystemVersion>11.0</sparkle:minimumSystemVersion>
         </item>
         
-        <!-- Previous Releases -->
-        <item>
-            <title>Microverse 0.2.0</title>
-            <description><![CDATA[
-                <h2>What's New in 0.2.0</h2>
-                <ul>
-                    <li>🎯 Enhanced battery health insights and scoring</li>
-                    <li>📊 Improved CPU and memory monitoring accuracy</li>
-                    <li>🎨 Refined UI with better color contrast and readability</li>
-                    <li>⚡ Performance optimizations for lower CPU usage</li>
-                    <li>🐛 Various bug fixes and stability improvements</li>
-                </ul>
-                
-                <h3>System Requirements</h3>
-                <p>macOS 11.0 or later</p>
-            ]]></description>
-            <pubDate>Fri, 19 Jul 2025 19:53:40 +0000</pubDate>
-            <enclosure url="https://github.com/ashwch/Microverse/releases/download/v0.2.0/Microverse-v0.2.0.dmg" 
-                      length="1851392" 
-                      type="application/octet-stream" 
-                      sparkle:version="0.2.0" 
-                      sparkle:shortVersionString="0.2.0"
-                      sparkle:dsaSignature="[SIGNATURE_PLACEHOLDER]" />
-            <sparkle:minimumSystemVersion>11.0</sparkle:minimumSystemVersion>
-        </item>
-        
-        <item>
-            <title>Microverse 0.1.1</title>
-            <description><![CDATA[
-                <h2>What's New in 0.1.1</h2>
-                <ul>
-                    <li>🔧 Fixed widget positioning on external displays</li>
-                    <li>🎨 Improved dark mode appearance</li>
-                    <li>⚡ Reduced battery impact during idle periods</li>
-                    <li>🐛 Bug fixes for menu bar percentage display</li>
-                </ul>
-                
-                <h3>System Requirements</h3>
-                <p>macOS 11.0 or later</p>
-            ]]></description>
-            <pubDate>Fri, 19 Jul 2025 14:01:24 +0000</pubDate>
-            <enclosure url="https://github.com/ashwch/Microverse/releases/download/v0.1.1/Microverse-v0.1.1.dmg" 
-                      length="1765376" 
-                      type="application/octet-stream" 
-                      sparkle:version="0.1.1" 
-                      sparkle:shortVersionString="0.1.1"
-                      sparkle:dsaSignature="[SIGNATURE_PLACEHOLDER]" />
-            <sparkle:minimumSystemVersion>11.0</sparkle:minimumSystemVersion>
-        </item>
-        
-        <item>
-            <title>Microverse 0.1.0</title>
-            <description><![CDATA[
-                <h2>Initial Release - Welcome to Microverse! 🚀</h2>
-                <ul>
-                    <li>🔋 Real-time battery monitoring with health insights</li>
-                    <li>🖥️ CPU usage tracking with multi-core support</li>
-                    <li>🧠 Memory pressure monitoring and usage statistics</li>
-                    <li>📱 6 desktop widget styles for different workflows</li>
-                    <li>🎯 Elegant tabbed interface with system overview</li>
-                    <li>📍 Menu bar integration with customizable display</li>
-                    <li>⚡ <1% CPU usage with adaptive refresh rates</li>
-                    <li>🎨 Beautiful glass-effect UI following macOS design</li>
-                </ul>
-                
-                <h3>Features</h3>
-                <ul>
-                    <li><strong>Battery Tab:</strong> Charge level, health score, cycle count, time remaining</li>
-                    <li><strong>CPU Tab:</strong> Usage percentage, load averages, temperature monitoring</li>
-                    <li><strong>Memory Tab:</strong> Usage breakdown, pressure indicators, swap usage</li>
-                    <li><strong>Overview Tab:</strong> All metrics in one unified view</li>
-                    <li><strong>Desktop Widgets:</strong> Battery Simple, CPU Monitor, Memory Monitor, System Glance, System Status, System Dashboard</li>
-                </ul>
-                
-                <h3>System Requirements</h3>
-                <p>macOS 11.0 or later</p>
-            ]]></description>
-            <pubDate>Sun, 14 Jul 2025 02:03:38 +0000</pubDate>
-            <enclosure url="https://github.com/ashwch/Microverse/releases/download/v0.1.0/Microverse-v0.1.0.dmg" 
-                      length="1638400" 
-                      type="application/octet-stream" 
-                      sparkle:version="0.1.0" 
-                      sparkle:shortVersionString="0.1.0"
-                      sparkle:dsaSignature="[SIGNATURE_PLACEHOLDER]" />
-            <sparkle:minimumSystemVersion>11.0</sparkle:minimumSystemVersion>
-        </item>
+        <!-- Future releases will be added here -->
         
     </channel>
 </rss>
