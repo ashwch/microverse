@@ -1,0 +1,53 @@
+name: Cleanup GitHub Pages
+
+on:
+  schedule:
+    # Run monthly on the 1st at 2 AM UTC to clean up old release notes
+    - cron: '0 2 1 * *'
+  workflow_dispatch:
+    # Allow manual triggering
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup-old-release-notes:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Cleanup Old Release Notes
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        echo "Cleaning up old release notes from GitHub Pages..."
+        
+        # Clone the gh-pages branch
+        git clone -b gh-pages https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git gh-pages-repo
+        cd gh-pages-repo
+        
+        # Keep only the last 5 release notes HTML files (keep appcast.xml always)
+        echo "Files before cleanup:"
+        ls -la *.html 2>/dev/null || echo "No HTML files found"
+        
+        # Find HTML files matching pattern and keep only the 5 most recent
+        if ls Microverse-v*.html 1> /dev/null 2>&1; then
+          # Sort by version and keep only the latest 5
+          ls -1 Microverse-v*.html | sort -V | head -n -5 | xargs rm -f || true
+          
+          echo "Files after cleanup:"
+          ls -la *.html 2>/dev/null || echo "No HTML files remaining"
+          
+          # Commit changes if any files were removed
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add -A
+          if git diff --staged --quiet; then
+            echo "No old files to clean up"
+          else
+            git commit -m "chore: cleanup old release notes (keep latest 5 versions)"
+            git push origin gh-pages
+            echo "✅ Old release notes cleaned up"
+          fi
+        else
+          echo "No release notes files found to clean up"
+        fi

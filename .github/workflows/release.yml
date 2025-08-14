@@ -408,25 +408,37 @@ jobs:
             --download-url-prefix "https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.new_tag }}/" \
             --verbose
         
-        # Generate appcast with EdDSA signature
+        # ✅ MINIMAL "BORING BUT WORKS" SOLUTION (like most apps)
+        # 1) Get release notes and convert to simple HTML sidecar file
+        echo "Creating HTML sidecar file for generate_appcast auto-linking..."
+        NOTES_MD=$(gh release view ${{ steps.version.outputs.new_tag }} --json body --jq '.body' || echo "No release notes")
+        
+        # Convert markdown to basic HTML (no fancy libraries needed)
+        echo "$NOTES_MD" | sed 's/^# /\<h1\>/; s/^## /\<h2\>/; s/^### /\<h3\>/; s/^- /\<li\>/; s/\*\*\([^*]*\)\*\*/\<strong\>\1\<\/strong\>/g' > "releases/${PRODUCT_NAME}-v${{ steps.version.outputs.new_version }}.html"
+        
+        echo "✅ Created sidecar HTML: releases/${PRODUCT_NAME}-v${{ steps.version.outputs.new_version }}.html"
+        echo "File size: $(wc -c < "releases/${PRODUCT_NAME}-v${{ steps.version.outputs.new_version }}.html") bytes"
+        
+        # 2) Generate appcast - will auto-detect and link the HTML file
         echo -n "${{ secrets.SPARKLE_PRIVATE_KEY }}" | \
           ./sparkle-tools/generate_appcast releases/ \
             --ed-key-file - \
             --maximum-deltas 0 \
-            --download-url-prefix "https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.new_tag }}/" \
+            --download-url-prefix "https://microverse.ashwch.com/" \
             --verbose
         
-        # Add simple release notes link (like most apps do)
+        # 3) Verify appcast was generated with release notes link
         if [ -f "releases/appcast.xml" ]; then
-          echo "✅ Basic appcast generated, adding release notes link..."
+          echo "✅ Appcast generated successfully"
           
-          # Add release notes link pointing to GitHub release page  
-          RELEASE_URL="https://github.com/${{ github.repository }}/releases/tag/${{ steps.version.outputs.new_tag }}"
-          sed -i.bak "s|<sparkle:version>${{ steps.version.outputs.new_version }}</sparkle:version>|<sparkle:version>${{ steps.version.outputs.new_version }}</sparkle:version>\\
-    <sparkle:releaseNotesLink>$RELEASE_URL</sparkle:releaseNotesLink>|" releases/appcast.xml
+          if grep -q "sparkle:releaseNotesLink" releases/appcast.xml; then
+            echo "✅ Release notes link automatically added by generate_appcast"
+            grep "sparkle:releaseNotesLink" releases/appcast.xml
+          else
+            echo "⚠️ No release notes link found - generate_appcast didn't detect HTML file"
+          fi
           
-          echo "✅ Added release notes link: $RELEASE_URL"
-          echo "Appcast file size: $(wc -c < releases/appcast.xml) bytes"
+          echo "Final appcast size: $(wc -c < releases/appcast.xml) bytes"
           cat releases/appcast.xml
         else
           echo "❌ Failed to generate appcast"
@@ -434,12 +446,12 @@ jobs:
           exit 1
         fi
         
-    - name: Update GitHub Pages Appcast
+    - name: Update GitHub Pages Appcast and Release Notes
       if: steps.check_proceed.outputs.should_proceed == 'true'
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        echo "Updating appcast on GitHub Pages..."
+        echo "Updating appcast and release notes on GitHub Pages..."
         
         # Clone the gh-pages branch with token authentication
         git clone -b gh-pages https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git gh-pages-repo
@@ -447,15 +459,24 @@ jobs:
         # Copy the signed appcast
         cp releases/appcast.xml gh-pages-repo/appcast.xml
         
-        # Commit and push the updated appcast
+        # Copy the HTML release notes file to gh-pages
+        if [ -f "releases/${PRODUCT_NAME}-v${{ steps.version.outputs.new_version }}.html" ]; then
+          cp "releases/${PRODUCT_NAME}-v${{ steps.version.outputs.new_version }}.html" "gh-pages-repo/"
+          echo "✅ Copied HTML release notes to GitHub Pages"
+        else
+          echo "⚠️ Warning: HTML release notes file not found"
+        fi
+        
+        # Commit and push the updated files
         cd gh-pages-repo
         git config user.name "GitHub Actions"
         git config user.email "actions@github.com"
-        git add appcast.xml
-        git commit -m "Update appcast for v${{ steps.version.outputs.new_version }} with EdDSA signature" || true
+        git add appcast.xml "${PRODUCT_NAME}-v${{ steps.version.outputs.new_version }}.html" || true
+        git commit -m "Update appcast and release notes for v${{ steps.version.outputs.new_version }}" || true
         git push origin gh-pages
         
-        echo "✅ Appcast updated on GitHub Pages"
+        echo "✅ Appcast and release notes updated on GitHub Pages"
+        echo "📡 Release notes will be available at: https://microverse.ashwch.com/${PRODUCT_NAME}-v${{ steps.version.outputs.new_version }}.html"
         
 
     - name: Build Summary
