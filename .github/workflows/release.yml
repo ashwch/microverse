@@ -420,11 +420,28 @@ jobs:
         
         # Generate appcast with signature
         echo "Running generate_appcast tool..."
-        ./sparkle-tools/generate_appcast releases/
+        echo "Tool permissions:"
+        ls -la ./sparkle-tools/generate_appcast
+        
+        echo "Release files to sign:"
+        ls -la releases/
+        
+        echo "Keychain status:"
+        security list-keychains
+        
+        # Run generate_appcast with timeout to prevent hanging
+        echo "Executing generate_appcast with 5 minute timeout..."
+        timeout 300 ./sparkle-tools/generate_appcast releases/ || {
+          echo "❌ generate_appcast command timed out or failed with exit code $?"
+          echo "Checking for any partial output..."
+          ls -la releases/
+          exit 1
+        }
         
         # The appcast.xml should now be generated with EdDSA signature
         if [ -f "releases/appcast.xml" ]; then
           echo "✅ Signed appcast generated successfully"
+          echo "Appcast file size: $(wc -c < releases/appcast.xml) bytes"
           cat releases/appcast.xml
         else
           echo "❌ Failed to generate appcast"
