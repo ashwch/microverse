@@ -423,8 +423,8 @@ jobs:
       run: |
         echo "Updating appcast on GitHub Pages..."
         
-        # Clone the gh-pages branch
-        git clone -b gh-pages https://github.com/${{ github.repository }}.git gh-pages-repo
+        # Clone the gh-pages branch with token authentication
+        git clone -b gh-pages https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git gh-pages-repo
         
         # Copy the signed appcast
         cp releases/appcast.xml gh-pages-repo/appcast.xml
