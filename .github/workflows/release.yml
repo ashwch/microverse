@@ -389,7 +389,6 @@ jobs:
           -a "ed25519" \
           -s "https://sparkle-project.org" \
           -D "private key" \
-          -C "Private key for signing Sparkle updates" \
           -w "${{ secrets.SPARKLE_PRIVATE_KEY }}" \
           ~/Library/Keychains/login.keychain-db
         
