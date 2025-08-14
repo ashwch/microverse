@@ -1,37 +1,36 @@
-<?xml version="1.0" encoding="utf-8"?>
-<rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" xmlns:dc="http://purl.org/dc/elements/1.1/">
+<?xml version="1.0" standalone="yes"?>
+<rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
     <channel>
-        <title>Microverse Updates</title>
+        <title>Microverse</title>
         <description>System monitoring for macOS with elegant desktop widgets</description>
         <language>en</language>
-        <link>https://github.com/ashwch/Microverse</link>
+        <link>https://github.com/ashwch/microverse</link>
         
         <item>
-            <title>Microverse 0.3.0</title>
+            <title>Microverse 0.5.11</title>
             <description><![CDATA[
-                <h2>What's New in 0.3.0</h2>
+                <h2>What's New in 0.5.11</h2>
                 <ul>
-                    <li>🔒 Secure auto-update system with Sparkle framework</li>
-                    <li>⚙️ Redesigned Settings interface with elegant dark glass aesthetic</li>
-                    <li>🎨 Enhanced UI components following unified design system</li>
-                    <li>🔧 Improved system monitoring performance</li>
-                    <li>✨ Better desktop widget integration</li>
+                    <li>🔒 <strong>Working Auto-Update System:</strong> Secure EdDSA-signed updates with Sparkle framework</li>
+                    <li>⚡ <strong>Performance Optimized:</strong> Enhanced system monitoring with minimal resource usage</li>
+                    <li>🎨 <strong>Polished UI:</strong> Refined desktop widgets and elegant tabbed interface</li>
+                    <li>🛠️ <strong>Stability Improvements:</strong> Robust error handling and memory management</li>
                 </ul>
                 
                 <h3>System Requirements</h3>
-                <p>macOS 11.0 or later</p>
+                <p><strong>macOS 11.0 or later</strong></p>
+                
+                <p>This release introduces a fully functional auto-update system with cryptographic verification for secure, seamless updates.</p>
             ]]></description>
-            <pubDate>Mon, 12 Aug 2025 04:42:01 +0000</pubDate>
-            <enclosure url="https://github.com/ashwch/Microverse/releases/download/v0.3.0/Microverse-v0.3.0.dmg" 
-                      length="2097152" 
-                      type="application/octet-stream" 
-                      sparkle:version="0.3.0" 
-                      sparkle:shortVersionString="0.3.0"
-                      sparkle:dsaSignature="[SIGNATURE_PLACEHOLDER]" />
+            <pubDate>Thu, 14 Aug 2025 16:14:51 +0000</pubDate>
+            <sparkle:version>0.5.11</sparkle:version>
+            <sparkle:shortVersionString>0.5.11</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>11.0</sparkle:minimumSystemVersion>
+            <enclosure url="https://github.com/ashwch/microverse/releases/download/v0.5.11/Microverse-v0.5.11.zip" 
+                      length="3824593" 
+                      type="application/octet-stream" 
+                      sparkle:edSignature="ux8vWUXpS6I2wXKIKewzD06xJd2d9h1h98rsCKYio5irFUSAYpDZ+ODdDEPaqEF7LxTyUas2EstbnnLnPcnmBw=="/>
         </item>
-        
-        <!-- Future releases will be added here -->
         
     </channel>
 </rss>
