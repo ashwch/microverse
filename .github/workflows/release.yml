@@ -342,124 +342,6 @@ jobs:
         asset_name: ${{ env.app_zip }}
         asset_content_type: application/zip
         
-    - name: Update Appcast
-      if: steps.check_proceed.outputs.should_proceed == 'true'  
-      run: |
-        echo "📡 Updating Sparkle appcast with new release..."
-        
-        # Clone gh-pages and update appcast
-        git config --global user.name "github-actions[bot]"
-        git config --global user.email "github-actions[bot]@users.noreply.github.com"
-        
-        git clone --depth 1 --branch gh-pages "https://${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" gh-pages-repo
-        cd gh-pages-repo
-        
-        # Get current date in RFC 2822 format
-        PUBDATE=$(date -u "+%a, %d %b %Y %H:%M:%S +0000")
-        
-        # Create completely new appcast.xml with latest release at top
-        cat > appcast.xml << 'EOF'
-<?xml version="1.0" encoding="utf-8"?>
-<rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" xmlns:dc="http://purl.org/dc/elements/1.1/">
-    <channel>
-        <title>Microverse Updates</title>
-        <description>System monitoring for macOS with elegant desktop widgets</description>
-        <language>en</language>
-        <link>https://github.com/ashwch/Microverse</link>
-        
-        <!-- Latest Release -->
-        <item>
-            <title>Microverse ${{ steps.version.outputs.new_version }}</title>
-            <description><![CDATA[
-                <h2>What's New in ${{ steps.version.outputs.new_version }}</h2>
-                <ul>
-                    <li>✨ <strong>Feature:</strong> Comprehensive auto-update system with Sparkle integration</li>
-                    <li>⚙️ <strong>Enhancement:</strong> Redesigned Settings interface with elegant design system</li>
-                    <li>🔄 <strong>Feature:</strong> Automatic 24-hour background update checking</li>
-                    <li>🎨 <strong>Enhancement:</strong> Enhanced UI components following unified design system</li>
-                    <li>🔧 <strong>Improvement:</strong> Better framework integration and performance</li>
-                </ul>
-                
-                <h3>System Requirements</h3>
-                <p>macOS 11.0 or later</p>
-            ]]></description>
-            <pubDate>PUBDATE_PLACEHOLDER</pubDate>
-            <enclosure url="https://github.com/${{ github.repository }}/releases/download/v${{ steps.version.outputs.new_version }}/Microverse-v${{ steps.version.outputs.new_version }}.dmg" 
-                      length="2097152" 
-                      type="application/octet-stream" 
-                      sparkle:version="${{ steps.version.outputs.new_version }}" 
-                      sparkle:shortVersionString="${{ steps.version.outputs.new_version }}" />
-            <sparkle:minimumSystemVersion>11.0</sparkle:minimumSystemVersion>
-        </item>
-        
-        <!-- Previous Releases -->
-        <item>
-            <title>Microverse 0.3.0</title>
-            <description><![CDATA[
-                <h2>What's New in 0.3.0</h2>
-                <ul>
-                    <li>🔒 Secure auto-update system with Sparkle framework</li>
-                    <li>⚙️ Redesigned Settings interface with elegant dark glass aesthetic</li>
-                    <li>🎨 Enhanced UI components following unified design system</li>
-                    <li>🔧 Improved system monitoring performance</li>
-                    <li>✨ Better desktop widget integration</li>
-                </ul>
-                
-                <h3>System Requirements</h3>
-                <p>macOS 11.0 or later</p>
-            ]]></description>
-            <pubDate>Mon, 12 Aug 2025 04:42:01 +0000</pubDate>
-            <enclosure url="https://github.com/ashwch/Microverse/releases/download/v0.3.0/Microverse-v0.3.0.dmg" 
-                      length="2097152" 
-                      type="application/octet-stream" 
-                      sparkle:version="0.3.0" 
-                      sparkle:shortVersionString="0.3.0" />
-            <sparkle:minimumSystemVersion>11.0</sparkle:minimumSystemVersion>
-        </item>
-        
-        <item>
-            <title>Microverse 0.2.0</title>
-            <description><![CDATA[
-                <h2>What's New in 0.2.0</h2>
-                <ul>
-                    <li>🎯 Enhanced battery health insights and scoring</li>
-                    <li>📊 Improved CPU and memory monitoring accuracy</li>
-                    <li>🎨 Refined UI with better color contrast and readability</li>
-                    <li>⚡ Performance optimizations for lower CPU usage</li>
-                    <li>🐛 Various bug fixes and stability improvements</li>
-                </ul>
-                
-                <h3>System Requirements</h3>
-                <p>macOS 11.0 or later</p>
-            ]]></description>
-            <pubDate>Fri, 19 Jul 2025 19:53:40 +0000</pubDate>
-            <enclosure url="https://github.com/ashwch/Microverse/releases/download/v0.2.0/Microverse-v0.2.0.dmg" 
-                      length="1851392" 
-                      type="application/octet-stream" 
-                      sparkle:version="0.2.0" 
-                      sparkle:shortVersionString="0.2.0" />
-            <sparkle:minimumSystemVersion>11.0</sparkle:minimumSystemVersion>
-        </item>
-        
-    </channel>
-</rss>
-EOF
-
-        # Replace the placeholder with actual date
-        sed -i "s/PUBDATE_PLACEHOLDER/${PUBDATE}/" appcast.xml
-        
-        # Commit and push changes
-        git add appcast.xml
-        if git diff --staged --quiet; then
-          echo "No changes to appcast.xml"
-        else
-          git commit -m "update appcast.xml for release v${{ steps.version.outputs.new_version }}"
-          git push origin gh-pages
-          echo "✅ Appcast updated and published to GitHub Pages"
-        fi
-        
-        cd ..
-        rm -rf gh-pages-repo
 
     - name: Build Summary
       if: steps.check_proceed.outputs.should_proceed == 'true'
@@ -469,8 +351,11 @@ EOF
         echo "  - ${{ env.dmg_name }} (DMG installer)"
         echo "  - ${{ env.app_zip }} (App bundle)"
         echo "🔗 Release URL: ${{ steps.create_release.outputs.html_url }}"
-        echo "📡 Appcast URL: https://microverse.ashwch.com/appcast.xml"
-        echo "✅ Release is now available for download and auto-update!"
+        echo ""
+        echo "📡 Next steps:"
+        echo "  1. Manually update appcast.xml on gh-pages branch with new release info"
+        echo "  2. Sparkle will then detect the update at https://microverse.ashwch.com/appcast.xml"
+        echo "✅ Release is ready for download!"
         
     - name: Skip Release
       if: steps.check_proceed.outputs.should_proceed == 'false'
