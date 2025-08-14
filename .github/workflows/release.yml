@@ -476,7 +476,7 @@ HTMLEOF
           ./sparkle-tools/generate_appcast releases/ \
             --ed-key-file - \
             --maximum-deltas 0 \
-            --download-url-prefix "https://microverse.ashwch.com/" \
+            --download-url-prefix "https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.new_tag }}/" \
             --verbose
         
         # 3) Verify appcast was generated with release notes link
@@ -519,20 +519,12 @@ HTMLEOF
           echo "⚠️ Warning: HTML release notes file not found"
         fi
         
-        # Copy the ZIP file to gh-pages for release notes links
-        if [ -f "releases/${PRODUCT_NAME}-v${{ steps.version.outputs.new_version }}.zip" ]; then
-          cp "releases/${PRODUCT_NAME}-v${{ steps.version.outputs.new_version }}.zip" "gh-pages-repo/"
-          echo "✅ Copied ZIP file to GitHub Pages"
-        else
-          echo "⚠️ Warning: ZIP file not found in releases directory"
-        fi
-        
         # Commit and push the updated files
         cd gh-pages-repo
         git config user.name "GitHub Actions"
         git config user.email "actions@github.com"
-        git add appcast.xml "${PRODUCT_NAME}-v${{ steps.version.outputs.new_version }}.html" "${PRODUCT_NAME}-v${{ steps.version.outputs.new_version }}.zip" || true
-        git commit -m "Update appcast, release notes, and ZIP file for v${{ steps.version.outputs.new_version }}" || true
+        git add appcast.xml "${PRODUCT_NAME}-v${{ steps.version.outputs.new_version }}.html" || true
+        git commit -m "Update appcast and release notes for v${{ steps.version.outputs.new_version }}" || true
         git push origin gh-pages
         
         echo "✅ Appcast and release notes updated on GitHub Pages"
