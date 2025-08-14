@@ -385,6 +385,9 @@ jobs:
       run: |
         echo "Generating signed appcast with Sparkle (CI-friendly approach)..."
         
+        # Create releases directory
+        mkdir -p releases
+        
         # Download the ZIP file to releases directory
         ZIP_URL=$(gh api repos/${{ github.repository }}/releases/tags/${{ steps.version.outputs.new_tag }} \
           --jq '.assets[] | select(.name | endswith(".zip")) | .browser_download_url')
