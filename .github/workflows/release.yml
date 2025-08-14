@@ -396,6 +396,8 @@ jobs:
         
     - name: Generate Signed Appcast
       if: steps.check_proceed.outputs.should_proceed == 'true'
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         echo "Generating signed appcast with Sparkle..."
         
@@ -432,6 +434,8 @@ jobs:
         
     - name: Update GitHub Pages Appcast
       if: steps.check_proceed.outputs.should_proceed == 'true'
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         echo "Updating appcast on GitHub Pages..."
         
