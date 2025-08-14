@@ -429,14 +429,17 @@ jobs:
         echo "Keychain status:"
         security list-keychains
         
-        # Run generate_appcast with timeout to prevent hanging
-        echo "Executing generate_appcast with 5 minute timeout..."
-        # Use gtimeout on macOS (from coreutils)
-        gtimeout 300 ./sparkle-tools/generate_appcast releases/ || {
-          echo "❌ generate_appcast command timed out or failed with exit code $?"
+        # Run generate_appcast (try without timeout first to see what happens)
+        echo "Executing generate_appcast..."
+        echo "Command: ./sparkle-tools/generate_appcast releases/"
+        
+        # Try to run without timeout to debug the actual issue
+        ./sparkle-tools/generate_appcast releases/ || {
+          RESULT=$?
+          echo "❌ generate_appcast command failed with exit code $RESULT"
           echo "Checking for any partial output..."
           ls -la releases/
-          exit 1
+          exit $RESULT
         }
         
         # The appcast.xml should now be generated with EdDSA signature
