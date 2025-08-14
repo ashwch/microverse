@@ -3,12 +3,31 @@
     <channel>
         <title>Microverse</title>
         <item>
-            <title>0.4.2</title>
-            <pubDate>Thu, 14 Aug 2025 16:44:24 +0000</pubDate>
-            <sparkle:version>0.4.2</sparkle:version>
-            <sparkle:shortVersionString>0.4.2</sparkle:shortVersionString>
+            <title>0.5.0</title>
+            <pubDate>Thu, 14 Aug 2025 19:55:29 +0000</pubDate>
+            <sparkle:version>0.5.0</sparkle:version>
+            <sparkle:shortVersionString>0.5.0</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>11.0</sparkle:minimumSystemVersion>
-            <enclosure url="https://github.com/ashwch/microverse/releases/download/v0.4.2/Microverse-v0.4.2.zip" length="3824593" type="application/octet-stream" sparkle:edSignature="P8rsoxfJj3PEurb58mXUC9CCl7+d/hLLVkbv85AdIYDq6y+S8IntLd0XAq2z15B8ZaDKD3KQF1TYlQGGVq6OCQ=="/>
+            <enclosure url="https://microverse.ashwch.com/Microverse-v0.5.0.zip" length="3824591" type="application/octet-stream" sparkle:edSignature="51E+Gn1syi2MzTpCeMAoPWF89lsTq/CqgzYnCr3Gb2pdFl0fknAQSlOIBHykMMpFp7hy6NpfdZoyP7x3S9HDCg=="/>
+            <description><![CDATA[<h1>Microverse v0.5.0
+
+A unified system monitoring app for macOS with elegant desktop widgets.
+
+<h2>What's Changed
+
+<li>✨ <strong>Feature</strong>: streamline GitHub Pages workflow for Sparkle release notes
+<li>✨ <strong>Feature</strong>: simplify release notes with direct GitHub link (like most apps)
+<li>🐛 <strong>Fix</strong>: correct YAML syntax for Python heredoc in workflow
+<li>✨ <strong>Feature</strong>: implement expert-recommended Sparkle release notes solution
+
+<h2>Installation
+
+1. Download the DMG file below
+2. Open the DMG and drag Microverse to Applications
+3. Launch from Applications or Spotlight
+
+<strong>Requires macOS 11.0 or later</strong>
+]]></description>
         </item>
     </channel>
 </rss>
