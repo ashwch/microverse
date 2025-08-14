@@ -383,42 +383,7 @@ jobs:
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        echo "Generating signed appcast with Sparkle..."
-        
-        # Create directory for release assets
-        mkdir -p releases
-        
-        # Get the download URL for the ZIP file
-        ZIP_URL=$(gh api repos/${{ github.repository }}/releases/tags/${{ steps.version.outputs.new_tag }} \
-          --jq '.assets[] | select(.name | endswith(".zip")) | .browser_download_url')
-        
-        echo "Downloading ZIP from: $ZIP_URL"
-        
-        # Download the ZIP file
-        curl -L -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-             -o "releases/${PRODUCT_NAME}-v${{ steps.version.outputs.new_version }}.zip" \
-             "$ZIP_URL"
-        
-        echo "Downloaded ZIP file:"
-        ls -la releases/
-        
-        # Generate appcast with signature
-        echo "Running generate_appcast tool..."
-        echo "Tool permissions:"
-        ls -la ./sparkle-tools/generate_appcast
-        
-        echo "Release files to sign:"
-        ls -la releases/
-        
-        echo "Keychain status:"
-        security list-keychains
-        
-        # Run generate_appcast with debugging
-        echo "Executing generate_appcast..."
-        echo "Command: ./sparkle-tools/generate_appcast releases/"
-        
-        # Generate signed appcast using Sparkle (non-interactive CI approach)
-        echo "Generating signed appcast with Sparkle (CI-friendly)..."
+        echo "Generating signed appcast with Sparkle (CI-friendly approach)..."
         
         # Download the ZIP file to releases directory
         ZIP_URL=$(gh api repos/${{ github.repository }}/releases/tags/${{ steps.version.outputs.new_tag }} \
