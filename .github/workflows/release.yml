@@ -347,70 +347,78 @@ jobs:
       run: |
         echo "📡 Updating Sparkle appcast with new release..."
         
-        # Download Sparkle tools for appcast generation
-        curl -L -o sparkle-tools.tar.xz "https://github.com/sparkle-project/Sparkle/releases/download/2.7.1/Sparkle-for-Swift-Package-Manager.tar.xz"
-        tar -xf sparkle-tools.tar.xz
-        
-        # Create releases directory for generate_appcast tool
-        mkdir -p releases
-        
-        # Download the release assets we just created
-        DMG_NAME="Microverse-v${{ steps.version.outputs.new_version }}.dmg"
-        curl -L -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-             -o "releases/$DMG_NAME" \
-             "https://github.com/${{ github.repository }}/releases/download/v${{ steps.version.outputs.new_version }}/$DMG_NAME"
-        
-        # Create release notes HTML file
-        cat > "releases/Microverse-v${{ steps.version.outputs.new_version }}.html" << 'EOF'
-        <h2>What's New in ${{ steps.version.outputs.new_version }}</h2>
-        <ul>
-            <li>✨ <strong>Feature:</strong> Comprehensive auto-update system with Sparkle integration</li>
-            <li>⚙️ <strong>Enhancement:</strong> Redesigned Settings interface with elegant design system</li>
-            <li>🔄 <strong>Feature:</strong> Automatic 24-hour background update checking</li>
-            <li>🎨 <strong>Enhancement:</strong> Enhanced UI components following unified design system</li>
-            <li>🔧 <strong>Improvement:</strong> Better framework integration and performance</li>
-        </ul>
-        
-        <h3>System Requirements</h3>
-        <p>macOS 11.0 or later</p>
-        EOF
-        
-        # Clone gh-pages to get existing releases 
+        # Clone gh-pages and update appcast
         git config --global user.name "github-actions[bot]"
         git config --global user.email "github-actions[bot]@users.noreply.github.com"
         
         git clone --depth 1 --branch gh-pages "https://${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" gh-pages-repo
+        cd gh-pages-repo
         
-        # Copy existing releases if they exist (for delta updates and history)
-        if [ -d gh-pages-repo/releases ]; then
-          cp -r gh-pages-repo/releases/* releases/ 2>/dev/null || true
+        # Get current date in RFC 2822 format
+        PUBDATE=$(date -u "+%a, %d %b %Y %H:%M:%S +0000")
+        
+        # Get DMG file size for appcast
+        DMG_URL="https://github.com/${{ github.repository }}/releases/download/v${{ steps.version.outputs.new_version }}/Microverse-v${{ steps.version.outputs.new_version }}.dmg"
+        DMG_SIZE=$(curl -sI "$DMG_URL" | grep -i content-length | awk '{print $2}' | tr -d '\r' || echo "2097152")
+        
+        # Create new release item XML
+        NEW_ITEM=$(cat << EOF
+        <item>
+            <title>Microverse ${{ steps.version.outputs.new_version }}</title>
+            <description><![CDATA[
+                <h2>What's New in ${{ steps.version.outputs.new_version }}</h2>
+                <ul>
+                    <li>✨ <strong>Feature:</strong> Comprehensive auto-update system with Sparkle integration</li>
+                    <li>⚙️ <strong>Enhancement:</strong> Redesigned Settings interface with elegant design system</li>
+                    <li>🔄 <strong>Feature:</strong> Automatic 24-hour background update checking</li>
+                    <li>🎨 <strong>Enhancement:</strong> Enhanced UI components following unified design system</li>
+                    <li>🔧 <strong>Improvement:</strong> Better framework integration and performance</li>
+                </ul>
+                
+                <h3>System Requirements</h3>
+                <p>macOS 11.0 or later</p>
+            ]]></description>
+            <pubDate>${PUBDATE}</pubDate>
+            <enclosure url="${DMG_URL}" 
+                      length="${DMG_SIZE}" 
+                      type="application/octet-stream" 
+                      sparkle:version="${{ steps.version.outputs.new_version }}" 
+                      sparkle:shortVersionString="${{ steps.version.outputs.new_version }}" />
+            <sparkle:minimumSystemVersion>11.0</sparkle:minimumSystemVersion>
+        </item>
+        EOF
+        )
+        
+        # Insert new item after "Latest Release" comment in appcast.xml
+        if [ -f appcast.xml ]; then
+          cp appcast.xml appcast.xml.backup
+          
+          # Use sed to insert new item after "<!-- Latest Release -->"
+          sed "/<!-- Latest Release -->/a\\
+        ${NEW_ITEM}\\
+        \\
+        <!-- Previous Releases -->" appcast.xml.backup | \
+          sed '/^[[:space:]]*<!-- Previous Releases -->$/d' | \
+          sed '0,/<!-- Previous Releases -->/s//<!-- Previous Releases -->/' > appcast.xml
+          
+          rm appcast.xml.backup
+        else
+          echo "Error: appcast.xml not found in gh-pages branch"
+          exit 1
         fi
         
-        # Generate appcast using official Sparkle tool
-        ./bin/generate_appcast \
-          --download-url-prefix "https://github.com/${{ github.repository }}/releases/download/" \
-          --link "https://github.com/${{ github.repository }}" \
-          --full-release-notes-url "https://github.com/${{ github.repository }}/releases/tag/v${{ steps.version.outputs.new_version }}" \
-          releases/
-        
-        # Move generated appcast and releases to gh-pages
-        cd gh-pages-repo
-        mv ../appcast.xml .
-        mkdir -p releases
-        cp -r ../releases/* releases/
-        
         # Commit and push changes
-        git add appcast.xml releases/
+        git add appcast.xml
         if git diff --staged --quiet; then
-          echo "No changes to appcast"
+          echo "No changes to appcast.xml"
         else
-          git commit -m "update appcast.xml and releases for v${{ steps.version.outputs.new_version }}"
+          git commit -m "update appcast.xml for release v${{ steps.version.outputs.new_version }}"
           git push origin gh-pages
           echo "✅ Appcast updated and published to GitHub Pages"
         fi
         
         cd ..
-        rm -rf gh-pages-repo releases sparkle-tools.tar.xz bin/
+        rm -rf gh-pages-repo
 
     - name: Build Summary
       if: steps.check_proceed.outputs.should_proceed == 'true'
