@@ -18,6 +18,13 @@
     <key>com.apple.security.files.downloads.read-write</key>
     <true/>
     
+    <!-- CRITICAL: Sparkle XPC service entitlements for sandboxed apps -->
+    <key>com.apple.security.temporary-exception.mach-lookup.global-name</key>
+    <array>
+        <string>com.microverse.app-spks</string>
+        <string>com.microverse.app-spki</string>
+    </array>
+    
     <!-- No special entitlements needed for:
          - Menu bar apps (LSUIElement)
          - UserDefaults preferences

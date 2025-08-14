@@ -124,6 +124,21 @@ jobs:
           echo "Will create new release ${{ steps.version.outputs.new_tag }}"
         fi
         
+    - name: Build Sparkle Tools
+      if: steps.check_proceed.outputs.should_proceed == 'true'
+      run: |
+        echo "Building Sparkle tools for signing..."
+        
+        # Build the Sparkle tools (generate_appcast is needed for signing releases)
+        cd .build/checkouts/Sparkle
+        xcodebuild -project Sparkle.xcodeproj -scheme generate_appcast -configuration Release
+        
+        # Copy the tools to project root for use
+        mkdir -p ../../../sparkle-tools
+        cp /Users/runner/Library/Developer/Xcode/DerivedData/*/Build/Products/Release/generate_appcast ../../../sparkle-tools/
+        
+        echo "Sparkle tools ready"
+        
     - name: Build Microverse
       if: steps.check_proceed.outputs.should_proceed == 'true'
       run: |
@@ -164,44 +179,62 @@ jobs:
         # Fix executable rpath for framework loading
         install_name_tool -add_rpath "@loader_path/../Frameworks" "$APP_PATH/Contents/MacOS/$PRODUCT_NAME" 2>/dev/null || true
         
-        # Create Info.plist
+        # Create Info.plist with Sparkle auto-update configuration
         cat > "$APP_PATH/Contents/Info.plist" << EOF
         <?xml version="1.0" encoding="UTF-8"?>
         <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
         <plist version="1.0">
         <dict>
+            <key>CFBundleDevelopmentRegion</key>
+            <string>en</string>
             <key>CFBundleExecutable</key>
             <string>$PRODUCT_NAME</string>
             <key>CFBundleIdentifier</key>
             <string>com.microverse.app</string>
+            <key>CFBundleInfoDictionaryVersion</key>
+            <string>6.0</string>
             <key>CFBundleName</key>
             <string>$PRODUCT_NAME</string>
-            <key>CFBundleDisplayName</key>
-            <string>$PRODUCT_NAME</string>
-            <key>CFBundleVersion</key>
-            <string>${{ steps.version.outputs.new_version }}</string>
-            <key>CFBundleShortVersionString</key>
-            <string>${{ steps.version.outputs.new_version }}</string>
             <key>CFBundlePackageType</key>
             <string>APPL</string>
-            <key>CFBundleSignature</key>
-            <string>????</string>
+            <key>CFBundleShortVersionString</key>
+            <string>${{ steps.version.outputs.new_version }}</string>
+            <key>CFBundleVersion</key>
+            <string>${{ steps.version.outputs.new_version }}</string>
             <key>LSMinimumSystemVersion</key>
             <string>11.0</string>
             <key>CFBundleIconFile</key>
             <string>AppIcon</string>
+            <key>CFBundleDisplayName</key>
+            <string>$PRODUCT_NAME</string>
             <key>NSHumanReadableCopyright</key>
             <string>Copyright © 2025 Ashwini Chaudhary. All rights reserved.</string>
-            <key>NSHighResolutionCapable</key>
-            <true/>
+            <key>NSPrincipalClass</key>
+            <string>NSApplication</string>
             <key>LSUIElement</key>
             <true/>
             <key>NSSupportsAutomaticTermination</key>
-            <true/>
+            <false/>
             <key>NSSupportsSuddenTermination</key>
+            <false/>
+            
+            <!-- Sparkle Auto-Update Configuration -->
+            <key>SUFeedURL</key>
+            <string>https://microverse.ashwch.com/appcast.xml</string>
+            <key>SUAutomaticallyUpdate</key>
+            <false/>
+            <key>SUEnableAutomaticChecks</key>
+            <false/>
+            <key>SUShowReleaseNotes</key>
             <true/>
-            <key>NSPrincipalClass</key>
-            <string>NSApplication</string>
+            <key>SUAllowsAutomaticUpdates</key>
+            <false/>
+            <!-- CRITICAL: Enable Installer XPC service for sandboxed apps -->
+            <key>SUEnableInstallerLauncherService</key>
+            <true/>
+            <!-- EdDSA public key for signature verification -->
+            <key>SUPublicEDKey</key>
+            <string>j6LhwdLf+L0uIllLkfIVFxNLHrg9f3lLUs/5uz5PF7w=</string>
         </dict>
         </plist>
         EOF
@@ -342,6 +375,72 @@ jobs:
         asset_name: ${{ env.app_zip }}
         asset_content_type: application/zip
         
+    - name: Setup Sparkle Signing
+      if: steps.check_proceed.outputs.should_proceed == 'true'
+      run: |
+        echo "Setting up Sparkle signing..."
+        
+        # Import EdDSA private key from secrets into keychain
+        # The secret should contain the private key in base64 format
+        echo "${{ secrets.SPARKLE_PRIVATE_KEY }}" | base64 -d > sparkle_private_key.pem
+        
+        # Import into keychain (this is how Sparkle tools access it)
+        security import sparkle_private_key.pem -k ~/Library/Keychains/login.keychain-db
+        
+        # Clean up the temp key file
+        rm sparkle_private_key.pem
+        
+        echo "Private key imported successfully"
+        
+    - name: Generate Signed Appcast
+      if: steps.check_proceed.outputs.should_proceed == 'true'
+      run: |
+        echo "Generating signed appcast with Sparkle..."
+        
+        # Create directory for release assets
+        mkdir -p releases
+        
+        # Download the ZIP file that was just uploaded (this is what we'll sign)
+        curl -L -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+             -o "releases/${PRODUCT_NAME}-v${{ steps.version.outputs.new_version }}.zip" \
+             "$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+                https://api.github.com/repos/${{ github.repository }}/releases/tags/${{ steps.version.outputs.new_tag }} \
+                | jq -r '.assets[] | select(.name | endswith(".zip")) | .browser_download_url')"
+        
+        # Generate appcast with signature
+        ./sparkle-tools/generate_appcast releases/
+        
+        # The appcast.xml should now be generated with EdDSA signature
+        if [ -f "releases/appcast.xml" ]; then
+          echo "✅ Signed appcast generated successfully"
+          cat releases/appcast.xml
+        else
+          echo "❌ Failed to generate appcast"
+          ls -la releases/
+          exit 1
+        fi
+        
+    - name: Update GitHub Pages Appcast
+      if: steps.check_proceed.outputs.should_proceed == 'true'
+      run: |
+        echo "Updating appcast on GitHub Pages..."
+        
+        # Clone the gh-pages branch
+        git clone -b gh-pages https://github.com/${{ github.repository }}.git gh-pages-repo
+        
+        # Copy the signed appcast
+        cp releases/appcast.xml gh-pages-repo/appcast.xml
+        
+        # Commit and push the updated appcast
+        cd gh-pages-repo
+        git config user.name "GitHub Actions"
+        git config user.email "actions@github.com"
+        git add appcast.xml
+        git commit -m "Update appcast for v${{ steps.version.outputs.new_version }} with EdDSA signature" || true
+        git push origin gh-pages
+        
+        echo "✅ Appcast updated on GitHub Pages"
+        
 
     - name: Build Summary
       if: steps.check_proceed.outputs.should_proceed == 'true'
@@ -352,9 +451,10 @@ jobs:
         echo "  - ${{ env.app_zip }} (App bundle)"
         echo "🔗 Release URL: ${{ steps.create_release.outputs.html_url }}"
         echo ""
-        echo "📡 Next steps:"
-        echo "  1. Manually update appcast.xml on gh-pages branch with new release info"
-        echo "  2. Sparkle will then detect the update at https://microverse.ashwch.com/appcast.xml"
+        echo "📡 Update system:"
+        echo "  ✅ Signed appcast.xml automatically updated on GitHub Pages"
+        echo "  🔐 EdDSA signature verification enabled"
+        echo "  📡 Sparkle will detect updates at https://microverse.ashwch.com/appcast.xml"
         echo "✅ Release is ready for download!"
         
     - name: Skip Release

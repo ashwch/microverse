@@ -15,9 +15,9 @@
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
-    <string>0.3.0</string>
+    <string>0.0.1</string>
     <key>CFBundleVersion</key>
-    <string>0.3.0</string>
+    <string>0.0.1</string>
     <key>LSMinimumSystemVersion</key>
     <string>11.0</string>
     <key>CFBundleIconFile</key>
@@ -36,6 +36,8 @@
     <false/>
     
     <!-- Sparkle Auto-Update Configuration -->
+    <key>SUFeedURL</key>
+    <string>https://microverse.ashwch.com/appcast.xml</string>
     <key>SUAutomaticallyUpdate</key>
     <false/>
     <key>SUEnableAutomaticChecks</key>
@@ -44,5 +46,11 @@
     <true/>
     <key>SUAllowsAutomaticUpdates</key>
     <false/>
+    <!-- CRITICAL: Enable Installer XPC service for sandboxed apps -->
+    <key>SUEnableInstallerLauncherService</key>
+    <true/>
+    <!-- EdDSA public key for signature verification -->
+    <key>SUPublicEDKey</key>
+    <string>j6LhwdLf+L0uIllLkfIVFxNLHrg9f3lLUs/5uz5PF7w=</string>
 </dict>
 </plist>

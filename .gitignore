@@ -38,3 +38,9 @@ DerivedData/
 *~
 .vscode/
 .idea/
+
+# Documentation and debug files
+CLAUDE.md
+**/CLAUDE.md
+*.md.tmp
+/tmp/microverse_debug.txt

@@ -145,8 +145,8 @@ struct ElegantUpdateSection: View {
                             title: "Install",
                             style: .primary,
                             action: {
-                                // Trigger Sparkle's update flow
-                                updateService.checkForUpdates()
+                                // Use Sparkle's proper update flow
+                                SecureUpdateService.shared.installUpdate()
                             }
                         )
                     }

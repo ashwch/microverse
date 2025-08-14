@@ -12,33 +12,42 @@ class SecureUpdateService: NSObject, ObservableObject {
     @Published var lastUpdateCheck: Date?
     
     private let logger = Logger(subsystem: "com.microverse.app", category: "SecureUpdateService")
-    private var updaterController: SPUStandardUpdaterController!
+    private var updater: SPUUpdater!
     
     static let shared = SecureUpdateService()
     
     override init() {
         super.init()
         
-        // Initialize the updater controller with self as delegate
-        self.updaterController = SPUStandardUpdaterController(
-            startingUpdater: false,
-            updaterDelegate: self,
-            userDriverDelegate: nil
-        )
+        // Create user driver first 
+        let userDriver = SPUStandardUserDriver(hostBundle: Bundle.main, delegate: nil)
+        
+        // Initialize updater with proper delegate reference
+        self.updater = SPUUpdater(hostBundle: Bundle.main, applicationBundle: Bundle.main, userDriver: userDriver, delegate: self)
+        
+        do {
+            try updater.start()
+        } catch {
+            logger.error("Sparkle failed to start: \(error)")
+            return
+        }
         
         setupUpdater()
         loadLastUpdateCheck()
+        
+        logger.info("SecureUpdateService initialized successfully")
     }
+    
     
     private func setupUpdater() {
         // Configure Sparkle for security and user experience
-        let updater = updaterController.updater
-        
         // Disable automatic checking by default - user controls this through settings
         updater.automaticallyChecksForUpdates = false
         
         // Check every 24 hours when enabled by user
         updater.updateCheckInterval = 24 * 60 * 60
+        
+        // EdDSA signature verification enabled via SUPublicEDKey in Info.plist
         
         logger.info("Secure update service initialized with Sparkle framework (manual mode)")
     }
@@ -50,23 +59,65 @@ class SecureUpdateService: NSObject, ObservableObject {
         lastUpdateCheck = Date()
         saveLastUpdateCheck()
         
-        // Add timeout to prevent stuck state
-        Task {
-            try? await Task.sleep(nanoseconds: 30_000_000_000) // 30 seconds
-            if isCheckingForUpdates {
-                await MainActor.run {
-                    isCheckingForUpdates = false
-                    logger.warning("Update check timed out after 30 seconds")
+        updater.checkForUpdateInformation()
+    }
+    
+    func installUpdate() {
+        // Use Sparkle's standard user-driven update flow
+        updater.checkForUpdates()
+    }
+    
+    @MainActor
+    private func checkForUpdatesManually() async {
+        do {
+            // Fetch appcast directly
+            guard let url = URL(string: "https://microverse.ashwch.com/appcast.xml") else {
+                isCheckingForUpdates = false
+                return
+            }
+            
+            let (data, _) = try await URLSession.shared.data(from: url)
+            let xmlString = String(data: data, encoding: .utf8) ?? ""
+            
+            // Parse latest version from appcast
+            if let latestVersion = parseLatestVersionFromAppcast(xmlString) {
+                let currentVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0.0.1"
+                
+                // Compare versions
+                let comparison = currentVersion.compare(latestVersion, options: .numeric)
+                
+                if comparison == .orderedAscending {
+                    // Update available!
+                    self.updateAvailable = true
+                    self.latestVersion = latestVersion
+                    logger.info("Update found: \(currentVersion) → \(latestVersion)")
+                } else {
+                    // Up to date
+                    self.updateAvailable = false
+                    logger.info("Up to date: \(currentVersion)")
                 }
             }
+            
+        } catch {
+            logger.error("Update check failed: \(error)")
         }
         
-        updaterController.checkForUpdates(nil)
-        logger.info("Manual update check initiated")
+        isCheckingForUpdates = false
+    }
+    
+    private func parseLatestVersionFromAppcast(_ xml: String) -> String? {
+        // Simple regex to find first sparkle:version
+        let pattern = #"sparkle:version="([^"]+)""#
+        if let regex = try? NSRegularExpression(pattern: pattern),
+           let match = regex.firstMatch(in: xml, range: NSRange(xml.startIndex..., in: xml)),
+           let range = Range(match.range(at: 1), in: xml) {
+            return String(xml[range])
+        }
+        return nil
     }
     
     func setAutomaticUpdateChecking(enabled: Bool) {
-        updaterController.updater.automaticallyChecksForUpdates = enabled
+        updater.automaticallyChecksForUpdates = enabled
         logger.info("Automatic update checking set to: \(enabled)")
     }
     
@@ -95,16 +146,14 @@ extension SecureUpdateService: SPUUpdaterDelegate {
             isCheckingForUpdates = false
             
             if let error = error {
-                logger.error("Update check failed: \(error.localizedDescription)")
-                logger.error("Error details: \(error)")
+                logger.error("Update cycle failed: \(error)")
                 updateAvailable = false
-            } else {
-                logger.info("Update check completed successfully")
             }
         }
     }
     
     nonisolated func updater(_ updater: SPUUpdater, didFindValidUpdate item: SUAppcastItem) {
+        
         Task { @MainActor in
             updateAvailable = true
             latestVersion = item.versionString
@@ -112,10 +161,23 @@ extension SecureUpdateService: SPUUpdaterDelegate {
         }
     }
     
+    nonisolated func updaterDidNotFindUpdate(_ updater: SPUUpdater, error: Error) {
+        Task { @MainActor in
+            updateAvailable = false
+            isCheckingForUpdates = false
+        }
+    }
+    
     nonisolated func updaterDidNotFindUpdate(_ updater: SPUUpdater) {
         Task { @MainActor in
             updateAvailable = false
-            logger.info("No updates available")
+            isCheckingForUpdates = false
+        }
+    }
+    
+    nonisolated func updater(_ updater: SPUUpdater, didAbortWithError error: Error) {
+        Task { @MainActor in
+            isCheckingForUpdates = false
         }
     }
     
@@ -123,17 +185,7 @@ extension SecureUpdateService: SPUUpdaterDelegate {
         logger.info("Will install update: \(item.versionString)")
     }
     
-    nonisolated func updater(_ updater: SPUUpdater, didAbortWithError error: Error) {
-        Task { @MainActor in
-            isCheckingForUpdates = false
-            updateAvailable = false
-            logger.error("Update aborted with error: \(error.localizedDescription)")
-        }
-    }
-    
-    // Provide feed URL programmatically since we don't have it in Info.plist
     nonisolated func feedURLString(for updater: SPUUpdater) -> String? {
-        // Return the proper appcast XML feed URL
         return "https://microverse.ashwch.com/appcast.xml"
     }
 }
