@@ -433,17 +433,19 @@ jobs:
         echo "Executing generate_appcast..."
         echo "Command: ./sparkle-tools/generate_appcast releases/"
         
-        # Try running with --help to see available options
-        echo "Checking generate_appcast help:"
-        ./sparkle-tools/generate_appcast --help || echo "No help available"
-        
         # Check if there are existing appcast files
         echo "Looking for existing appcast files..."
         find releases/ -name "*.xml" -o -name "appcast*" 2>/dev/null || echo "No existing appcast files found"
         
-        # Try running in background with output redirection to see if it hangs
-        echo "Running generate_appcast in background..."
-        ./sparkle-tools/generate_appcast releases/ > appcast_output.log 2>&1 &
+        # Try to make keychain access non-interactive
+        echo "Setting security preferences for non-interactive keychain access..."
+        security set-key-partition-list -S apple-tool:,apple: -k "" ~/Library/Keychains/login.keychain-db 2>/dev/null || true
+        
+        # Try running generate_appcast with verbose output and explicit keychain
+        echo "Running generate_appcast in background with explicit options..."
+        ./sparkle-tools/generate_appcast releases/ \
+          --keychain-password "" \
+          --verbose > appcast_output.log 2>&1 &
         PID=$!
         echo "Started generate_appcast with PID: $PID"
         
