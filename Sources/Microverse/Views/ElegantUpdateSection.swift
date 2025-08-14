@@ -17,6 +17,7 @@ struct ElegantUpdateSection: View {
                     Text("Version \(updateService.currentVersion)")
                         .font(MicroverseDesign.Typography.body)
                         .foregroundColor(MicroverseDesign.Colors.accent)
+                        .help("Current installed version")
                 }
                 
                 Spacer()
@@ -137,6 +138,11 @@ struct ElegantUpdateSection: View {
                                     .font(MicroverseDesign.Typography.caption)
                                     .foregroundColor(.white.opacity(0.7))
                             }
+                            
+                            Text("Release notes will be displayed during installation")
+                                .font(MicroverseDesign.Typography.caption)
+                                .foregroundColor(.white.opacity(0.5))
+                                .italic()
                         }
                         
                         Spacer()
