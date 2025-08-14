@@ -417,18 +417,20 @@ jobs:
           echo "Converting Markdown to HTML for Sparkle..."
           
           # 2) Convert Markdown → HTML (generate_appcast will auto-link this file)
-          python3 - <<'PY' > "releases/${PRODUCT_NAME}-v${{ steps.version.outputs.new_version }}.html"
+          cat > /tmp/md2html.py << 'EOF'
 import sys, html
 try:
     import markdown
     print(markdown.markdown(sys.stdin.read(), extensions=['extra']))
 except ImportError:
-    # Lightweight fallback if markdown not available
+    # Lightweight fallback if markdown not available  
     print("<pre>" + html.escape(sys.stdin.read()) + "</pre>")
-PY
-          echo "$NOTES_MD"
+EOF
+          
+          echo "$NOTES_MD" | python3 /tmp/md2html.py > "releases/${PRODUCT_NAME}-v${{ steps.version.outputs.new_version }}.html"
           
           echo "✅ Generated release notes HTML: releases/${PRODUCT_NAME}-v${{ steps.version.outputs.new_version }}.html"
+          echo "File size: $(wc -c < "releases/${PRODUCT_NAME}-v${{ steps.version.outputs.new_version }}.html") bytes"
         else
           echo "⚠️ No release notes found in GitHub release"
         fi
