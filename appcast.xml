@@ -7,9 +7,9 @@
         <link>https://github.com/ashwch/microverse</link>
         
         <item>
-            <title>Microverse 0.5.11</title>
+            <title>Microverse 0.4.0</title>
             <description><![CDATA[
-                <h2>What's New in 0.5.11</h2>
+                <h2>What's New in 0.4.0</h2>
                 <ul>
                     <li>🔒 <strong>Working Auto-Update System:</strong> Secure EdDSA-signed updates with Sparkle framework</li>
                     <li>⚡ <strong>Performance Optimized:</strong> Enhanced system monitoring with minimal resource usage</li>
@@ -23,10 +23,10 @@
                 <p>This release introduces a fully functional auto-update system with cryptographic verification for secure, seamless updates.</p>
             ]]></description>
             <pubDate>Thu, 14 Aug 2025 16:14:51 +0000</pubDate>
-            <sparkle:version>0.5.11</sparkle:version>
-            <sparkle:shortVersionString>0.5.11</sparkle:shortVersionString>
+            <sparkle:version>0.4.0</sparkle:version>
+            <sparkle:shortVersionString>0.4.0</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>11.0</sparkle:minimumSystemVersion>
-            <enclosure url="https://github.com/ashwch/microverse/releases/download/v0.5.11/Microverse-v0.5.11.zip" 
+            <enclosure url="https://github.com/ashwch/microverse/releases/download/v0.4.0/Microverse-v0.4.0.zip" 
                       length="3824593" 
                       type="application/octet-stream" 
                       sparkle:edSignature="ux8vWUXpS6I2wXKIKewzD06xJd2d9h1h98rsCKYio5irFUSAYpDZ+ODdDEPaqEF7LxTyUas2EstbnnLnPcnmBw=="/>
