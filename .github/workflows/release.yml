@@ -429,18 +429,52 @@ jobs:
         echo "Keychain status:"
         security list-keychains
         
-        # Run generate_appcast (try without timeout first to see what happens)
+        # Run generate_appcast with debugging
         echo "Executing generate_appcast..."
         echo "Command: ./sparkle-tools/generate_appcast releases/"
         
-        # Try to run without timeout to debug the actual issue
-        ./sparkle-tools/generate_appcast releases/ || {
-          RESULT=$?
+        # Try running with --help to see available options
+        echo "Checking generate_appcast help:"
+        ./sparkle-tools/generate_appcast --help || echo "No help available"
+        
+        # Check if there are existing appcast files
+        echo "Looking for existing appcast files..."
+        find releases/ -name "*.xml" -o -name "appcast*" 2>/dev/null || echo "No existing appcast files found"
+        
+        # Try running in background with output redirection to see if it hangs
+        echo "Running generate_appcast in background..."
+        ./sparkle-tools/generate_appcast releases/ > appcast_output.log 2>&1 &
+        PID=$!
+        echo "Started generate_appcast with PID: $PID"
+        
+        # Wait for up to 60 seconds
+        for i in {1..60}; do
+          if ! kill -0 $PID 2>/dev/null; then
+            echo "Process completed after $i seconds"
+            break
+          fi
+          if [ $i -eq 60 ]; then
+            echo "❌ Process still running after 60 seconds, killing it"
+            kill $PID 2>/dev/null || true
+            echo "Process output:"
+            cat appcast_output.log || echo "No output captured"
+            exit 1
+          fi
+          sleep 1
+        done
+        
+        # Check the result
+        wait $PID
+        RESULT=$?
+        echo "Process exited with code: $RESULT"
+        echo "Process output:"
+        cat appcast_output.log
+        
+        if [ $RESULT -ne 0 ]; then
           echo "❌ generate_appcast command failed with exit code $RESULT"
-          echo "Checking for any partial output..."
           ls -la releases/
           exit $RESULT
-        }
+        fi
         
         # The appcast.xml should now be generated with EdDSA signature
         if [ -f "releases/appcast.xml" ]; then
