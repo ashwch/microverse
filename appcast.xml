@@ -3,13 +3,13 @@
     <channel>
         <title>Microverse</title>
         <item>
-            <title>0.6.0</title>
-            <pubDate>Thu, 14 Aug 2025 21:10:48 +0000</pubDate>
-            <sparkle:version>0.6.0</sparkle:version>
-            <sparkle:shortVersionString>0.6.0</sparkle:shortVersionString>
+            <title>0.6.1</title>
+            <pubDate>Thu, 14 Aug 2025 21:17:03 +0000</pubDate>
+            <sparkle:version>0.6.1</sparkle:version>
+            <sparkle:shortVersionString>0.6.1</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>11.0</sparkle:minimumSystemVersion>
-            <enclosure url="https://github.com/ashwch/microverse/releases/download/v0.6.0/Microverse-v0.6.0.zip" length="3827051" type="application/octet-stream" sparkle:edSignature="pi7k6Dys/30WnNVvgSl05/Ra7GKa31LJdPULJOmJLNbEo1Z+/FBj2X7SJozn62NVVvsxbqytM5KqLoFn5D6/AA=="/>
-            <sparkle:releaseNotesLink>https://microverse.ashwch.com/Microverse-v0.6.0.html</sparkle:releaseNotesLink>
+            <enclosure url="https://github.com/ashwch/microverse/releases/download/v0.6.1/Microverse-v0.6.1.zip" length="3827054" type="application/octet-stream" sparkle:edSignature="35eAA1vl8wjoaRnJrP5qXl1EqEdp2OvdZY0NQy6wsc9Imoi6QiWRF14iUQPWv7DvofT5rmh2kzzBB2CWzFkGCA=="/>
+            <sparkle:releaseNotesLink>https://microverse.ashwch.com/Microverse-v0.6.1.html</sparkle:releaseNotesLink>
         </item>
     </channel>
 </rss>
