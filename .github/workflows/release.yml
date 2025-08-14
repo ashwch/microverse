@@ -431,7 +431,8 @@ jobs:
         
         # Run generate_appcast with timeout to prevent hanging
         echo "Executing generate_appcast with 5 minute timeout..."
-        timeout 300 ./sparkle-tools/generate_appcast releases/ || {
+        # Use gtimeout on macOS (from coreutils)
+        gtimeout 300 ./sparkle-tools/generate_appcast releases/ || {
           echo "❌ generate_appcast command timed out or failed with exit code $?"
           echo "Checking for any partial output..."
           ls -la releases/
