@@ -8,6 +8,31 @@
         
         <!-- Latest Release -->
         <item>
+            <title>Microverse 0.4.2</title>
+            <description><![CDATA[
+                <h2>What's New in 0.4.2</h2>
+                <ul>
+                    <li>✨ <strong>Feature:</strong> Comprehensive auto-update system with Sparkle integration</li>
+                    <li>⚙️ <strong>Enhancement:</strong> Redesigned Settings interface with elegant design system</li>
+                    <li>🔄 <strong>Feature:</strong> Automatic 24-hour background update checking toggle</li>
+                    <li>🎨 <strong>Enhancement:</strong> Enhanced UI components following unified design system</li>
+                    <li>🔧 <strong>Improvement:</strong> Reliable CI/CD pipeline with proper release management</li>
+                </ul>
+                
+                <h3>System Requirements</h3>
+                <p>macOS 11.0 or later</p>
+            ]]></description>
+            <pubDate>Wed, 14 Aug 2025 06:49:33 +0000</pubDate>
+            <enclosure url="https://github.com/ashwch/Microverse/releases/download/v0.4.2/Microverse-v0.4.2.dmg" 
+                      length="2097152" 
+                      type="application/octet-stream" 
+                      sparkle:version="0.4.2" 
+                      sparkle:shortVersionString="0.4.2" />
+            <sparkle:minimumSystemVersion>11.0</sparkle:minimumSystemVersion>
+        </item>
+        
+        <!-- Previous Releases -->
+        <item>
             <title>Microverse 0.3.0</title>
             <description><![CDATA[
                 <h2>What's New in 0.3.0</h2>
