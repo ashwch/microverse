@@ -441,11 +441,9 @@ jobs:
         echo "Setting security preferences for non-interactive keychain access..."
         security set-key-partition-list -S apple-tool:,apple: -k "" ~/Library/Keychains/login.keychain-db 2>/dev/null || true
         
-        # Try running generate_appcast with verbose output and explicit keychain
-        echo "Running generate_appcast in background with explicit options..."
-        ./sparkle-tools/generate_appcast releases/ \
-          --keychain-password "" \
-          --verbose > appcast_output.log 2>&1 &
+        # Try running generate_appcast with minimal parameters
+        echo "Running generate_appcast in background..."
+        ./sparkle-tools/generate_appcast releases/ > appcast_output.log 2>&1 &
         PID=$!
         echo "Started generate_appcast with PID: $PID"
         
@@ -469,12 +467,16 @@ jobs:
         wait $PID
         RESULT=$?
         echo "Process exited with code: $RESULT"
-        echo "Process output:"
+        echo "=== Process output start ==="
         cat appcast_output.log
+        echo "=== Process output end ==="
         
         if [ $RESULT -ne 0 ]; then
           echo "❌ generate_appcast command failed with exit code $RESULT"
+          echo "Current releases directory contents:"
           ls -la releases/
+          echo "Generated files (if any):"
+          find releases/ -name "*.xml" -o -name "appcast*" 2>/dev/null || echo "No appcast files found"
           exit $RESULT
         fi
         
