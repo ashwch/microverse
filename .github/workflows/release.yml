@@ -357,12 +357,17 @@ jobs:
         # Get current date in RFC 2822 format
         PUBDATE=$(date -u "+%a, %d %b %Y %H:%M:%S +0000")
         
-        # Get DMG file size for appcast
-        DMG_URL="https://github.com/${{ github.repository }}/releases/download/v${{ steps.version.outputs.new_version }}/Microverse-v${{ steps.version.outputs.new_version }}.dmg"
-        DMG_SIZE=$(curl -sI "$DMG_URL" | grep -i content-length | awk '{print $2}' | tr -d '\r' || echo "2097152")
+        # Create completely new appcast.xml with latest release at top
+        cat > appcast.xml << 'EOF'
+<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" xmlns:dc="http://purl.org/dc/elements/1.1/">
+    <channel>
+        <title>Microverse Updates</title>
+        <description>System monitoring for macOS with elegant desktop widgets</description>
+        <language>en</language>
+        <link>https://github.com/ashwch/Microverse</link>
         
-        # Create new release item XML
-        NEW_ITEM=$(cat << EOF
+        <!-- Latest Release -->
         <item>
             <title>Microverse ${{ steps.version.outputs.new_version }}</title>
             <description><![CDATA[
@@ -378,34 +383,70 @@ jobs:
                 <h3>System Requirements</h3>
                 <p>macOS 11.0 or later</p>
             ]]></description>
-            <pubDate>${PUBDATE}</pubDate>
-            <enclosure url="${DMG_URL}" 
-                      length="${DMG_SIZE}" 
+            <pubDate>PUBDATE_PLACEHOLDER</pubDate>
+            <enclosure url="https://github.com/${{ github.repository }}/releases/download/v${{ steps.version.outputs.new_version }}/Microverse-v${{ steps.version.outputs.new_version }}.dmg" 
+                      length="2097152" 
                       type="application/octet-stream" 
                       sparkle:version="${{ steps.version.outputs.new_version }}" 
                       sparkle:shortVersionString="${{ steps.version.outputs.new_version }}" />
             <sparkle:minimumSystemVersion>11.0</sparkle:minimumSystemVersion>
         </item>
-        EOF
-        )
         
-        # Insert new item after "Latest Release" comment in appcast.xml
-        if [ -f appcast.xml ]; then
-          cp appcast.xml appcast.xml.backup
-          
-          # Use sed to insert new item after "<!-- Latest Release -->"
-          sed "/<!-- Latest Release -->/a\\
-        ${NEW_ITEM}\\
-        \\
-        <!-- Previous Releases -->" appcast.xml.backup | \
-          sed '/^[[:space:]]*<!-- Previous Releases -->$/d' | \
-          sed '0,/<!-- Previous Releases -->/s//<!-- Previous Releases -->/' > appcast.xml
-          
-          rm appcast.xml.backup
-        else
-          echo "Error: appcast.xml not found in gh-pages branch"
-          exit 1
-        fi
+        <!-- Previous Releases -->
+        <item>
+            <title>Microverse 0.3.0</title>
+            <description><![CDATA[
+                <h2>What's New in 0.3.0</h2>
+                <ul>
+                    <li>🔒 Secure auto-update system with Sparkle framework</li>
+                    <li>⚙️ Redesigned Settings interface with elegant dark glass aesthetic</li>
+                    <li>🎨 Enhanced UI components following unified design system</li>
+                    <li>🔧 Improved system monitoring performance</li>
+                    <li>✨ Better desktop widget integration</li>
+                </ul>
+                
+                <h3>System Requirements</h3>
+                <p>macOS 11.0 or later</p>
+            ]]></description>
+            <pubDate>Mon, 12 Aug 2025 04:42:01 +0000</pubDate>
+            <enclosure url="https://github.com/ashwch/Microverse/releases/download/v0.3.0/Microverse-v0.3.0.dmg" 
+                      length="2097152" 
+                      type="application/octet-stream" 
+                      sparkle:version="0.3.0" 
+                      sparkle:shortVersionString="0.3.0" />
+            <sparkle:minimumSystemVersion>11.0</sparkle:minimumSystemVersion>
+        </item>
+        
+        <item>
+            <title>Microverse 0.2.0</title>
+            <description><![CDATA[
+                <h2>What's New in 0.2.0</h2>
+                <ul>
+                    <li>🎯 Enhanced battery health insights and scoring</li>
+                    <li>📊 Improved CPU and memory monitoring accuracy</li>
+                    <li>🎨 Refined UI with better color contrast and readability</li>
+                    <li>⚡ Performance optimizations for lower CPU usage</li>
+                    <li>🐛 Various bug fixes and stability improvements</li>
+                </ul>
+                
+                <h3>System Requirements</h3>
+                <p>macOS 11.0 or later</p>
+            ]]></description>
+            <pubDate>Fri, 19 Jul 2025 19:53:40 +0000</pubDate>
+            <enclosure url="https://github.com/ashwch/Microverse/releases/download/v0.2.0/Microverse-v0.2.0.dmg" 
+                      length="1851392" 
+                      type="application/octet-stream" 
+                      sparkle:version="0.2.0" 
+                      sparkle:shortVersionString="0.2.0" />
+            <sparkle:minimumSystemVersion>11.0</sparkle:minimumSystemVersion>
+        </item>
+        
+    </channel>
+</rss>
+EOF
+
+        # Replace the placeholder with actual date
+        sed -i "s/PUBDATE_PLACEHOLDER/${PUBDATE}/" appcast.xml
         
         # Commit and push changes
         git add appcast.xml
