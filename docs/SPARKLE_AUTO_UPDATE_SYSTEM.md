@@ -957,8 +957,26 @@ curl -s https://microverse.ashwch.com/appcast.xml | xmllint --format - > /dev/nu
 - ✅ **Streamlined hosting** - GitHub releases for ZIP files, GitHub Pages for HTML
 - ✅ **Enhanced release notes** - Better typography and list formatting in Sparkle dialogs
 
+### **v0.6.0 - Documentation and UI Improvements**
+- ✅ **Added comprehensive documentation** - Complete 70+ page Sparkle implementation guide
+- ✅ **Improved update UI** - Added helpful tooltips and user guidance
+- ✅ **Production validation** - Successfully tested v0.5.0 → v0.6.0 auto-update flow
+
+### **🎉 Regression Resolution Confirmed (August 14, 2025)**
+**Status: AUTO-UPDATE SYSTEM FULLY OPERATIONAL** ✅
+
+The auto-update regression discovered in v0.5.0 has been **completely resolved** and validated:
+
+- **Issue**: Users encountered 404 download errors and malformed release notes
+- **Root Cause**: Incorrect download URLs and YAML syntax issues in workflow
+- **Resolution**: Simplified architecture with GitHub releases hosting and proper HTML generation
+- **Validation**: Successfully tested v0.5.0 → v0.6.0 update flow with proper release notes display
+
+**User Experience**: Auto-updates now work seamlessly with beautiful, properly formatted release notes. The system is production-ready and future-proof.
+
 ### **Key Lessons Learned**
 1. **Keep ZIP files on GitHub releases** - Single source of truth, better reliability
 2. **Avoid complex YAML constructs** - Simple echo statements work better than heredocs
 3. **Test auto-updates frequently** - Regressions can break the entire update flow
 4. **Proper HTML matters** - Users see release notes, formatting affects perception
+5. **Simple solutions win** - "Boring but works" approach proved most reliable
