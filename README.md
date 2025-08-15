@@ -1,6 +1,6 @@
 # Microverse
 
-**macOS system monitoring with elegant desktop widgets**
+**macOS system monitoring with elegant desktop widgets and automatic updates**
 
 [![Swift](https://img.shields.io/badge/Swift-5.9+-orange.svg)](https://swift.org)
 [![macOS](https://img.shields.io/badge/macOS-11.0+-blue.svg)](https://developer.apple.com/macos/)
