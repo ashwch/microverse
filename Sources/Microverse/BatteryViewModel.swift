@@ -75,8 +75,14 @@ class BatteryViewModel: ObservableObject {
     private var widgetManager: DesktopWidgetManager?
     private var updateCheckTimer: Timer?
     
+    // Enhanced notch system
+    private let notchViewModel: MicroverseNotchViewModel
+    
     init() {
         logger.info("BatteryViewModel initializing...")
+        
+        // Initialize notch system with proper dependency injection
+        notchViewModel = MicroverseNotchViewModel()
         
         loadSettings()
         refreshBatteryInfo()
@@ -86,7 +92,31 @@ class BatteryViewModel: ObservableObject {
         // Initialize widget manager
         widgetManager = DesktopWidgetManager(viewModel: self)
         
-        // Show widget if it was enabled
+        // Initialize enhanced notch system
+        notchViewModel.setBatteryViewModel(self)
+        NotchServiceLocator.register(notchViewModel)
+        
+        // Observe notch layout mode changes to trigger UI updates
+        notchViewModel.$layoutMode
+            .sink { [weak self] _ in
+                // Trigger UI update by changing @Published property
+                self?.objectWillChange.send()
+            }
+            .store(in: &cancellables)
+        
+        // Show notch if layout mode is not off (after settings are loaded)
+        if notchViewModel.layoutMode != .off {
+            Task { @MainActor in
+                do {
+                    try await notchViewModel.showNotch()
+                    logger.info("Notch displayed on startup with mode: \(self.notchViewModel.layoutMode.displayName)")
+                } catch {
+                    logger.error("Failed to show notch on startup: \(error.localizedDescription)")
+                }
+            }
+        }
+        
+        // Show widget if it was enabled (adaptive display service will manage this)
         if showDesktopWidget {
             widgetManager?.showWidget()
         }
@@ -102,6 +132,12 @@ class BatteryViewModel: ObservableObject {
     deinit {
         timer?.invalidate()
         updateCheckTimer?.invalidate()
+        
+        // Manual cleanup - schedule on main actor
+        Task { @MainActor in
+            NotchServiceLocator.unregister()
+        }
+        logger.info("BatteryViewModel deallocated")
     }
     
     // MARK: - Public Methods
@@ -130,7 +166,79 @@ class BatteryViewModel: ObservableObject {
         }
     }
     
+    // MARK: - Enhanced Notch Display Methods
     
+    var isNotchDisplayEnabled: Bool {
+        notchViewModel.layoutMode != .off
+    }
+    
+    var notchLayoutMode: MicroverseNotchViewModel.NotchLayoutMode {
+        get { 
+            let currentMode = notchViewModel.layoutMode
+            logger.debug("Getting notch layout mode: \(currentMode.displayName)")
+            return currentMode 
+        }
+        set { 
+            let oldMode = notchViewModel.layoutMode
+            logger.info("Setting notch layout mode from \(oldMode.displayName) to \(newValue.displayName)")
+            notchViewModel.layoutMode = newValue
+            saveSetting("notchLayoutMode", value: newValue.rawValue)
+            
+            // Update notch display based on new mode
+            Task { @MainActor in
+                if newValue == .off {
+                    try? await notchViewModel.hideNotch()
+                } else {
+                    // Show notch if switching from off, or refresh if already visible
+                    try? await notchViewModel.showNotch()
+                }
+            }
+        }
+    }
+    
+    func toggleNotchDisplay() {
+        Task { @MainActor in
+            do {
+                if notchViewModel.isNotchVisible {
+                    try await notchViewModel.hideNotch()
+                } else {
+                    try await notchViewModel.showNotch()
+                }
+            } catch {
+                logger.error("Failed to toggle notch display: \(error.localizedDescription)")
+                errorMessage = "Notch display error: \(error.localizedDescription)"
+            }
+        }
+    }
+    
+    func setNotchDisplayEnabled(_ enabled: Bool) {
+        if enabled {
+            // Enable with current layout mode (default to split if off)
+            if notchViewModel.layoutMode == .off {
+                notchLayoutMode = .split
+            }
+            
+            Task { @MainActor in
+                do {
+                    try await notchViewModel.showNotch()
+                } catch {
+                    logger.error("Failed to enable notch display: \(error.localizedDescription)")
+                    errorMessage = "Notch setting error: \(error.localizedDescription)"
+                }
+            }
+        } else {
+            // Disable by setting to off mode
+            notchLayoutMode = .off
+        }
+    }
+    
+    var isNotchAvailable: Bool {
+        NSScreen.main?.hasNotch ?? false
+    }
+    
+    var notchViewModelInstance: MicroverseNotchViewModel {
+        notchViewModel
+    }
     
     // MARK: - Private Methods
     
@@ -210,6 +318,12 @@ class BatteryViewModel: ObservableObject {
         // Load auto-update setting
         if defaults.object(forKey: "checkForUpdatesAutomatically") != nil {
             checkForUpdatesAutomatically = defaults.bool(forKey: "checkForUpdatesAutomatically")
+        }
+        
+        // Load notch layout mode
+        if let modeRaw = defaults.string(forKey: "notchLayoutMode"),
+           let mode = MicroverseNotchViewModel.NotchLayoutMode(rawValue: modeRaw) {
+            notchViewModel.layoutMode = mode
         }
         
         // Note: launchAtStartup is already loaded from LaunchAtStartup.isEnabled

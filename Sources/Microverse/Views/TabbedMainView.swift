@@ -209,48 +209,99 @@ struct SettingsView: View {
                     
                     SettingsDivider()
                     
-                    // Desktop Widget
-                    SettingsRow(
-                        title: "Desktop Widget",
-                        subtitle: "Floating system monitor",
-                        toggle: $viewModel.showDesktopWidget
-                    )
+                    // Desktop Widget - Compact Style
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Desktop Widget")
+                                .font(MicroverseDesign.Typography.body)
+                                .foregroundColor(.white)
+                            Text("Floating system monitor")
+                                .font(MicroverseDesign.Typography.caption)
+                                .foregroundColor(.white.opacity(0.6))
+                        }
+                        
+                        Spacer()
+                        
+                        Toggle("", isOn: $viewModel.showDesktopWidget)
+                            .labelsHidden()
+                            .toggleStyle(ElegantToggleStyle())
+                    }
+                    .padding(.horizontal, MicroverseDesign.Layout.space5)
+                    .padding(.vertical, MicroverseDesign.Layout.space4)
                     
                     if viewModel.showDesktopWidget {
-                        VStack(spacing: 0) {
-                            HStack {
-                                Text("Widget Style")
-                                    .font(MicroverseDesign.Typography.body)
-                                    .foregroundColor(.primary)
-                                
-                                Spacer()
-                                
-                                Picker("", selection: $viewModel.widgetStyle) {
-                                    ForEach(WidgetStyle.allCases, id: \.self) { style in
-                                        Text(style.displayName).tag(style)
-                                    }
-                                }
-                                .labelsHidden()
-                                .pickerStyle(MenuPickerStyle())
-                                .frame(width: 180)
-                            }
-                            .padding(MicroverseDesign.Layout.space3)
-                            .padding(.leading, MicroverseDesign.Layout.space4)
-                            .background(Color.gray.opacity(0.1))
+                        HStack {
+                            Text("Style")
+                                .font(MicroverseDesign.Typography.caption)
+                                .foregroundColor(.white.opacity(0.7))
                             
-                            HStack {
-                                Text(widgetDescription)
-                                    .font(MicroverseDesign.Typography.caption)
-                                    .foregroundColor(.secondary)
-                                Spacer()
+                            Spacer()
+                            
+                            Picker("", selection: $viewModel.widgetStyle) {
+                                ForEach(WidgetStyle.allCases, id: \.self) { style in
+                                    Text(style.displayName).tag(style)
+                                }
                             }
-                            .padding(.horizontal, MicroverseDesign.Layout.space3)
-                            .padding(.horizontal, MicroverseDesign.Layout.space4)
-                            .padding(.bottom, MicroverseDesign.Layout.space3)
+                            .labelsHidden()
+                            .pickerStyle(MenuPickerStyle())
+                            .frame(width: 160)
                         }
+                        .padding(.horizontal, MicroverseDesign.Layout.space5)
+                        .padding(.vertical, MicroverseDesign.Layout.space2)
+                        .background(Color.white.opacity(0.03))
                     }
                     
                     SettingsDivider()
+                    
+                    // Enhanced Notch Display (only show on Macs with notch)
+                    if viewModel.isNotchAvailable {
+                        // Compact Smart Notch Section
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Smart Notch")
+                                    .font(MicroverseDesign.Typography.body)
+                                    .foregroundColor(.white)
+                                Text("System stats around the notch")
+                                    .font(MicroverseDesign.Typography.caption)
+                                    .foregroundColor(.white.opacity(0.6))
+                            }
+                            
+                            Spacer()
+                            
+                            // Compact 3-option segmented control
+                            HStack(spacing: 0) {
+                                ForEach(MicroverseNotchViewModel.NotchLayoutMode.allCases, id: \.self) { mode in
+                                    Button(action: { 
+                                        viewModel.notchLayoutMode = mode 
+                                    }) {
+                                        Text(mode.displayName)
+                                            .font(.system(size: 11, weight: .medium))
+                                            .foregroundColor(viewModel.notchLayoutMode == mode ? .white : .white.opacity(0.7))
+                                            .frame(width: 45, height: 24)
+                                            .background(
+                                                RoundedRectangle(cornerRadius: 4)
+                                                    .fill(viewModel.notchLayoutMode == mode ? 
+                                                          MicroverseDesign.Colors.processor.opacity(0.8) : 
+                                                          Color.clear)
+                                            )
+                                    }
+                                    .buttonStyle(PlainButtonStyle())
+                                }
+                            }
+                            .background(
+                                RoundedRectangle(cornerRadius: 6)
+                                    .fill(Color.white.opacity(0.08))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 6)
+                                            .stroke(Color.white.opacity(0.12), lineWidth: 1)
+                                    )
+                            )
+                        }
+                        .padding(.horizontal, MicroverseDesign.Layout.space5)
+                        .padding(.vertical, MicroverseDesign.Layout.space4)
+                        
+                        SettingsDivider()
+                    }
                     
                     // Launch at Startup
                     SettingsRow(
@@ -261,50 +312,45 @@ struct SettingsView: View {
                     
                     SettingsDivider()
                     
-                    // Refresh Rate Section
-                    VStack(alignment: .leading, spacing: MicroverseDesign.Layout.space4) {
-                        HStack {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text("Refresh Rate")
-                                    .font(MicroverseDesign.Typography.body)
-                                    .foregroundColor(.white)
-                                Text("How often to update system data")
-                                    .font(MicroverseDesign.Typography.caption)
-                                    .foregroundColor(.white.opacity(0.6))
-                            }
-                            Spacer()
+                    // Refresh Rate - Compact Section
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Refresh Rate")
+                                .font(MicroverseDesign.Typography.body)
+                                .foregroundColor(.white)
+                            Text("How often to update system data")
+                                .font(MicroverseDesign.Typography.caption)
+                                .foregroundColor(.white.opacity(0.6))
                         }
                         
-                        HStack(spacing: MicroverseDesign.Layout.space2) {
+                        Spacer()
+                        
+                        // Compact segmented control
+                        HStack(spacing: 1) {
                             ForEach([2.0, 5.0, 10.0, 30.0], id: \.self) { interval in
                                 Button(action: { viewModel.refreshInterval = interval }) {
-                                    VStack(spacing: 2) {
-                                        Text("\(Int(interval))")
-                                            .font(.system(size: 16, weight: .medium))
-                                        Text("sec")
-                                            .font(.system(size: 10, weight: .medium))
-                                            .opacity(0.7)
-                                    }
-                                    .foregroundColor(.white)
-                                    .frame(maxWidth: .infinity)
-                                    .padding(.vertical, 12)
-                                    .background(
-                                        RoundedRectangle(cornerRadius: 8)
-                                            .fill(viewModel.refreshInterval == interval ? 
-                                                  MicroverseDesign.Colors.processor : 
-                                                  Color.white.opacity(0.1))
-                                            .overlay(
-                                                RoundedRectangle(cornerRadius: 8)
-                                                    .stroke(viewModel.refreshInterval == interval ? 
-                                                           MicroverseDesign.Colors.processor : 
-                                                           Color.white.opacity(0.2), 
-                                                           lineWidth: 1)
-                                            )
-                                    )
+                                    Text("\(Int(interval))s")
+                                        .font(.system(size: 10, weight: .medium))
+                                        .foregroundColor(viewModel.refreshInterval == interval ? .white : .white.opacity(0.7))
+                                        .frame(width: 32, height: 22)
+                                        .background(
+                                            RoundedRectangle(cornerRadius: 3)
+                                                .fill(viewModel.refreshInterval == interval ? 
+                                                      MicroverseDesign.Colors.processor.opacity(0.8) : 
+                                                      Color.clear)
+                                        )
                                 }
                                 .buttonStyle(PlainButtonStyle())
                             }
                         }
+                        .background(
+                            RoundedRectangle(cornerRadius: 5)
+                                .fill(Color.white.opacity(0.08))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 5)
+                                        .stroke(Color.white.opacity(0.12), lineWidth: 1)
+                                )
+                        )
                     }
                     .padding(.horizontal, MicroverseDesign.Layout.space5)
                     .padding(.vertical, MicroverseDesign.Layout.space4)

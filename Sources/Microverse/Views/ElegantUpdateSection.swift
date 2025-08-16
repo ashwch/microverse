@@ -232,15 +232,15 @@ struct ElegantUpdateSection: View {
 struct ElegantToggleStyle: ToggleStyle {
     func makeBody(configuration: Configuration) -> some View {
         HStack {
-            RoundedRectangle(cornerRadius: 12)
+            RoundedRectangle(cornerRadius: MicroverseDesign.Layout.space3)
                 .fill(configuration.isOn ? MicroverseDesign.Colors.success : Color.gray.opacity(0.3))
-                .frame(width: 40, height: 22)
+                .frame(width: MicroverseDesign.Layout.space4 * 2.5, height: MicroverseDesign.Layout.space3 + 10)
                 .overlay(
                     Circle()
-                        .fill(.white)
-                        .frame(width: 18, height: 18)
-                        .offset(x: configuration.isOn ? 9 : -9)
-                        .animation(.spring(response: 0.3, dampingFraction: 0.8), value: configuration.isOn)
+                        .fill(MicroverseDesign.Colors.accent)
+                        .frame(width: MicroverseDesign.Layout.space4 + 2, height: MicroverseDesign.Layout.space4 + 2)
+                        .offset(x: configuration.isOn ? MicroverseDesign.Layout.space2 + 1 : -(MicroverseDesign.Layout.space2 + 1))
+                        .animation(MicroverseDesign.Animation.notchToggle, value: configuration.isOn)
                 )
                 .onTapGesture {
                     configuration.isOn.toggle()

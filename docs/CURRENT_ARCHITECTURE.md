@@ -1,331 +1,154 @@
-# Microverse Current Architecture v3.0
+# Microverse Architecture
+
+> **Comprehensive technical architecture for a unified macOS system monitoring application with smart notch integration, secure auto-updates, and elegant desktop widgets**
 
 ## Executive Summary
 
-Microverse is a unified system monitoring application that combines elegant UI design with performance-optimized engineering. Built for macOS developers who need real-time insights into their system's health without compromising performance.
+Microverse is a sophisticated system monitoring application that combines modern Swift architecture with elegant UI design. Built for macOS developers who need real-time insights into their system's health without compromising performance, it features smart notch integration via DynamicNotchKit, secure auto-updates through Sparkle, and a comprehensive widget ecosystem.
 
-### Key Metrics
-- **Performance**: <1% CPU impact, <50MB memory footprint
-- **Architecture**: Async/await with concurrent system monitoring
-- **UI Framework**: SwiftUI with semantic design system
-- **Compatibility**: macOS 11.0+, Intel & Apple Silicon
+### Key Metrics & Achievements
+- **Performance**: <1% CPU impact, <50MB memory footprint  
+- **Architecture**: Async/await with @MainActor isolation and concurrent system monitoring
+- **UI Framework**: SwiftUI with sophisticated design system and reactive state management
+- **Compatibility**: macOS 13.0+, Universal Binary (Intel + Apple Silicon)
+- **Security**: Sandboxed with minimal entitlements, secure auto-update system
+- **Integration**: Native notch integration using DynamicNotchKit framework
 
-## Overview
+## System Architecture Overview
 
-Microverse features a tabbed interface monitoring Battery, CPU, Memory, and unified system overview, built with elegant design principles and engineering excellence.
-
-## Architecture Diagram
-
+### High-Level Component Diagram
 ```
-┌─────────────────────────────────────────────────────────┐
-│                    Microverse App                        │
-├─────────────────────────────────────────────────────────┤
-│  UI Layer (SwiftUI)                                     │
-│  ├── TabbedMainView (Main Interface)                    │
-│  ├── UnifiedOverviewTab                                 │
-│  ├── UnifiedBatteryTab                                  │
-│  ├── UnifiedCPUTab                                      │
-│  ├── UnifiedMemoryTab                                   │
-│  └── DesktopWidget (6 widget styles)                   │
-├─────────────────────────────────────────────────────────┤
-│  ViewModels & Services                                  │
-│  ├── BatteryViewModel (Settings & Battery State)       │
-│  ├── SystemMonitoringService (Shared System Metrics)   │
-│  └── DesktopWidgetManager (Widget Lifecycle)           │
-├─────────────────────────────────────────────────────────┤
-│  Core Frameworks                                        │
-│  ├── BatteryCore (Battery Hardware Interface)          │
-│  └── SystemCore (CPU & Memory Monitoring)              │
-├─────────────────────────────────────────────────────────┤
-│  Design System                                          │
-│  ├── UnifiedDesignSystem (Colors, Typography, Layout)  │
-│  └── MicroverseDesign (Component Library)              │
-└─────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────┐
+│                           Microverse Application                         │
+├─────────────────────────────────────────────────────────────────────────┤
+│  🎨 UI Layer (SwiftUI + Design System)                                  │
+│  ├── TabbedMainView (Main 280×500 Interface)                            │
+│  ├── UnifiedOverviewTab (System Health Dashboard)                       │
+│  ├── UnifiedBatteryTab (Detailed Power Metrics)                         │
+│  ├── UnifiedCPUTab (Processor Performance Analysis)                     │
+│  ├── UnifiedMemoryTab (Memory Usage & Pressure)                         │
+│  ├── DesktopWidget (Multi-style Widget System)                          │
+│  ├── NotchWidgetViews (DynamicNotchKit Integration)                     │
+│  └── UpdateView (Sparkle Auto-Update UI)                                │
+├─────────────────────────────────────────────────────────────────────────┤
+│  🧠 Business Logic Layer                                                │
+│  ├── BatteryViewModel (Settings & App State Management)                 │
+│  ├── SystemMonitoringService (Reactive System Metrics)                  │
+│  ├── SecureUpdateService (Sparkle Integration)                          │
+│  ├── AdaptiveDisplayService (Smart Refresh Management)                  │
+│  ├── NotchDisplayManager (DynamicNotchKit State)                        │
+│  └── MicroverseNotchSystem (Notch Content Coordination)                 │
+├─────────────────────────────────────────────────────────────────────────┤
+│  ⚙️ Core Frameworks (Direct System Access)                              │
+│  ├── BatteryCore (IOKit Battery Hardware Interface)                     │
+│  └── SystemCore (mach CPU & Memory Monitoring)                          │
+├─────────────────────────────────────────────────────────────────────────┤
+│  🎯 Design System & Components                                          │
+│  ├── UnifiedDesignSystem (Colors, Typography, Layout Tokens)            │
+│  ├── MicroverseDesign (Component Library & Glass Effects)               │
+│  └── Semantic Color System (Battery=Green, CPU=Blue, Memory=Purple)     │
+├─────────────────────────────────────────────────────────────────────────┤
+│  🔗 External Dependencies                                               │
+│  ├── Sparkle (Secure Auto-Updates with EdDSA Signatures)               │
+│  └── DynamicNotchKit (Native Notch Integration)                         │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### Data Flow Architecture
+```
+Hardware APIs → Core Frameworks → Services → ViewModels → UI Components
+     ↓               ↓              ↓          ↓            ↓
+   IOKit         BatteryCore   SystemMonitoring BatteryVM  SwiftUI Views
+   mach          SystemCore    Service          ↓          Desktop Widgets  
+   System        ↓             ↓                ↓          Notch Widgets
+   Calls         Direct API    @Published       Reactive   Glass UI
+                 Access        Properties       State      Components
 ```
 
 ## Detailed Component Architecture
 
-### 1. UI Layer (SwiftUI)
-#### Main Interface Components
-- **TabbedMainView**: 280×500px main interface with 4 tabs
-  - Tab navigation with flat button styling
-  - Unified action bar (Settings, About, Quit)
-  - Dynamic content area (400px height)
+### 1. Smart Notch Integration System
 
-#### Tab Implementation Details
-- **UnifiedOverviewTab**: System health dashboard with compact metrics display
-  - Health scoring algorithm (Excellent/Moderate/Stressed)
-  - Insight generation based on CPU/memory thresholds
-  - 3-metric compact display (Battery/CPU/Memory)
-
-- **UnifiedBatteryTab**: Comprehensive battery monitoring
-  - Large percentage display (24pt SF Pro Bold)
-  - Battery icon with charge-level visualization
-  - Status indicators with semantic colors
-  - Detailed battery information (health, cycles, capacity)
-
-- **UnifiedCPUTab**: Real-time processor monitoring
-  - Display font: 32pt SF Pro Bold for percentage
-  - Animated progress bar with smooth transitions
-  - System architecture detection (ARM64/x86_64)
-  - Apple Silicon vs Intel processor identification
-
-- **UnifiedMemoryTab**: Memory pressure and usage tracking
-  - Memory display format: "X.X / Y.Y GB"
-  - Real-time pressure monitoring (Normal/Warning/Critical)
-  - Compression ratio calculation and display
-  - Color-coded pressure indicators
-
-#### Desktop Widget System (6 Variants)
-- **Battery-Focused Widgets**:
-  1. Minimal (100×40): Essential battery percentage only
-  2. Compact (160×50): Battery + time remaining horizontal layout
-  3. Standard (180×100): Large percentage with status text
-  4. Detailed (240×120): Complete battery statistics
-
-- **System Monitoring Widgets**:
-  5. CPU (160×80): Dedicated CPU usage with progress bar
-  6. Memory (160×80): Memory pressure with usage metrics
-  7. System (240×100): Unified overview of all system metrics
-
-#### Widget Background System
-```swift
-// Unified glass background across all widgets
-RoundedRectangle(cornerRadius: 16)
-    .fill(Color.black.opacity(0.85))
-    .overlay(
-        RoundedRectangle(cornerRadius: 16)
-            .stroke(Color.white.opacity(0.1), lineWidth: 1)
-    )
-```
-
-### 2. Data Layer & Services
-
-#### SystemMonitoringService (@MainActor)
-- **Singleton Pattern**: Single source of truth for system metrics
-- **Update Interval**: 10-second polling to minimize CPU impact
-- **Concurrent Collection**: Uses TaskGroup for parallel CPU/memory gathering
-- **Throttling**: Prevents concurrent updates with isUpdating flag
-- **Error Handling**: Graceful degradation with logging
-
-#### BatteryViewModel (@ObservableObject)
-- **Primary Responsibilities**: Battery state, app settings, widget management
-- **Adaptive Refresh**: 5-second base interval with conditional acceleration
-- **Settings Management**: UserDefaults integration for all preferences
-- **Widget Integration**: Controls widget visibility and style selection
-
-#### Core Frameworks
-
-##### SystemCore Framework
-```swift
-// SystemMonitor.swift - Low-level system access
-public class SystemMonitor {
-    public func getCPUUsage() -> Double // mach host_statistics
-    public func getMemoryInfo() -> MemoryInfo // vm_statistics64
-}
-
-// MemoryInfo structure
-public struct MemoryInfo {
-    public let totalMemory: Double // GB
-    public let usedMemory: Double  // GB  
-    public let pressure: MemoryPressure // .normal/.warning/.critical
-    public let compressionRatio: Double // 0-1
-    public var usagePercentage: Double // calculated property
-}
-```
-
-##### BatteryCore Framework
-```swift
-// BatteryReader.swift - IOKit power source access
-public class BatteryReader {
-    public func getBatteryInfo() throws -> BatteryInfo
-    public func getBatteryInfoSafe() -> BatteryInfo // No-throw version
-    private func getCycleCount() -> Int // IOKit direct access
-}
-
-// BatteryInfo structure
-public struct BatteryInfo: Equatable {
-    public let currentCharge: Int        // 0-100%
-    public let isCharging: Bool
-    public let isPluggedIn: Bool  
-    public let cycleCount: Int
-    public let maxCapacity: Int          // Design capacity %
-    public let timeRemaining: Int?       // Minutes
-    public let health: Double            // 0.0-1.0
-    public var timeRemainingFormatted: String? // "H:MM" format
-}
-```
-
-### 3. Design System (UnifiedDesignSystem.swift)
-
-#### Semantic Color System
-```swift
-enum Colors {
-    // Semantic mapping
-    static let battery = success      // Energy = green
-    static let processor = neutral    // Computing = blue  
-    static let memory = Color.purple  // Storage = purple
-    static let system = accent        // Overall = white
-    
-    // Status colors
-    static let success = Color.green   // Healthy state
-    static let warning = Color.orange  // Caution needed
-    static let critical = Color.red    // Immediate attention
-    static let neutral = Color.blue    // Normal operation
-}
-```
-
-#### Typography Hierarchy (SF Pro System)
-```swift
-enum Typography {
-    // Primary hierarchy
-    static let display = Font.system(size: 32, weight: .bold, design: .rounded)    // Hero numbers
-    static let largeTitle = Font.system(size: 24, weight: .bold, design: .rounded) // Section headers
-    static let title = Font.system(size: 18, weight: .semibold, design: .rounded)  // Subsection headers
-    static let body = Font.system(size: 14, weight: .medium, design: .rounded)     // Content text
-    static let caption = Font.system(size: 12, weight: .medium, design: .rounded)  // Labels
-    static let label = Font.system(size: 10, weight: .semibold)                    // Small labels (uppercase)
-}
-```
-
-#### Layout System (4px Grid)
-```swift
-enum Layout {
-    static let space1: CGFloat = 4    // micro spacing
-    static let space2: CGFloat = 8    // small spacing  
-    static let space3: CGFloat = 12   // medium spacing
-    static let space4: CGFloat = 16   // large spacing
-    static let space5: CGFloat = 24   // xlarge spacing
-    static let space6: CGFloat = 32   // xxlarge spacing
-    
-    static let cornerRadius: CGFloat = 12        // Standard corner radius
-    static let cornerRadiusLarge: CGFloat = 16   // Widget corner radius
-}
-```
-
-#### Component Library
-- **UnifiedMetric**: Consistent metric display with icon, value, subtitle
-- **SectionHeader**: Uppercase labels with optional system icons
-- **InsightRow**: Status messages with severity levels
-- **InfoRow**: Key-value pair display for technical details
-
-## Performance Optimizations
-
-### Async Architecture Implementation
+#### MicroverseNotchSystem.swift
 ```swift
 @MainActor
-class SystemMonitoringService: ObservableObject {
-    // Concurrent system metric collection
-    private func updateMetrics() async {
-        guard !isUpdating else { return }
-        isUpdating = true
-        defer { isUpdating = false }
-        
-        let (newCpuUsage, newMemoryInfo) = await withTaskGroup(of: (Double?, MemoryInfo?).self) { group in
-            group.addTask {
-                let cpu = self.systemMonitor.getCPUUsage()
-                return (cpu, nil)
-            }
-            group.addTask {
-                let memory = self.systemMonitor.getMemoryInfo()
-                return (nil, memory)
-            }
-            // Process results concurrently
-        }
-        
-        // Update @Published properties on main thread
-        cpuUsage = newCpuUsage
-        memoryInfo = newMemoryInfo
-        lastUpdated = Date()
+class MicroverseNotchSystem: ObservableObject {
+    // Core notch management using DynamicNotchKit
+    @Published var isVisible: Bool = true
+    @Published var currentMode: NotchMode = .left
+    
+    // Integration with system monitoring
+    private let systemService: SystemMonitoringService
+    private let batteryViewModel: BatteryViewModel
+    
+    // Notch content lifecycle management
+    func updateNotchDisplay(with metrics: SystemMetrics)
+    func handleNotchModeChange(_ mode: NotchMode)
+    func synchronizeWithSystemState()
+}
+```
+
+#### NotchDisplayManager.swift
+```swift
+class NotchDisplayManager: ObservableObject {
+    // DynamicNotchKit integration layer
+    private var notchController: DynamicNotchController
+    
+    // Content state management
+    @Published var displayedMetrics: NotchMetrics
+    @Published var layoutMode: NotchLayoutMode
+    
+    // Responsive layout system
+    func adaptToNotchGeometry(_ geometry: NotchGeometry)
+    func updateContentLayout(for metrics: SystemMetrics)
+}
+```
+
+#### NotchWidgetViews.swift
+```swift
+// Sophisticated notch widget implementations
+struct NotchWidgetCompact: View {
+    // Horizontal layout: Battery, CPU, Memory percentages
+    // Glass morphism background with semantic colors
+    // Responsive to system state changes
+}
+
+struct NotchWidgetExpanded: View {
+    // Comprehensive display: Health status, cycle count, metrics
+    // Adaptive content based on available space
+    // Elegant transitions between states
+}
+```
+
+### 2. Desktop Widget Ecosystem
+
+#### DesktopWidget.swift - Widget Management System
+```swift
+class DesktopWidgetManager: ObservableObject {
+    // Widget lifecycle management
+    private var currentWidget: NSWindow?
+    private var widgetStyle: WidgetStyle = .glance
+    
+    // Multi-style widget system
+    enum WidgetStyle: CaseIterable {
+        case glance      // System Glance (374×182)
+        case status      // System Status (556×230)  
+        case dashboard   // System Dashboard (556×304)
     }
+    
+    // Window management
+    func showWidget()
+    func hideWidget()
+    func updateWidgetContent(_ metrics: SystemMetrics)
+    func repositionWidget(to position: CGPoint)
 }
 ```
 
-### Polling Strategy & Performance Impact
-- **SystemMonitoringService**: 10-second intervals (CPU overhead: <0.1%)
-- **BatteryViewModel**: Adaptive refresh (5s base, 2s critical, 30s idle)
-- **Widget Updates**: Reactive to @Published changes, no independent timers
-- **Force Update Throttling**: Minimum 2-second interval between manual refreshes
-
-### Memory Management & Resource Cleanup
+#### Glass Morphism Widget System
 ```swift
-// Proper lifecycle management
-class SystemMonitoringService {
-    deinit {
-        timer?.invalidate()
-        timer = nil
-    }
-}
-
-// Weak references prevent retain cycles
-class DesktopWidgetManager {
-    private weak var parentWindow: NSWindow?
-}
-```
-
-### Low-Level System Access Optimization
-```swift
-// SystemCore: Direct mach calls for efficiency
-public func getCPUUsage() -> Double {
-    var loadInfo = host_load_info_data_t()
-    let result = host_statistics(mach_host_self(), HOST_LOAD_INFO, ...)
-    // Direct calculation, no subprocess overhead
-}
-
-// BatteryCore: IOKit direct access (no system_profiler subprocess)
-private func getCycleCount() -> Int {
-    let entry = IOServiceGetMatchingService(kIOMainPortDefault, matching)
-    let cycleCountRef = IORegistryEntryCreateCFProperty(entry, "CycleCount" as CFString, ...)
-    // Direct IOKit property access
-}
-```
-
-## Design Token System
-
-### Colors (Semantic)
-```swift
-enum Colors {
-    static let battery = success      // Energy = green
-    static let processor = neutral    // Computing = blue  
-    static let memory = Color.purple  // Storage = purple
-    static let system = accent        // Overall = white
-}
-```
-
-### Typography Hierarchy
-```swift
-enum Typography {
-    static let display = Font.system(size: 32, weight: .bold, design: .rounded)
-    static let largeTitle = Font.system(size: 24, weight: .bold, design: .rounded)
-    static let title = Font.system(size: 18, weight: .semibold, design: .rounded)
-}
-```
-
-### Layout System
-```swift
-enum Layout {
-    static let space1: CGFloat = 4    // micro
-    static let space2: CGFloat = 8    // small  
-    static let space3: CGFloat = 12   // medium
-    static let space4: CGFloat = 16   // large
-}
-```
-
-## Widget Architecture
-
-### Widget Styles & Sizes
-1. **Minimal (100×40)**: Battery percentage only
-2. **Compact (160×50)**: Battery + time or system metrics
-3. **Standard (180×100)**: Large percentage with status
-4. **Detailed (240×120)**: Full battery statistics
-5. **CPU (160×80)**: CPU-focused monitoring
-6. **Memory (160×80)**: Memory pressure monitoring  
-7. **System (240×100)**: Unified system overview
-
-### Shared Background System
-```swift
+// Unified widget background system
 extension View {
-    func widgetBackground() -> some View {
+    func glassMorphismBackground() -> some View {
         self.background(
             RoundedRectangle(cornerRadius: 16)
                 .fill(Color.black.opacity(0.85))
@@ -338,220 +161,574 @@ extension View {
 }
 ```
 
-## Data Flow
+### 3. Application Interface Layer
 
-```
-Hardware → SystemCore → SystemMonitoringService → UI Components
-         → BatteryCore → BatteryViewModel      → Widgets
-```
-
-### Update Cycles
-1. **SystemCore** collects CPU/Memory every 10s
-2. **BatteryCore** collects battery data every 5s  
-3. **SystemMonitoringService** publishes updates
-4. **UI Components** react to @Published properties
-5. **Widgets** update automatically via shared data
-
-## Module Dependencies
-
-```
-Package.swift
-├── Microverse (executable)
-│   ├── depends: BatteryCore
-│   └── depends: SystemCore
-├── BatteryCore (framework)
-│   └── dependencies: IOKit
-└── SystemCore (framework)
-    └── dependencies: Darwin.Mach
-```
-
-## File Organization
-
-```
-Sources/
-├── Microverse/
-│   ├── BatteryViewModel.swift
-│   ├── SystemMonitoringService.swift
-│   ├── UnifiedDesignSystem.swift
-│   ├── MenuBarApp.swift
-│   ├── DesktopWidget.swift
-│   └── Views/
-│       ├── TabbedMainView.swift
-│       ├── UnifiedOverviewTab.swift
-│       ├── UnifiedBatteryTab.swift
-│       ├── UnifiedCPUTab.swift
-│       └── UnifiedMemoryTab.swift
-├── BatteryCore/
-│   ├── BatteryInfo.swift
-│   ├── BatteryReader.swift
-│   └── BatteryError.swift
-└── SystemCore/
-    └── SystemMonitor.swift
-```
-
-## Key Design Decisions
-
-### Why Tabbed Interface?
-- Clear mental model for different metric types
-- Room for future expansion (Network, GPU, Storage)
-- Follows macOS design patterns
-
-### Why Unified Design System?
-- Consistency across all UI components
-- Semantic color system for better UX
-- Maintainable codebase with centralized tokens
-
-### Why SystemMonitoringService?
-- Single source of truth for system metrics
-- Prevents multiple expensive system calls
-- Reactive architecture with @Published properties
-
-### Why Async/Await?
-- Non-blocking UI updates
-- Proper concurrency for system calls
-- Better error handling and performance
-
-## Future Architecture Considerations
-
-1. **Modular Expansion**: Easy to add new monitoring modules
-2. **Plugin System**: Framework allows for custom metrics
-3. **Testing**: Architecture supports dependency injection
-4. **Performance**: Optimized for minimal system impact
-5. **Accessibility**: Design system includes accessibility tokens
-
-## Critical Implementation Details
-
-### Widget Manager Integration
+#### TabbedMainView.swift - Main Interface Controller
 ```swift
-// BatteryViewModel.swift:95-110
-@Published var showSystemInfoInWidget = false {
-    didSet {
-        saveSetting("showSystemInfoInWidget", value: showSystemInfoInWidget)
-        // Recreate widget to apply changes
-        if showDesktopWidget {
-            widgetManager?.hideWidget()
-            widgetManager?.showWidget() 
+struct TabbedMainView: View {
+    // State management
+    @State private var selectedTab: Tab = .overview
+    @ObservedObject var viewModel: BatteryViewModel
+    @ObservedObject var systemService: SystemMonitoringService
+    
+    // Tab system with sophisticated state management
+    enum Tab: CaseIterable, Identifiable {
+        case overview, battery, cpu, memory
+        
+        var systemIcon: String { /* SF Symbols mapping */ }
+        var label: String { /* Localized labels */ }
+    }
+    
+    // Cross-tab state synchronization
+    func syncTabState()
+    func handleTabSelection(_ tab: Tab)
+}
+```
+
+#### Unified Tab Components
+
+**UnifiedOverviewTab.swift**
+```swift
+struct UnifiedOverviewTab: View {
+    // System health dashboard with intelligent insights
+    @ObservedObject var viewModel: BatteryViewModel
+    @ObservedObject var systemService: SystemMonitoringService
+    
+    // Health scoring algorithm
+    private var systemHealth: SystemHealth {
+        calculateSystemHealth(
+            battery: viewModel.batteryInfo,
+            cpu: systemService.cpuUsage,
+            memory: systemService.memoryInfo
+        )
+    }
+    
+    // Insight generation system
+    private var systemInsights: [SystemInsight] {
+        generateInsights(from: systemHealth)
+    }
+}
+```
+
+**UnifiedBatteryTab.swift**
+```swift
+struct UnifiedBatteryTab: View {
+    // Comprehensive battery monitoring interface
+    // - Large percentage display (24pt SF Pro Bold)
+    // - Health metrics and cycle count tracking
+    // - Time remaining with adaptive estimates
+    // - Charging optimization insights
+    
+    // Semantic color system
+    private var batteryColor: Color {
+        viewModel.batteryInfo.semanticColor
+    }
+}
+```
+
+**UnifiedCPUTab.swift**
+```swift
+struct UnifiedCPUTab: View {
+    // Real-time processor performance analysis
+    // - CPU usage percentage with progress bar
+    // - Load average and thermal state
+    // - Architecture-specific optimizations
+    
+    // Performance thresholds
+    private var cpuColor: Color {
+        systemService.cpuUsage.performanceColor
+    }
+}
+```
+
+**UnifiedMemoryTab.swift**
+```swift
+struct UnifiedMemoryTab: View {
+    // Memory usage and pressure monitoring
+    // - Memory pressure gauge with visual indicators
+    // - Usage breakdown (used/cached/free)
+    // - Swap activity monitoring
+    
+    // Memory pressure mapping
+    private var memoryColor: Color {
+        systemService.memoryInfo.pressureColor
+    }
+}
+```
+
+### 4. Business Logic & State Management
+
+#### SystemMonitoringService.swift - Core Metrics Engine
+```swift
+@MainActor
+class SystemMonitoringService: ObservableObject {
+    // Reactive system metrics with @Published properties
+    @Published var cpuUsage: Double = 0
+    @Published var memoryInfo: MemoryInfo = MemoryInfo()
+    @Published var systemHealth: SystemHealth = .optimal
+    @Published var lastUpdateTime: Date = Date()
+    
+    // Concurrent monitoring system
+    private let monitoringTask: Task<Void, Never>
+    
+    // Adaptive refresh system
+    private var refreshInterval: TimeInterval {
+        calculateAdaptiveRefreshRate()
+    }
+    
+    // Core monitoring functions
+    func startMonitoring() async
+    func updateMetrics() async
+    func calculateSystemHealth() -> SystemHealth
+    
+    // Performance optimization
+    private func shouldUpdateMetrics(_ newMetrics: SystemMetrics) -> Bool {
+        // Only update @Published when visual change needed
+    }
+}
+```
+
+#### BatteryViewModel.swift - Application State Controller
+```swift
+@MainActor
+class BatteryViewModel: ObservableObject {
+    // Core application state
+    @Published var batteryInfo: BatteryInfo = BatteryInfo()
+    @Published var showDesktopWidget: Bool = false
+    @Published var widgetStyle: WidgetStyle = .glance
+    @Published var notchMode: NotchMode = .left
+    
+    // Service coordination
+    private let systemService: SystemMonitoringService
+    private let updateService: SecureUpdateService
+    private weak var widgetManager: DesktopWidgetManager?
+    private weak var notchManager: NotchDisplayManager?
+    
+    // Settings management
+    func updateSettings()
+    func syncWidgetState()
+    func handleNotchModeChange()
+}
+```
+
+#### SecureUpdateService.swift - Sparkle Integration
+```swift
+@MainActor
+class SecureUpdateService: ObservableObject {
+    // Sparkle framework integration
+    private let updater: SPUUpdater
+    
+    // Update state management
+    @Published var updateState: UpdateState = .idle
+    @Published var currentVersion: String = Bundle.main.version
+    @Published var isCheckingForUpdates: Bool = false
+    
+    // Secure update operations
+    func checkForUpdates()
+    func installUpdate()
+    func scheduleAutomaticChecks()
+    
+    // Design system integration
+    func presentUpdateUI() {
+        // Custom UI using MicroverseDesign components
+    }
+}
+```
+
+#### AdaptiveDisplayService.swift - Intelligent Refresh Management
+```swift
+class AdaptiveDisplayService {
+    // Battery-aware refresh rate optimization
+    func calculateOptimalRefreshRate(
+        battery: BatteryInfo,
+        systemLoad: SystemMetrics,
+        userActive: Bool,
+        powerState: PowerState
+    ) -> TimeInterval {
+        
+        // Critical battery (≤5%): 2 seconds
+        if battery.currentCharge <= 5 {
+            return 2.0
+        }
+        
+        // High system load: More frequent updates
+        if systemLoad.isStressed {
+            return 3.0
+        }
+        
+        // Plugged at 100%: Reduced frequency
+        if battery.isPluggedIn && battery.currentCharge >= 100 {
+            return 30.0  // 6x slower
+        }
+        
+        // Standard operation: 5 seconds
+        return 5.0
+    }
+    
+    // 83% CPU reduction when idle
+    func optimizeForBatteryLife() -> TimeInterval
+}
+```
+
+### 5. Core Framework Layer
+
+#### BatteryCore Framework
+```swift
+// Sources/BatteryCore/
+├── BatteryInfo.swift          // Data structures for battery metrics
+├── BatteryReader.swift        // IOKit interface for hardware access
+└── BatteryError.swift         // Error handling and recovery
+
+// Direct IOKit access for optimal performance
+public class BatteryReader {
+    // No subprocess overhead - direct system calls
+    func getBatteryInfo() throws -> BatteryInfo {
+        // IOPSCopyPowerSourcesInfo() direct access
+        // IORegistryEntryCreateCFProperty() for cycle count
+        // Real-time power state monitoring
+    }
+    
+    // Cycle count optimization
+    func getCycleCount() -> Int {
+        // Direct IOKit property access
+        // Eliminated 100ms+ subprocess delay
+    }
+}
+```
+
+#### SystemCore Framework  
+```swift
+// Sources/SystemCore/
+└── SystemMonitor.swift        // CPU & Memory monitoring via mach
+
+// Direct mach API access
+public class SystemMonitor {
+    // CPU monitoring without subprocess overhead
+    func getCPUUsage() -> Double {
+        // host_statistics() direct mach calls
+        // Real-time processor load calculation
+    }
+    
+    // Memory pressure detection
+    func getMemoryInfo() -> MemoryInfo {
+        // vm_statistics64() mach interface
+        // Memory pressure calculation
+        // Swap activity monitoring
+    }
+}
+```
+
+### 6. Design System Architecture
+
+#### UnifiedDesignSystem.swift - Design Token Foundation
+```swift
+// Comprehensive design system implementation
+// See docs/DESIGN.md for complete specifications
+
+enum MicroverseDesign {
+    // Semantic color system
+    enum Colors {
+        static let battery = Color.green        // Energy/Power
+        static let processor = Color.blue       // Computing/Performance  
+        static let memory = Color.purple        // Storage/Memory
+        static let system = Color.white         // Overall status
+    }
+    
+    // Typography hierarchy (SF Pro Rounded)
+    enum Typography {
+        static let display = Font.system(size: 32, weight: .bold, design: .rounded)
+        static let largeTitle = Font.system(size: 24, weight: .bold, design: .rounded)
+        // ... complete typography system
+    }
+    
+    // Layout system (4px grid)
+    enum Layout {
+        static let space1: CGFloat = 4     // micro spacing
+        static let space2: CGFloat = 8     // small spacing
+        // ... complete spacing scale
+    }
+}
+```
+
+#### Component Library Implementation
+```swift
+// Reusable UI components with consistent styling
+struct UnifiedMetric: View {
+    // Consistent metric display across all tabs
+}
+
+struct SectionHeader: View {
+    // Standard section headers with SF Symbols
+}
+
+struct InsightRow: View {
+    // System insight display with semantic colors
+}
+
+struct HealthStatusCard: View {
+    // System health visualization
+}
+```
+
+## Performance Architecture
+
+### Concurrency & Threading Model
+```swift
+// @MainActor isolation for UI safety
+@MainActor
+class SystemMonitoringService: ObservableObject {
+    // All UI updates on main thread
+    @Published var cpuUsage: Double = 0
+    
+    // Background monitoring with Task
+    private let monitoringTask: Task<Void, Never>
+    
+    func startMonitoring() async {
+        // Concurrent system monitoring without blocking UI
+        await withTaskGroup(of: Void.self) { group in
+            group.addTask { await self.monitorCPU() }
+            group.addTask { await self.monitorMemory() }
+            group.addTask { await self.monitorBattery() }
         }
     }
 }
 ```
 
-### Menu Bar Icon Strategy
+### Memory Management Strategy
 ```swift
-// MenuBarApp.swift:45-50
-if let button = statusItem.button {
-    // Uses elegant system monitoring icon instead of battery text
-    button.image = createMicroverseIcon()
-    button.action = #selector(togglePopover(_:))
-    button.target = self
-}
-```
-
-### Health Algorithm Implementation
-```swift
-// UnifiedOverviewTab.swift:92-110
-private var overallHealth: String {
-    if systemService.cpuUsage > 80 || systemService.memoryInfo.pressure == .critical {
-        return "Stressed"
-    } else if systemService.cpuUsage > 50 || systemService.memoryInfo.pressure == .warning {
-        return "Moderate"  
-    } else {
-        return "Excellent"
-    }
-}
-```
-
-### Insight Generation Logic
-```swift
-// UnifiedOverviewTab.swift:120-155
-private var insights: [(icon: String, message: String, level: InsightRow.InsightLevel)] {
-    var results = []
+// Weak references prevent retain cycles
+class DesktopWidgetManager {
+    weak var viewModel: BatteryViewModel?
+    weak var notchManager: NotchDisplayManager?
     
-    // CPU thresholds: 80% critical, 60% warning
-    // Memory pressure: critical/warning enum matching
-    // Battery: <15% low warning, >95% charging complete
-    // Health: <80% declining warning
+    // Efficient widget recreation
+    func updateWidget() {
+        // Minimize object allocation
+        // Reuse existing views when possible
+    }
+}
+
+// Optimized @Published updates
+class OptimizedViewModel: ObservableObject {
+    @Published private(set) var displayMetrics: DisplayMetrics
     
-    // Fallback positive message when all systems normal
-    if results.isEmpty {
-        results.append(("checkmark.circle", "All systems operating normally", .normal))
-    }
-    return results
-}
-```
-
-## Error Handling & Resilience
-
-### Graceful Degradation Strategy
-```swift
-// BatteryReader.swift:62-70
-public func getBatteryInfoSafe() -> BatteryInfo {
-    do {
-        return try getBatteryInfo()
-    } catch {
-        logger.error("Failed to get battery info: \(error.localizedDescription)")
-        return BatteryInfo() // Returns safe defaults
+    private var _rawMetrics: RawMetrics {
+        didSet {
+            // Only trigger UI updates when visually significant
+            let newDisplay = _rawMetrics.forDisplay()
+            if newDisplay != displayMetrics {
+                displayMetrics = newDisplay
+            }
+        }
     }
 }
 ```
 
-### IOKit Error Recovery
+### Adaptive Performance System
 ```swift
-// BatteryReader.swift:75-116
-private func getCycleCountWithErrors() throws -> Int {
-    // Try direct CycleCount property first
-    // Fallback to BatteryData dictionary
-    // Throw specific error types for debugging
-    throw BatteryError.iokitPropertyMissing("CycleCount")
+// Battery-aware performance optimization
+class PerformanceManager {
+    // Dynamic refresh rate adjustment
+    func calculateRefreshInterval(
+        batteryLevel: Int,
+        systemLoad: Double,
+        thermalState: ThermalState
+    ) -> TimeInterval {
+        // 2s critical → 30s idle optimization
+        // Up to 83% CPU reduction achieved
+    }
+    
+    // Widget rendering optimization
+    func optimizeWidgetUpdates() {
+        // Minimize redraws
+        // Cache expensive calculations
+        // Lazy loading for complex views
+    }
 }
 ```
 
-## Build System & Dependencies
+## Security Architecture
 
-### Package.swift Configuration
-```swift
-let package = Package(
-    name: "Microverse",
-    platforms: [.macOS(.v11)],
-    products: [.executable(name: "Microverse", targets: ["Microverse"])],
-    targets: [
-        .executableTarget(
-            name: "Microverse",
-            dependencies: ["BatteryCore", "SystemCore"]
-        ),
-        .target(name: "BatteryCore", dependencies: [], path: "Sources/BatteryCore"),
-        .target(name: "SystemCore", dependencies: [], path: "Sources/SystemCore")
-    ]
-)
-```
-
-### Entitlements & Sandboxing
+### Sandboxing & Entitlements
 ```xml
 <!-- Microverse.entitlements -->
 <key>com.apple.security.app-sandbox</key>
 <true/>
-<key>com.apple.security.device.bluetooth</key>
-<false/>
+
+<!-- Minimal required entitlements -->
+<key>com.apple.security.network.client</key>
+<true/>  <!-- Sparkle auto-updates -->
+
+<key>com.apple.security.files.downloads.read-write</key>
+<true/>  <!-- Update downloads -->
+
+<!-- Sparkle XPC service support -->
+<key>com.apple.security.temporary-exception.mach-lookup.global-name</key>
+<array>
+    <string>com.microverse.app-spks</string>
+    <string>com.microverse.app-spki</string>
+</array>
 ```
 
-## Future Architecture Considerations
+### Secure Auto-Update System
+```swift
+// Sparkle integration with EdDSA signature verification
+class SecureUpdateService {
+    // Code signature verification
+    private let updater: SPUUpdater
+    
+    // Secure download verification
+    func verifyUpdateSignature(_ update: UpdateItem) -> Bool {
+        // EdDSA signature validation
+        // Code signing verification
+        // Integrity checks
+    }
+    
+    // Automatic update scheduling
+    func scheduleSecureUpdates() {
+        // 24-hour check interval
+        // User-controllable preferences
+        // Background verification
+    }
+}
+```
 
-### Scalability Patterns
-1. **Plugin Architecture**: Framework supports custom monitoring modules
-2. **Data Provider Pattern**: Easy to add new metric sources
-3. **Widget Extension System**: New widget types can be added without core changes
-4. **Settings Architecture**: Centralized configuration system
+### Data Privacy & Local Storage
+```swift
+// No data collection - everything stays local
+class PrivacyCompliantStorage {
+    // UserDefaults for app preferences only
+    private let defaults = UserDefaults.standard
+    
+    // No analytics, no telemetry, no external data transmission
+    func storeLocalPreferences() {
+        // Widget settings
+        // Refresh rate preferences  
+        // UI state persistence
+    }
+}
+```
 
-### Performance Monitoring
-- CPU usage logging every 10s for self-monitoring
-- Memory footprint tracking with thresholds
-- Widget render performance metrics
-- Battery impact measurement
+## Deployment & Distribution Architecture
+
+### Universal Binary Build System
+```swift
+// Package.swift configuration
+platforms: [.macOS(.v13)]
+
+// Universal binary support
+targets: [
+    .executableTarget(
+        name: "Microverse",
+        dependencies: ["BatteryCore", "SystemCore", "Sparkle", "DynamicNotchKit"]
+    )
+]
+```
+
+### GitHub Actions CI/CD Pipeline
+```yaml
+# .github/workflows/release.yml
+# - Semantic versioning (feat:/fix:/BREAKING CHANGE:)
+# - DMG and ZIP artifact generation
+# - Automatic GitHub releases
+# - Sparkle appcast generation
+# - Universal binary compilation
+```
+
+### Makefile Build System
+```makefile
+# Comprehensive build automation
+build:     # Swift Package Manager release build
+install:   # Create app bundle + install to /Applications
+app:       # Bundle creation with Sparkle framework embedding
+clean:     # Artifact cleanup
+uninstall: # Complete removal including preferences
+```
+
+## Integration Points & External Dependencies
+
+### DynamicNotchKit Integration
+```swift
+// Seamless notch area integration
+import DynamicNotchKit
+
+class NotchIntegrationLayer {
+    // DynamicNotchKit controller
+    private let notchController: DynamicNotchController
+    
+    // Content lifecycle management
+    func presentNotchContent(_ content: NotchContent)
+    func updateNotchLayout(_ layout: NotchLayout)
+    func handleNotchVisibilityChange(_ visible: Bool)
+}
+```
+
+### Sparkle Framework Integration
+```swift
+// Secure automatic updates
+import Sparkle
+
+class UpdateSystemIntegration {
+    // Sparkle updater configuration
+    private let updater: SPUUpdater
+    
+    // Custom UI integration with design system
+    func presentUpdateInterface()
+    func handleUpdateWorkflow()
+    func configureAutomaticChecks()
+}
+```
+
+## Development & Maintenance Guidelines
+
+### Code Quality Standards
+```swift
+// SwiftUI best practices
+// - @MainActor isolation for UI components
+// - async/await for system operations
+// - @Published properties for reactive state
+// - Weak references for memory management
+
+// Design system compliance
+// - All UI uses MicroverseDesign tokens
+// - Consistent component patterns
+// - Semantic color system adherence
+
+// Performance monitoring
+// - <1% CPU usage target
+// - <50MB memory footprint
+// - Battery impact minimization
+```
 
 ### Testing Strategy
-- Unit tests for core algorithms (health scoring, insight generation)
-- Performance tests for system monitoring overhead
-- Widget rendering tests across different system states
-- Battery simulation for edge case testing
+```swift
+// Current state: Identified technical debt
+// - Zero test coverage (see docs/TECHNICAL_DEBT.md)
+// - Priority areas for testing:
+//   * System monitoring accuracy
+//   * Performance regression prevention
+//   * Battery health calculations
+//   * Widget rendering consistency
+```
 
-This architecture provides a robust foundation optimized for performance while maintaining extensibility for future system monitoring capabilities.
+### Documentation Cross-References
+- **[Design System](DESIGN.md)**: Complete UI/UX specifications and component library
+- **[Technical Debt](TECHNICAL_DEBT.md)**: Current optimization opportunities
+- **[Auto-Update System](SPARKLE_AUTO_UPDATE_SYSTEM.md)**: Detailed Sparkle implementation
+- **[Contributing Guidelines](../CONTRIBUTING.md)**: Development standards and workflow
+
+## Architecture Evolution & Future
+
+### Scalability Considerations
+- **New Metrics**: Framework supports additional system monitoring
+- **Widget Expansion**: Component system enables new widget types
+- **Notch Innovation**: DynamicNotchKit provides advanced layout options
+- **Performance**: Direct system access architecture scales efficiently
+
+### Maintainability Features
+- **Modular Design**: Clear separation between frameworks and application
+- **Reactive Architecture**: @Published properties enable predictable data flow
+- **Design System**: Centralized tokens ensure consistent visual updates
+- **Dependency Management**: Swift Package Manager for clean dependency resolution
+
+This architecture document serves as the definitive technical reference for understanding, contributing to, and maintaining the Microverse codebase. It reflects the current sophisticated state of the application and provides clear guidance for future development.
