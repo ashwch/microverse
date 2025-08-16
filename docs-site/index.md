@@ -7,8 +7,8 @@ permalink: /
 <section class="hero">
   <div class="wrapper">
     <h1>Microverse</h1>
-    <p class="subtitle">Elegant System Monitoring for macOS</p>
-    <p>Transform your Mac into a comprehensive system intelligence hub with beautiful desktop widgets and real-time monitoring.</p>
+    <p class="subtitle">Unified macOS System Monitoring with Smart Notch Integration</p>
+    <p>Transform your Mac into a comprehensive system intelligence hub with elegant desktop widgets, smart notch integration, and secure auto-updates.</p>
     <div class="hero-buttons">
       <a href="https://github.com/ashwch/microverse/releases/latest" class="btn btn-primary">Download for macOS</a>
       <a href="https://github.com/ashwch/microverse" class="btn btn-secondary">View on GitHub</a>
@@ -36,9 +36,9 @@ permalink: /
         <p>Track memory pressure, usage breakdown, and system performance indicators.</p>
       </div>
       <div class="feature-card">
-        <div class="feature-icon">🖥️</div>
-        <h3>6 Widget Styles</h3>
-        <p>From minimal single-metric displays to comprehensive system dashboards.</p>
+        <div class="feature-icon">📱</div>
+        <h3>Smart Notch Integration</h3>
+        <p>Seamless integration with macOS notch area using DynamicNotchKit for elegant system monitoring.</p>
       </div>
       <div class="feature-card">
         <div class="feature-icon">⚡</div>
@@ -56,31 +56,23 @@ permalink: /
 
 <section class="screenshot-section">
   <div class="wrapper">
-    <h2>Desktop Widgets</h2>
-    <p>Choose from 6 beautiful widget styles to match your workflow</p>
+    <h2>Smart Notch & Desktop Widgets</h2>
+    <p>Elegant system monitoring integrated with macOS notch area and desktop widgets</p>
     <div class="screenshot-grid">
       <div class="screenshot-item">
-        <img src="/assets/images/widget-battery-simple.png" alt="Battery Widget">
-        <h4>Battery Simple</h4>
+        <img src="/assets/images/notch-widget-compact.png" alt="Notch Widget Compact">
+        <h4>Notch Integration</h4>
       </div>
       <div class="screenshot-item">
-        <img src="/assets/images/widget-cpu-monitor.png" alt="CPU Monitor">
-        <h4>CPU Monitor</h4>
-      </div>
-      <div class="screenshot-item">
-        <img src="/assets/images/widget-memory-monitor.png" alt="Memory Monitor">
-        <h4>Memory Monitor</h4>
-      </div>
-      <div class="screenshot-item">
-        <img src="/assets/images/widget-system-glance.png" alt="System Glance">
+        <img src="/assets/images/desktop-widget-glance.png" alt="Desktop Widget Glance">
         <h4>System Glance</h4>
       </div>
       <div class="screenshot-item">
-        <img src="/assets/images/widget-system-status.png" alt="System Status">
+        <img src="/assets/images/desktop-widget-status.png" alt="Desktop Widget Status">
         <h4>System Status</h4>
       </div>
       <div class="screenshot-item">
-        <img src="/assets/images/widget-system-dashboard.png" alt="System Dashboard">
+        <img src="/assets/images/desktop-widget-dashboard.png" alt="Desktop Widget Dashboard">
         <h4>System Dashboard</h4>
       </div>
     </div>
