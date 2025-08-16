@@ -14,79 +14,73 @@ description: Explore the comprehensive features of Microverse - elegant system m
 
 <section class="features">
   <div class="wrapper">
-    <h2>Desktop Widgets</h2>
-    <p>Six beautifully designed widgets to choose from, each optimized for different monitoring needs</p>
+    <h2>Smart Notch Integration</h2>
+    <p>Seamless integration with macOS notch area for elegant system monitoring</p>
     
     <div class="widget-showcase">
       <div class="widget-item">
-        <img src="/assets/images/widget-battery-simple.png" alt="Battery Simple Widget">
-        <h3>Battery Simple</h3>
-        <p>Minimalist battery monitoring with percentage and time remaining. Perfect for users who want essential battery information at a glance.</p>
+        <img src="/assets/images/notch-widget-compact.png" alt="Compact Notch Widget">
+        <h3>Compact Mode</h3>
+        <p>Unified metrics display in the notch area with elegant glass effect styling.</p>
         <ul>
-          <li>Current charge percentage</li>
-          <li>Time remaining estimate</li>
-          <li>Charging status indicator</li>
-          <li>Compact 200x100 size</li>
+          <li>Battery, CPU, and Memory percentages</li>
+          <li>Integrated with system design language</li>
+          <li>Minimal visual footprint</li>
+          <li>Always accessible in notch area</li>
         </ul>
       </div>
 
       <div class="widget-item">
-        <img src="/assets/images/widget-cpu-monitor.png" alt="CPU Monitor Widget">
-        <h3>CPU Monitor</h3>
-        <p>Real-time CPU load monitoring. Ideal for developers and power users.</p>
+        <img src="/assets/images/notch-widget-expanded.png" alt="Expanded Notch Widget">
+        <h3>Expanded Mode</h3>
+        <p>Detailed system status with health indicators and cycle count information.</p>
         <ul>
-          <li>Overall CPU usage percentage</li>
-          <li>Load average display</li>
-          <li>Processor architecture info</li>
-          <li>160x80 compact design</li>
+          <li>System health status (Optimal)</li>
+          <li>Battery cycle count tracking</li>
+          <li>Health scoring system</li>
+          <li>Comprehensive at-a-glance metrics</li>
         </ul>
       </div>
+    </div>
 
+    <h2>Desktop Widgets</h2>
+    <p>Multiple beautifully designed widgets for comprehensive system monitoring</p>
+    
+    <div class="widget-showcase">
       <div class="widget-item">
-        <img src="/assets/images/widget-memory-monitor.png" alt="Memory Monitor Widget">
-        <h3>Memory Monitor</h3>
-        <p>Memory usage monitoring with pressure indicators. Essential for performance optimization.</p>
-        <ul>
-          <li>Memory pressure gauge</li>
-          <li>Used vs free memory display</li>
-          <li>Compression ratio info</li>
-          <li>Visual pressure indicators</li>
-        </ul>
-      </div>
-
-      <div class="widget-item">
-        <img src="/assets/images/widget-system-glance.png" alt="System Glance Widget">
+        <img src="/assets/images/desktop-widget-glance.png" alt="System Glance Widget">
         <h3>System Glance</h3>
-        <p>Quick overview of all system metrics in a compact format. The perfect all-in-one solution.</p>
+        <p>Compact horizontal layout displaying essential system metrics in a minimalist design.</p>
         <ul>
-          <li>Battery, CPU, and memory stats</li>
-          <li>Condensed 160x50 layout</li>
+          <li>Battery, CPU, and Memory percentages</li>
+          <li>Compact horizontal format</li>
+          <li>Glass effect background</li>
           <li>Essential metrics only</li>
           <li>Clean, minimal design</li>
         </ul>
       </div>
 
       <div class="widget-item">
-        <img src="/assets/images/widget-system-status.png" alt="System Status Widget">
+        <img src="/assets/images/desktop-widget-status.png" alt="System Status Widget">
         <h3>System Status</h3>
-        <p>Comprehensive system monitoring with detailed metrics. For users who want complete information.</p>
+        <p>Three-column detailed view with comprehensive system monitoring and semantic color indicators.</p>
         <ul>
-          <li>All system metrics</li>
-          <li>Extended battery details</li>
-          <li>Memory and CPU info</li>
-          <li>240x80 detailed view</li>
+          <li>Battery, CPU, and Memory columns</li>
+          <li>Semantic color system (green/blue/purple)</li>
+          <li>Detailed percentage displays</li>
+          <li>Professional monitoring layout</li>
         </ul>
       </div>
 
       <div class="widget-item">
-        <img src="/assets/images/widget-system-dashboard.png" alt="System Dashboard Widget">
+        <img src="/assets/images/desktop-widget-dashboard.png" alt="System Dashboard Widget">
         <h3>System Dashboard</h3>
-        <p>The ultimate monitoring widget with full system details. Professional-grade monitoring on your desktop.</p>
+        <p>Comprehensive metrics display with health status, cycle count, and optimal system indicators.</p>
         <ul>
-          <li>Complete system overview</li>
-          <li>Detailed battery information</li>
-          <li>All metrics in one place</li>
-          <li>240x120 comprehensive view</li>
+          <li>System health status (Optimal)</li>
+          <li>Battery cycle count tracking</li>
+          <li>Complete metric overview</li>
+          <li>Ultimate monitoring solution</li>
         </ul>
       </div>
     </div>
