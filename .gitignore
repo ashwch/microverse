@@ -54,6 +54,6 @@ docs-site/_site/
 docs-site/.sass-cache/
 docs-site/Gemfile.lock
 
-# GitHub Pages files (should only be on gh-pages branch)
-CNAME
-appcast.xml
+# GitHub Pages files - allow in docs folder for main branch GitHub Pages
+/CNAME
+/appcast.xml
