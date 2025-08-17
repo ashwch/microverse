@@ -460,27 +460,27 @@ jobs:
       run: |
         echo "Updating appcast and release notes on GitHub Pages..."
         
-        # Clone the gh-pages branch with token authentication
-        git clone -b gh-pages https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git gh-pages-repo
+        # Clone the main branch and update docs folder (where GitHub Pages serves from)
+        git clone https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git pages-repo
+        cd pages-repo
         
-        # Copy the signed appcast
-        cp releases/appcast.xml gh-pages-repo/appcast.xml
+        # Copy the signed appcast to docs folder
+        cp ../releases/appcast.xml docs/appcast.xml
         
-        # Copy the HTML release notes file to gh-pages
-        if [ -f "releases/${PRODUCT_NAME}-v${{ steps.version.outputs.new_version }}.html" ]; then
-          cp "releases/${PRODUCT_NAME}-v${{ steps.version.outputs.new_version }}.html" "gh-pages-repo/"
+        # Copy the HTML release notes file to docs folder
+        if [ -f "../releases/${PRODUCT_NAME}-v${{ steps.version.outputs.new_version }}.html" ]; then
+          cp "../releases/${PRODUCT_NAME}-v${{ steps.version.outputs.new_version }}.html" "docs/"
           echo "✅ Copied HTML release notes to GitHub Pages"
         else
           echo "⚠️ Warning: HTML release notes file not found"
         fi
         
         # Commit and push the updated files
-        cd gh-pages-repo
         git config user.name "GitHub Actions"
         git config user.email "actions@github.com"
-        git add appcast.xml "${PRODUCT_NAME}-v${{ steps.version.outputs.new_version }}.html" || true
+        git add docs/appcast.xml "docs/${PRODUCT_NAME}-v${{ steps.version.outputs.new_version }}.html" || true
         git commit -m "Update appcast and release notes for v${{ steps.version.outputs.new_version }}" || true
-        git push origin gh-pages
+        git push origin main
         
         echo "✅ Appcast and release notes updated on GitHub Pages"
         echo "📡 Release notes will be available at: https://microverse.ashwch.com/${PRODUCT_NAME}-v${{ steps.version.outputs.new_version }}.html"
