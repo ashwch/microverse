@@ -49,10 +49,10 @@ CLAUDE.md
 /tmp/microverse_debug.txt
 SPARKLE_SIGNING_ISSUE.md
 
-# Jekyll/docs-site build artifacts
-docs-site/_site/
-docs-site/.sass-cache/
-docs-site/Gemfile.lock
+# Jekyll build artifacts for website in /docs
+docs/_site/
+docs/.sass-cache/
+docs/Gemfile.lock
 
 # GitHub Pages files - allow in docs folder for main branch GitHub Pages
 /CNAME

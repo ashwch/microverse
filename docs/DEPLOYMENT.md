@@ -1,64 +1,76 @@
-# Deployment Guide
+# Website Deployment Guide
+
+## Current Setup (Updated 2025)
+
+### GitHub Pages Configuration
+- **Source**: Main branch `/docs` folder
+- **Custom Domain**: microverse.ashwch.com
+- **Build**: Jekyll (automatic)
+- **No separate gh-pages branch** - everything is in main/dev branches
 
 ## Branch Strategy
 
-- **main branch**: Triggers app releases (DMG/ZIP files) ONLY
-- **dev branch**: For development work and documentation updates
-- **gh-pages branch**: Auto-created by GitHub Actions for docs deployment
+- **main branch**: Contains app code AND website files in `/docs` folder
+  - Pushes to main trigger both app releases AND website updates
+  - Website files are in `/docs/` directory
+- **dev branch**: For development work (app + docs)
+  - No automatic deployment - changes must be merged to main
 
-## How It Works
+## Website Structure
 
-When you push documentation changes to the `dev` branch:
-1. GitHub Actions builds the Jekyll site
-2. Deploys it to the `gh-pages` branch
-3. GitHub Pages serves it from `gh-pages` branch
-4. No app release is triggered!
-
-## GitHub Pages Setup
-
-### First Time Setup:
-1. Push to `dev` branch first (this creates the `gh-pages` branch)
-2. Go to Settings → Pages in your GitHub repo
-3. Under "Build and deployment":
-   - Source: "Deploy from a branch"
-   - Branch: `gh-pages` (select this instead of main)
-   - Folder: `/ (root)`
-4. Click Save
-
-### DNS Setup (microverse.ashwch.com):
-1. Go to your DNS provider for ashwch.com
-2. Add a CNAME record:
-   - Name: `microverse`
-   - Value: `ashwch.github.io`
-   - TTL: 3600 (or default)
-3. Wait for DNS propagation (up to 24 hours)
-
-## Workflow Summary
-
-```bash
-# For docs updates (NO app release):
-git checkout dev
-# make changes to docs-site/
-git add .
-git commit -m "docs: update site"
-git push origin dev
-# → Deploys docs only!
-
-# For app releases (NO docs update):
-git checkout main
-# make app changes
-git add .
-git commit -m "fix: app bug"
-git push origin main
-# → Creates app release only!
-
-# For both app and docs:
-# First update docs on dev, then merge to main for app release
+```
+/docs/                     # Website root (GitHub Pages source)
+├── _config.yml           # Jekyll configuration
+├── _layouts/default.html # Site layout template
+├── index.md              # Homepage content
+├── features.md           # Features page
+├── download.md           # Download page
+├── CNAME                 # Custom domain config
+└── assets/               # CSS, images, etc.
+    ├── css/main.css
+    └── images/
 ```
 
-## Key Benefits
+## How to Update Website
 
-✅ Documentation updates don't trigger app releases
-✅ App releases don't require documentation in the commit
-✅ Clean separation of concerns
-✅ Can update docs frequently without version bumps
+### Method 1: Direct updates to main (triggers app release)
+```bash
+git checkout main
+# Edit files in docs/ folder
+git add docs/
+git commit -m "docs: update website content"
+git push origin main
+# → Updates website AND triggers app release
+```
+
+### Method 2: Update via dev branch (recommended for docs-only)
+```bash
+git checkout dev
+# Edit files in docs/ folder
+git add docs/
+git commit -m "docs: update website content"
+git push origin dev
+
+# Then create PR: dev → main
+# Merge when ready to deploy both docs and any app changes
+```
+
+## DNS Configuration (microverse.ashwch.com)
+
+DNS is already configured:
+- CNAME record: `microverse.ashwch.com` → `ashwch.github.io`
+- CNAME file in `/docs/CNAME` contains: `microverse.ashwch.com`
+
+## Deployment Process
+
+1. Changes pushed to main branch `/docs` folder
+2. GitHub Pages automatically builds Jekyll site
+3. Site deployed to https://microverse.ashwch.com
+4. Usually takes 1-3 minutes to update
+
+## Key Points
+
+⚠️ **Important**: Pushing to main triggers app releases via semantic versioning
+✅ Website files are versioned with the app in the same repository  
+✅ Jekyll automatically processes markdown files in `/docs`
+✅ No manual build steps required - GitHub handles everything
