@@ -15,8 +15,8 @@ We maintain high quality standards in every aspect of the codebase:
 
 ### Prerequisites
 
-- **macOS 11.0+** (Monterey or later recommended)
-- **Xcode 13.0+** or **Swift 5.9+**
+- **macOS 13.0+** (Ventura or later recommended)
+- **Xcode 16.0+** or **Swift 6.0+**
 - **Git** for version control
 
 ### Local Development Setup
@@ -186,7 +186,7 @@ Brief description of what this PR accomplishes
 ## 🧪 Testing
 - [ ] Performance verified (CPU <1%, Memory <50MB)
 - [ ] Design system compliance checked
-- [ ] Manual testing on macOS 11.0+
+- [ ] Manual testing on macOS 13.0+
 - [ ] No regressions in existing functionality
 
 ## 📸 Screenshots

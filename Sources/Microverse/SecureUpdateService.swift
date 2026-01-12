@@ -154,10 +154,12 @@ extension SecureUpdateService: SPUUpdaterDelegate {
     
     nonisolated func updater(_ updater: SPUUpdater, didFindValidUpdate item: SUAppcastItem) {
         
+        let version = item.versionString
+        
         Task { @MainActor in
             updateAvailable = true
-            latestVersion = item.versionString
-            logger.info("Update available: \(item.versionString)")
+            latestVersion = version
+            logger.info("Update available: \(version)")
         }
     }
     
@@ -189,4 +191,3 @@ extension SecureUpdateService: SPUUpdaterDelegate {
         return "https://microverse.ashwch.com/appcast.xml"
     }
 }
-

@@ -136,6 +136,15 @@ struct TabbedMainView: View {
             .padding(.vertical, 4)
         }
         .frame(width: 280, height: 500)
+        .onAppear {
+            #if DEBUG
+            if ProcessInfo.processInfo.arguments.contains("--debug-open-settings") {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                    showingSettings = true
+                }
+            }
+            #endif
+        }
         .sheet(isPresented: $showingSettings) {
             SettingsView(isPresented: $showingSettings)
                 .environmentObject(viewModel)
@@ -252,54 +261,17 @@ struct SettingsView: View {
                     }
                     
                     SettingsDivider()
-                    
-                    // Enhanced Notch Display (only show on Macs with notch)
+
+                    // Smart Notch + Notch Glow (only show on Macs with a notch)
                     if viewModel.isNotchAvailable {
-                        // Compact Smart Notch Section
-                        HStack {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("Smart Notch")
-                                    .font(MicroverseDesign.Typography.body)
-                                    .foregroundColor(.white)
-                                Text("System stats around the notch")
-                                    .font(MicroverseDesign.Typography.caption)
-                                    .foregroundColor(.white.opacity(0.6))
-                            }
-                            
-                            Spacer()
-                            
-                            // Compact 3-option segmented control
-                            HStack(spacing: 0) {
-                                ForEach(MicroverseNotchViewModel.NotchLayoutMode.allCases, id: \.self) { mode in
-                                    Button(action: { 
-                                        viewModel.notchLayoutMode = mode 
-                                    }) {
-                                        Text(mode.displayName)
-                                            .font(.system(size: 11, weight: .medium))
-                                            .foregroundColor(viewModel.notchLayoutMode == mode ? .white : .white.opacity(0.7))
-                                            .frame(width: 45, height: 24)
-                                            .background(
-                                                RoundedRectangle(cornerRadius: 4)
-                                                    .fill(viewModel.notchLayoutMode == mode ? 
-                                                          MicroverseDesign.Colors.processor.opacity(0.8) : 
-                                                          Color.clear)
-                                            )
-                                    }
-                                    .buttonStyle(PlainButtonStyle())
-                                }
-                            }
-                            .background(
-                                RoundedRectangle(cornerRadius: 6)
-                                    .fill(Color.white.opacity(0.08))
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 6)
-                                            .stroke(Color.white.opacity(0.12), lineWidth: 1)
-                                    )
-                            )
-                        }
-                        .padding(.horizontal, MicroverseDesign.Layout.space5)
-                        .padding(.vertical, MicroverseDesign.Layout.space4)
-                        
+                        SmartNotchSection()
+                            .environmentObject(viewModel)
+
+                        SettingsDivider()
+
+                        NotchAlertsSection()
+                            .environmentObject(viewModel)
+
                         SettingsDivider()
                     }
                     
@@ -356,11 +328,11 @@ struct SettingsView: View {
                     .padding(.vertical, MicroverseDesign.Layout.space4)
                     
                     SettingsDivider()
-                    
+
                     // Software Updates Section
                     ElegantUpdateSection()
                         .environmentObject(viewModel)
-                    
+
                     Spacer(minLength: MicroverseDesign.Layout.space4)
                 }
             }
@@ -428,3 +400,170 @@ struct SettingsDivider: View {
     }
 }
 
+// MARK: - Smart Notch Section
+
+struct SmartNotchSection: View {
+    @EnvironmentObject var viewModel: BatteryViewModel
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: MicroverseDesign.Layout.space3) {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Smart Notch")
+                        .font(MicroverseDesign.Typography.body)
+                        .foregroundColor(.white)
+                    Text("System stats around the notch")
+                        .font(MicroverseDesign.Typography.caption)
+                        .foregroundColor(.white.opacity(0.6))
+                }
+
+                Spacer()
+
+                // Compact 3-option segmented control
+                HStack(spacing: 0) {
+                    ForEach(MicroverseNotchViewModel.NotchLayoutMode.allCases, id: \.self) { mode in
+                        Button(action: {
+                            viewModel.notchLayoutMode = mode
+                        }) {
+                            Text(mode.displayName)
+                                .font(.system(size: 11, weight: .medium))
+                                .foregroundColor(viewModel.notchLayoutMode == mode ? .white : .white.opacity(0.7))
+                                .frame(width: 45, height: 24)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 4)
+                                        .fill(viewModel.notchLayoutMode == mode ?
+                                              MicroverseDesign.Colors.processor.opacity(0.8) :
+                                                Color.clear)
+                                )
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                    }
+                }
+                .background(
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(Color.white.opacity(0.08))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 6)
+                                .stroke(Color.white.opacity(0.12), lineWidth: 1)
+                        )
+                )
+            }
+
+            if viewModel.notchLayoutMode != .off {
+                Text(viewModel.notchLayoutMode.description)
+                    .font(MicroverseDesign.Typography.caption)
+                    .foregroundColor(.white.opacity(0.6))
+            }
+        }
+        .padding(.horizontal, MicroverseDesign.Layout.space5)
+        .padding(.vertical, MicroverseDesign.Layout.space4)
+    }
+}
+
+// MARK: - Notch Alerts Section
+
+struct NotchAlertsSection: View {
+    @EnvironmentObject var viewModel: BatteryViewModel
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: MicroverseDesign.Layout.space3) {
+            // Toggle for notch alerts
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Notch Glow Alerts")
+                        .font(MicroverseDesign.Typography.body)
+                        .foregroundColor(.white)
+                    Text("Visual alerts around the notch area")
+                        .font(MicroverseDesign.Typography.caption)
+                        .foregroundColor(.white.opacity(0.6))
+                }
+                Spacer()
+                Toggle("", isOn: $viewModel.enableNotchAlerts)
+                    .labelsHidden()
+                    .toggleStyle(ElegantToggleStyle())
+            }
+
+            if viewModel.enableNotchAlerts {
+                // Startup animation toggle
+                HStack {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Startup Animation")
+                            .font(MicroverseDesign.Typography.body)
+                            .foregroundColor(.white)
+                        Text("Play an RGB glow when Microverse starts")
+                            .font(MicroverseDesign.Typography.caption)
+                            .foregroundColor(.white.opacity(0.6))
+                    }
+                    Spacer()
+                    Toggle("", isOn: $viewModel.enableNotchStartupAnimation)
+                        .labelsHidden()
+                        .toggleStyle(ElegantToggleStyle())
+                }
+                .padding(.top, MicroverseDesign.Layout.space2)
+
+                // Alert conditions info
+                VStack(alignment: .leading, spacing: MicroverseDesign.Layout.space2) {
+                    Text("ALERTS TRIGGER ON")
+                        .font(MicroverseDesign.Typography.label)
+                        .foregroundColor(.white.opacity(0.5))
+                        .tracking(0.8)
+
+                    alertConditionRow(color: .green, text: "Charger connected / Fully charged")
+                    alertConditionRow(color: .orange, text: "Battery drops below 20%")
+                    alertConditionRow(color: .red, text: "Battery critically low (≤10%)")
+                }
+                .padding(.top, MicroverseDesign.Layout.space2)
+
+                // Test buttons
+                VStack(alignment: .leading, spacing: MicroverseDesign.Layout.space2) {
+                    Text("TEST ALERTS")
+                        .font(MicroverseDesign.Typography.label)
+                        .foregroundColor(.white.opacity(0.5))
+                        .tracking(0.8)
+
+                    HStack(spacing: MicroverseDesign.Layout.space2) {
+                        testAlertButton(type: .success, label: "Success", color: .green)
+                        testAlertButton(type: .warning, label: "Warning", color: .orange)
+                        testAlertButton(type: .critical, label: "Critical", color: .red)
+                        testAlertButton(type: .info, label: "Info", color: .blue)
+                    }
+                }
+                .padding(.top, MicroverseDesign.Layout.space2)
+            }
+        }
+        .padding(.horizontal, MicroverseDesign.Layout.space5)
+        .padding(.vertical, MicroverseDesign.Layout.space4)
+    }
+
+    private func alertConditionRow(color: Color, text: String) -> some View {
+        HStack(spacing: MicroverseDesign.Layout.space2) {
+            Circle()
+                .fill(color)
+                .frame(width: 8, height: 8)
+            Text(text)
+                .font(MicroverseDesign.Typography.caption)
+                .foregroundColor(.white.opacity(0.8))
+        }
+    }
+
+    private func testAlertButton(type: NotchAlertType, label: String, color: Color) -> some View {
+        Button(action: {
+            viewModel.testNotchAlert(type: type)
+        }) {
+            Text(label)
+                .font(.system(size: 11, weight: .medium))
+                .foregroundColor(.white)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(color.opacity(0.3))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 6)
+                                .stroke(color.opacity(0.6), lineWidth: 1)
+                        )
+                )
+        }
+        .buttonStyle(PlainButtonStyle())
+    }
+}

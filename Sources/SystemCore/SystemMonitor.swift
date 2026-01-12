@@ -4,7 +4,7 @@ import Darwin
 
 /// Simple system monitor for CPU and memory usage
 /// Works within macOS sandbox constraints
-public class SystemMonitor {
+public final class SystemMonitor: @unchecked Sendable {
     private let logger = Logger(subsystem: "com.microverse.app", category: "SystemMonitor")
     
     public init() {}
@@ -63,7 +63,13 @@ public class SystemMonitor {
         var size = MemoryLayout<UInt64>.size
         sysctlbyname("hw.memsize", &physicalMemory, &size, nil, 0)
         
-        let pageSize = UInt64(vm_page_size)
+        // Avoid referencing the global `vm_page_size` var directly (not concurrency-safe in Swift 6).
+        var pageSizeBytes: UInt64 = 4096
+        var sysctlPageSize: Int = 0
+        var sysctlPageSizeSize = MemoryLayout<Int>.size
+        if sysctlbyname("hw.pagesize", &sysctlPageSize, &sysctlPageSizeSize, nil, 0) == 0, sysctlPageSize > 0 {
+            pageSizeBytes = UInt64(sysctlPageSize)
+        }
         
         // Calculate memory metrics
         let totalMemory = Double(physicalMemory) / (1024 * 1024 * 1024) // GB
@@ -82,16 +88,16 @@ public class SystemMonitor {
         // Compressed = compressor_page_count (compressed memory pages)
         // Memory Used = App Memory + Wired + Compressed
         let appMemoryPages = internalPages > purgeablePages ? internalPages - purgeablePages : 0
-        let usedMemory = Double((appMemoryPages + wiredPages + compressedPages) * pageSize) / (1024 * 1024 * 1024) // GB
+        let usedMemory = Double((appMemoryPages + wiredPages + compressedPages) * pageSizeBytes) / (1024 * 1024 * 1024) // GB
         
         // Calculate cached files (file-backed memory that can be freed)
         // Cached = external_page_count + purgeable_count
-        let cachedMemory = Double((externalPages + purgeablePages) * pageSize) / (1024 * 1024 * 1024) // GB
+        let cachedMemory = Double((externalPages + purgeablePages) * pageSizeBytes) / (1024 * 1024 * 1024) // GB
         
         // Calculate memory pressure based on available memory
         // Available = Free + Inactive (can be reclaimed) + File Cache
         let availablePages = freePages + inactivePages + externalPages + speculativePages
-        let totalPages = UInt64(physicalMemory / pageSize)
+        let totalPages = UInt64(physicalMemory / pageSizeBytes)
         let pressureRatio = Double(availablePages) / Double(totalPages)
         
         let pressure: MemoryPressure
@@ -117,7 +123,7 @@ public class SystemMonitor {
 }
 
 /// Memory pressure levels matching macOS
-public enum MemoryPressure: String, CaseIterable {
+public enum MemoryPressure: String, CaseIterable, Sendable {
     case normal = "Normal"
     case warning = "Warning" 
     case critical = "Critical"
@@ -132,7 +138,7 @@ public enum MemoryPressure: String, CaseIterable {
 }
 
 /// System memory information
-public struct MemoryInfo {
+public struct MemoryInfo: Sendable {
     public let totalMemory: Double // GB
     public let usedMemory: Double  // GB
     public let cachedMemory: Double // GB

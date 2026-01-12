@@ -60,6 +60,11 @@ class MicroverseNotchViewModel: ObservableObject, NotchServiceProtocol {
     @Published var selectedScreen: Int = 0
     @Published var notchStyle: NotchDisplayStyle = .compact
     @Published var layoutMode: NotchLayoutMode = .split
+
+    // Captured widths for the DynamicNotchKit compact layout. These are used by NotchGlowManager to align
+    // overlays to the *actual* pill geometry (which can be asymmetric when leading/trailing widths differ).
+    @Published private(set) var compactLeadingContentWidth: CGFloat = 0
+    @Published private(set) var compactTrailingContentWidth: CGFloat = 0
     
     private var currentNotch: (any DynamicNotchControllable)?
     private weak var batteryViewModel: BatteryViewModel?
@@ -119,6 +124,10 @@ class MicroverseNotchViewModel: ObservableObject, NotchServiceProtocol {
             logger.error("No battery view model available")
             throw NotchServiceError.noBatteryViewModel
         }
+
+        // Reset compact width measurements before building a new notch.
+        compactLeadingContentWidth = 0
+        compactTrailingContentWidth = 0
         
         let screens = NSScreen.screens
         guard !screens.isEmpty && self.selectedScreen >= 0 && self.selectedScreen < screens.count else {
@@ -145,10 +154,12 @@ class MicroverseNotchViewModel: ObservableObject, NotchServiceProtocol {
                     // All metrics unified on left side
                     MicroverseCompactUnifiedView()
                         .environmentObject(batteryViewModel)
+                        .microverseReportWidth { self.compactLeadingContentWidth = $0 }
                 case .split:
                     // Battery only on left side (asymmetric)
                     MicroverseCompactLeadingView()
                         .environmentObject(batteryViewModel)
+                        .microverseReportWidth { self.compactLeadingContentWidth = $0 }
                 case .off:
                     // Should not reach here, but provide fallback
                     EmptyView()
@@ -163,10 +174,16 @@ class MicroverseNotchViewModel: ObservableObject, NotchServiceProtocol {
                     // CPU + Memory on right side (asymmetric)
                     MicroverseCompactTrailingView()
                         .environmentObject(batteryViewModel)
+                        .microverseReportWidth { self.compactTrailingContentWidth = $0 }
                 case .off:
                     // Should not reach here, but provide fallback
                     EmptyView()
                 }
+            }
+
+            // Render the glow inside the DynamicNotchKit pill coordinate space (avoids external overlay drift).
+            notch.setDecoration {
+                MicroverseNotchGlowDecorationView()
             }
             
             // Show on selected screen with bounds checking
@@ -301,6 +318,36 @@ class MicroverseNotchViewModel: ObservableObject, NotchServiceProtocol {
                 return "External Display \(index)"
             }
         }
+    }
+}
+
+// MARK: - View Measurement Helpers
+
+private struct MicroverseWidthPreferenceKey: PreferenceKey {
+    static let defaultValue: CGFloat = 0
+
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = nextValue()
+    }
+}
+
+private struct MicroverseReportWidthModifier: ViewModifier {
+    let onChange: (CGFloat) -> Void
+
+    func body(content: Content) -> some View {
+        content
+            .background {
+                GeometryReader { proxy in
+                    Color.clear.preference(key: MicroverseWidthPreferenceKey.self, value: proxy.size.width)
+                }
+            }
+            .onPreferenceChange(MicroverseWidthPreferenceKey.self, perform: onChange)
+    }
+}
+
+private extension View {
+    func microverseReportWidth(_ onChange: @escaping (CGFloat) -> Void) -> some View {
+        modifier(MicroverseReportWidthModifier(onChange: onChange))
     }
 }
 

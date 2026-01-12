@@ -110,7 +110,7 @@ enum MicroverseDesign {
     // MARK: - Notch-Specific Design System
     
     enum Notch {
-        // Typography hierarchy for notch components  
+        // Typography hierarchy for notch components
         enum Typography {
             static let compactIcon = Font.system(size: 10, weight: .semibold) // Smaller icon
             static let compactValue = Font.system(size: 12, weight: .semibold, design: .rounded) // Smaller text

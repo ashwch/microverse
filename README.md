@@ -2,8 +2,8 @@
 
 > **A unified macOS system monitoring application with elegant desktop widgets, smart notch integration, and secure auto-updates**
 
-[![Swift](https://img.shields.io/badge/Swift-5.9+-orange.svg)](https://swift.org)
-[![macOS](https://img.shields.io/badge/macOS-11.0+-blue.svg)](https://developer.apple.com/macos/)
+[![Swift](https://img.shields.io/badge/Swift-6.0+-orange.svg)](https://swift.org)
+[![macOS](https://img.shields.io/badge/macOS-13.0+-blue.svg)](https://developer.apple.com/macos/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Architecture](https://img.shields.io/badge/Architecture-Universal%20Binary-success.svg)](https://developer.apple.com/documentation/apple-silicon)
 [![Performance](https://img.shields.io/badge/Performance-%3C1%25%20CPU-brightgreen.svg)](docs/PERFORMANCE.md)
@@ -27,6 +27,7 @@ Perfect for developers who need real-time system insights without compromising p
 ### 🎨 **Adaptive User Interface**
 - **Desktop Widget Styles**: Multiple layout options from compact to comprehensive displays
 - **Smart Notch Integration**: Seamless integration with macOS notch area
+- **Notch Glow Alerts**: Animated glow around the notch on key battery events
 - **Menu Bar Integration**: Elegant system icon with percentage display
 - **Tabbed Interface**: Overview, Battery, CPU, Memory with unified design system
 
@@ -89,10 +90,10 @@ Perfect for developers who need real-time system insights without compromising p
 ```bash
 git clone https://github.com/ashwch/microverse.git
 cd microverse
-make install    # Requires Xcode 13+ or Swift 5.9+
+make install    # Requires Xcode 16+ or Swift 6.0+
 ```
 
-**Requirements**: macOS 11.0+, Universal Binary support
+**Requirements**: macOS 13.0+, Universal Binary support
 
 ## 🏗️ Architecture
 
@@ -107,6 +108,12 @@ Package.swift
 ├── BatteryCore (framework) - IOKit battery monitoring
 └── SystemCore (framework) - mach CPU/memory monitoring
 ```
+
+### Quick Usage
+**Menu Bar**: Click 👽 icon → Overview/Battery/CPU/Memory tabs  
+**Desktop Widgets**: Settings → Desktop Widget (toggle + style)  
+**Smart Notch**: Settings → Smart Notch (Left / Split / Off)  
+**Notch Glow Alerts**: Settings → Notch Glow Alerts (toggle + test buttons)
 
 ### Data Flow
 ```

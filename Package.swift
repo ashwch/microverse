@@ -1,9 +1,10 @@
-// swift-tools-version: 5.7
+// swift-tools-version: 6.0
 import PackageDescription
 
 let package = Package(
     name: "Microverse",
     platforms: [
+        // DynamicNotchKit requires macOS 13+
         .macOS(.v13)
     ],
     products: [
@@ -11,7 +12,8 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/sparkle-project/Sparkle", from: "2.0.0"),
-        .package(url: "https://github.com/MrKai77/DynamicNotchKit", from: "1.0.0")
+        // Vendored DynamicNotchKit so we can add a notch decoration hook for the glow.
+        .package(path: "Packages/DynamicNotchKit")
     ],
     targets: [
         .executableTarget(
@@ -19,6 +21,9 @@ let package = Package(
             dependencies: ["BatteryCore", "SystemCore", "Sparkle", "DynamicNotchKit"],
             resources: [
                 .copy("Resources/AppIcon.icns")
+            ],
+            swiftSettings: [
+                .define("DEBUG", .when(configuration: .debug))
             ]
         ),
         .target(

@@ -161,11 +161,6 @@ class NotchDisplayManager: ObservableObject {
 // MARK: - NSScreen Extensions
 
 extension NSScreen {
-    var hasNotch: Bool {
-        guard #available(macOS 12.0, *) else { return false }
-        return safeAreaInsets.top > 0
-    }
-    
     var notchHeight: CGFloat {
         guard #available(macOS 12.0, *) else { return 0 }
         return safeAreaInsets.top

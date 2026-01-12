@@ -13,11 +13,12 @@ Microverse is a sophisticated system monitoring application that combines modern
 - **Compatibility**: macOS 13.0+, Universal Binary (Intel + Apple Silicon)
 - **Security**: Sandboxed with minimal entitlements, secure auto-update system
 - **Integration**: Native notch integration using DynamicNotchKit framework
+- **Notch Glow Alerts**: In-notch glow animations triggered by battery events
 
 ## System Architecture Overview
 
 ### High-Level Component Diagram
-```
+```text
 ┌─────────────────────────────────────────────────────────────────────────┐
 │                           Microverse Application                         │
 ├─────────────────────────────────────────────────────────────────────────┤
@@ -28,7 +29,7 @@ Microverse is a sophisticated system monitoring application that combines modern
 │  ├── UnifiedCPUTab (Processor Performance Analysis)                     │
 │  ├── UnifiedMemoryTab (Memory Usage & Pressure)                         │
 │  ├── DesktopWidget (Multi-style Widget System)                          │
-│  ├── NotchWidgetViews (DynamicNotchKit Integration)                     │
+│  ├── MicroverseNotchSystem (DynamicNotchKit Views)                      │
 │  └── UpdateView (Sparkle Auto-Update UI)                                │
 ├─────────────────────────────────────────────────────────────────────────┤
 │  🧠 Business Logic Layer                                                │
@@ -36,12 +37,13 @@ Microverse is a sophisticated system monitoring application that combines modern
 │  ├── SystemMonitoringService (Reactive System Metrics)                  │
 │  ├── SecureUpdateService (Sparkle Integration)                          │
 │  ├── AdaptiveDisplayService (Smart Refresh Management)                  │
-│  ├── NotchDisplayManager (DynamicNotchKit State)                        │
+│  ├── MicroverseNotchViewModel (DynamicNotchKit State)                   │
+│  ├── NotchGlowManager (Notch Glow Alerts)                               │
 │  └── MicroverseNotchSystem (Notch Content Coordination)                 │
 ├─────────────────────────────────────────────────────────────────────────┤
 │  ⚙️ Core Frameworks (Direct System Access)                              │
 │  ├── BatteryCore (IOKit Battery Hardware Interface)                     │
-│  └── SystemCore (mach CPU & Memory Monitoring)                          │
+│  └── SystemCore (mach CPU/memory monitoring)                            │
 ├─────────────────────────────────────────────────────────────────────────┤
 │  🎯 Design System & Components                                          │
 │  ├── UnifiedDesignSystem (Colors, Typography, Layout Tokens)            │
@@ -55,11 +57,11 @@ Microverse is a sophisticated system monitoring application that combines modern
 ```
 
 ### Data Flow Architecture
-```
+```text
 Hardware APIs → Core Frameworks → Services → ViewModels → UI Components
      ↓               ↓              ↓          ↓            ↓
    IOKit         BatteryCore   SystemMonitoring BatteryVM  SwiftUI Views
-   mach          SystemCore    Service          ↓          Desktop Widgets  
+   mach          SystemCore    Service          ↓          Desktop Widgets
    System        ↓             ↓                ↓          Notch Widgets
    Calls         Direct API    @Published       Reactive   Glass UI
                  Access        Properties       State      Components
@@ -715,6 +717,7 @@ class UpdateSystemIntegration {
 - **[Design System](DESIGN.md)**: Complete UI/UX specifications and component library
 - **[Technical Debt](TECHNICAL_DEBT.md)**: Current optimization opportunities
 - **[Auto-Update System](SPARKLE_AUTO_UPDATE_SYSTEM.md)**: Detailed Sparkle implementation
+- **[Notch Features](NOTCH_FEATURES.md)**: Smart Notch + Notch Glow feature overview
 - **[Contributing Guidelines](../CONTRIBUTING.md)**: Development standards and workflow
 
 ## Architecture Evolution & Future

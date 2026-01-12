@@ -3,8 +3,7 @@ name: Build and Release Microverse
 on:
   push:
     branches: [ main ]
-  pull_request:
-    branches: [ main ]
+  workflow_dispatch:
 
 env:
   PRODUCT_NAME: Microverse
@@ -205,7 +204,7 @@ jobs:
             <key>CFBundleVersion</key>
             <string>${{ steps.version.outputs.new_version }}</string>
             <key>LSMinimumSystemVersion</key>
-            <string>11.0</string>
+            <string>13.0</string>
             <key>CFBundleIconFile</key>
             <string>AppIcon</string>
             <key>CFBundleDisplayName</key>
@@ -328,7 +327,7 @@ jobs:
         2. Open the DMG and drag Microverse to Applications
         3. Launch from Applications or Spotlight
         
-        **Requires macOS 11.0 or later**
+        **Requires macOS 13.0 or later**
         EOF
         
         # Set output for release notes

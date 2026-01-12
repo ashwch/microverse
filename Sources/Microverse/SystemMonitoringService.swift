@@ -15,38 +15,45 @@ class SystemMonitoringService: ObservableObject {
     @Published private(set) var lastUpdated = Date()
     
     private let systemMonitor = SystemMonitor()
-    private var timer: Timer?
     private let logger = Logger(subsystem: "com.microverse.app", category: "SystemMonitoringService")
     private var isUpdating = false
+    private var monitoringTask: Task<Void, Never>?
     
     private init() {
         startMonitoring()
     }
     
     deinit {
-        timer?.invalidate()
-        timer = nil
+        monitoringTask?.cancel()
+        monitoringTask = nil
     }
     
     private func startMonitoring() {
-        // Use a longer interval to reduce CPU overhead
-        timer = Timer.scheduledTimer(withTimeInterval: 10.0, repeats: true) { [weak self] _ in
-            Task { @MainActor in
-                await self?.updateMetrics()
+        monitoringTask?.cancel()
+        monitoringTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            
+            // Initial update
+            await self.updateMetrics()
+            
+            while !Task.isCancelled {
+                do {
+                    try await Task.sleep(nanoseconds: 10 * 1_000_000_000)
+                } catch {
+                    break
+                }
+                
+                if Task.isCancelled { break }
+                await self.updateMetrics()
             }
-        }
-        
-        // Initial update
-        Task {
-            await updateMetrics()
         }
         
         logger.info("System monitoring service started with 10s interval")
     }
     
     private func stopMonitoring() {
-        timer?.invalidate()
-        timer = nil
+        monitoringTask?.cancel()
+        monitoringTask = nil
         logger.info("System monitoring service stopped")
     }
     
@@ -55,16 +62,18 @@ class SystemMonitoringService: ObservableObject {
         guard !isUpdating else { return }
         isUpdating = true
         defer { isUpdating = false }
-        
-        // Perform system calls on background queue to avoid blocking main thread
+
+        // Perform system calls off the main actor to avoid blocking UI.
+        let systemMonitor = self.systemMonitor
+
         let (newCpuUsage, newMemoryInfo) = await withTaskGroup(of: (Double?, MemoryInfo?).self) { group in
             group.addTask {
-                let cpu = await self.systemMonitor.getCPUUsage()
+                let cpu = systemMonitor.getCPUUsage()
                 return (cpu, nil)
             }
             
             group.addTask {
-                let memory = await self.systemMonitor.getMemoryInfo()
+                let memory = systemMonitor.getMemoryInfo()
                 return (nil, memory)
             }
             

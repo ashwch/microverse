@@ -41,6 +41,11 @@ permalink: /
         <p>Seamless integration with macOS notch area using DynamicNotchKit for elegant system monitoring.</p>
       </div>
       <div class="feature-card">
+        <div class="feature-icon">✨</div>
+        <h3>Notch Glow Alerts</h3>
+        <p>Subtle animated glow around the notch on charging, fully charged, and low battery events.</p>
+      </div>
+      <div class="feature-card">
         <div class="feature-icon">⚡</div>
         <h3>Performance First</h3>
         <p>Less than 1% CPU impact with under 50MB memory footprint.</p>
@@ -62,6 +67,10 @@ permalink: /
       <div class="screenshot-item">
         <img src="/assets/images/notch-widget-compact.png" alt="Notch Widget Compact">
         <h4>Notch Integration</h4>
+      </div>
+      <div class="screenshot-item">
+        <img src="/assets/images/notch-glow-success.png" alt="Notch Glow Alert">
+        <h4>Notch Glow Alerts</h4>
       </div>
       <div class="screenshot-item">
         <img src="/assets/images/desktop-widget-glance.png" alt="Desktop Widget Glance">

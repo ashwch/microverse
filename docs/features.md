@@ -87,6 +87,38 @@ description: Explore the comprehensive features of Microverse - elegant system m
   </div>
 </section>
 
+<section class="features">
+  <div class="wrapper">
+    <h2>Notch Glow Alerts</h2>
+    <p>Subtle animated glow around the notch for key battery events.</p>
+
+    <div class="widget-showcase">
+      <div class="widget-item">
+        <img src="/assets/images/notch-glow-success.png" alt="Notch Glow Alert">
+        <h3>Battery Event Feedback</h3>
+        <p>Microverse can show a gentle glow + sweep + sparkles around the notch when important battery events occur.</p>
+        <ul>
+          <li>Charger connected / Fully charged</li>
+          <li>Battery drops below 20%</li>
+          <li>Battery critically low (≤10%)</li>
+          <li>Optional RGB startup animation</li>
+        </ul>
+      </div>
+
+      <div class="widget-item">
+        <img src="/assets/images/app-settings-notch-glow.png" alt="Notch Glow Settings">
+        <h3>Configurable</h3>
+        <p>Control Smart Notch and Notch Glow Alerts from Settings.</p>
+        <ul>
+          <li>Enable/disable glow alerts</li>
+          <li>Enable/disable startup animation</li>
+          <li>Test alerts on demand</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
 <section class="features" style="background-color: var(--background-alt);">
   <div class="wrapper">
     <h2>Core Features</h2>

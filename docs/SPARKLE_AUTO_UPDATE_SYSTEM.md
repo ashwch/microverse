@@ -59,7 +59,7 @@ User's Mac                    GitHub/CI                     GitHub Pages
 // swift-tools-version: 5.7
 let package = Package(
     name: "Microverse",
-    platforms: [.macOS(.v11)],
+    platforms: [.macOS(.v13)],
     products: [
         .executable(name: "Microverse", targets: ["Microverse"])
     ],
@@ -477,7 +477,7 @@ jobs:
             <pubDate>Thu, 14 Aug 2025 16:33:29 +0000</pubDate>
             <sparkle:version>0.5.0</sparkle:version>
             <sparkle:shortVersionString>0.5.0</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>11.0</sparkle:minimumSystemVersion>
+            <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
             <enclosure url="https://microverse.ashwch.com/Microverse-v0.5.0.zip" 
                       length="3824591" 
                       type="application/octet-stream"
@@ -656,7 +656,7 @@ struct ElegantUpdateSection: View {
     <key>CFBundleVersion</key>
     <string>0.0.1</string>
     <key>LSMinimumSystemVersion</key>
-    <string>11.0</string>
+    <string>13.0</string>
     
     <!-- UI Configuration -->
     <key>LSUIElement</key>
@@ -716,20 +716,20 @@ jobs:
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        # Clone gh-pages branch
-        git clone -b gh-pages https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git gh-pages-repo
-        cd gh-pages-repo
+        # Clone main branch (GitHub Pages source is main:/docs)
+        git clone https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git pages-repo
+        cd pages-repo
         
-        # Keep only the 5 most recent release notes HTML files
-        if ls Microverse-v*.html 1> /dev/null 2>&1; then
-          ls -1 Microverse-v*.html | sort -V | head -n -5 | xargs rm -f || true
+        # Keep only the 5 most recent release notes HTML files (in docs/)
+        if ls docs/Microverse-v*.html 1> /dev/null 2>&1; then
+          ls -1 docs/Microverse-v*.html | sed 's#^docs/##' | sort -V | head -n -5 | while read -r f; do rm -f "docs/$f"; done || true
           
           git config user.name "GitHub Actions"
           git config user.email "actions@github.com"
           git add -A
           if ! git diff --staged --quiet; then
             git commit -m "chore: cleanup old release notes (keep latest 5 versions)"
-            git push origin gh-pages
+            git push origin main
             echo "✅ Old release notes cleaned up"
           fi
         fi

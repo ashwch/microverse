@@ -16,6 +16,7 @@ struct MicroverseApp: App {
     }
 }
 
+@MainActor
 class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     var statusItem: NSStatusItem!
     var popover: NSPopover!
@@ -66,9 +67,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         let hasShownWelcome = UserDefaults.standard.bool(forKey: "hasShownFirstRunWelcome")
         
         if !hasShownWelcome {
-            // Delay to ensure menu bar icon is visible, then show welcome
-            DispatchQueue.main.asyncAfter(deadline: .now() + Self.welcomeDelay) { [weak self] in
-                self?.showWelcomeMessage()
+            Task { @MainActor [weak self] in
+                // Delay to ensure menu bar icon is visible, then show welcome
+                try? await Task.sleep(nanoseconds: UInt64(Self.welcomeDelay * 1_000_000_000))
+                guard let self else { return }
+                self.showWelcomeMessage()
                 // Only mark as shown after successfully showing the dialog
                 UserDefaults.standard.set(true, forKey: "hasShownFirstRunWelcome")
             }
@@ -148,7 +151,53 @@ Click it to access system monitoring, settings, and desktop widgets.
             .store(in: &cancellables)
         
         logger.info("Battery manager setup complete")
+
+        #if DEBUG
+        maybeShowNotchGlowDebugIfRequested()
+        maybeOpenSettingsDebugIfRequested()
+        #endif
     }
+
+    #if DEBUG
+    private func maybeShowNotchGlowDebugIfRequested() {
+        guard let arg = ProcessInfo.processInfo.arguments.first(where: { $0.hasPrefix("--debug-notch-glow") }) else {
+            return
+        }
+
+        let typeString: String = {
+            let parts = arg.split(separator: "=", maxSplits: 1).map(String.init)
+            return parts.count == 2 ? parts[1].lowercased() : "info"
+        }()
+
+        let type: NotchAlertType = {
+            switch typeString {
+            case "success": return .success
+            case "warning": return .warning
+            case let s where s.hasPrefix("crit"): return .critical
+            default: return .info
+            }
+        }()
+
+        Task { @MainActor in
+            // Give the menu bar / run loop a moment to settle.
+            try? await Task.sleep(nanoseconds: 700_000_000)
+            NotchGlowManager.shared.showAlert(type: type, duration: 4.0, pulseCount: 3)
+        }
+    }
+
+    private func maybeOpenSettingsDebugIfRequested() {
+        guard ProcessInfo.processInfo.arguments.contains("--debug-open-settings") else {
+            return
+        }
+        guard let button = statusItem.button else { return }
+
+        Task { @MainActor [weak self] in
+            // Give the menu bar / run loop a moment to settle.
+            try? await Task.sleep(nanoseconds: 600_000_000)
+            self?.togglePopover(button)
+        }
+    }
+    #endif
     
     @MainActor func updateMenuBarDisplay() {
         guard let button = statusItem.button else { return }
@@ -297,7 +346,7 @@ Click it to access system monitoring, settings, and desktop widgets.
     @objc func togglePopover(_ sender: AnyObject?) {
         if let button = statusItem.button {
             if popover.isShown {
-                popover.performClose(sender)
+                popover.performClose(nil)
             } else {
                 // Recreate the content view to ensure fresh state
                 let tabbedMainView = TabbedMainView()

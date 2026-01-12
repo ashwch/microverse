@@ -65,6 +65,7 @@ class DesktopWidgetManager: ObservableObject {
         positionWindow()
     }
     
+    @MainActor
     func hideWidget() {
         window?.close()
         window = nil
@@ -88,6 +89,7 @@ class DesktopWidgetManager: ObservableObject {
         }
     }
     
+    @MainActor
     private func positionWindow() {
         guard let window = window,
               let screen = NSScreen.main else { return }
@@ -632,4 +634,3 @@ struct SystemDashboardWidget: View {
         }
     }
 }
-

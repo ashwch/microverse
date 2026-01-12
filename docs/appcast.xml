@@ -19,7 +19,7 @@
                 </ul>
                 
                 <h3>System Requirements</h3>
-                <p>macOS 11.0 or later</p>
+                <p>macOS 13.0 or later</p>
             ]]></description>
             <pubDate>Mon, 12 Aug 2025 04:42:01 +0000</pubDate>
             <enclosure url="https://github.com/ashwch/Microverse/releases/download/v0.3.0/Microverse-v0.3.0.dmg" 
@@ -28,7 +28,7 @@
                       sparkle:version="0.3.0" 
                       sparkle:shortVersionString="0.3.0"
                       sparkle:dsaSignature="[SIGNATURE_PLACEHOLDER]" />
-            <sparkle:minimumSystemVersion>11.0</sparkle:minimumSystemVersion>
+            <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
         </item>
         
         <!-- Future releases will be added here -->
