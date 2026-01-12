@@ -8,6 +8,13 @@ on:
       - 'docs/**'
       # Allow workflow-only maintenance without cutting releases.
       - '.github/workflows/**'
+      # Repo docs and agent instructions shouldn't cut releases.
+      - 'README.md'
+      - 'CONTRIBUTING.md'
+      - 'AGENTS.md'
+      - 'CLAUDE.md'
+      - '.gitignore'
+      - 'LICENSE'
   workflow_dispatch:
 
 env:

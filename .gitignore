@@ -43,8 +43,6 @@ releases/
 .idea/
 
 # Documentation and debug files
-CLAUDE.md
-**/CLAUDE.md
 *.md.tmp
 /tmp/microverse_debug.txt
 SPARKLE_SIGNING_ISSUE.md
