@@ -22,7 +22,7 @@ jobs:
         echo "Cleaning up old release notes from GitHub Pages (/docs on main)..."
         
         # Clone the main branch (GitHub Pages source is main:/docs)
-        git clone https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git pages-repo
+        git clone --branch main --single-branch https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git pages-repo
         cd pages-repo
         
         echo "Files before cleanup:"
@@ -42,7 +42,7 @@ jobs:
             echo "No old files to clean up"
           else
             git commit -m "chore: cleanup old release notes (keep latest 5 versions)"
-            git push origin main
+            git push origin HEAD:main
             echo "✅ Old release notes cleaned up"
           fi
         else

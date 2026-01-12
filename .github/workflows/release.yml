@@ -3,6 +3,11 @@ name: Build and Release Microverse
 on:
   push:
     branches: [ main ]
+    paths-ignore:
+      # Prevent release recursion: this workflow commits to `docs/` on main.
+      - 'docs/**'
+      # Allow workflow-only maintenance without cutting releases.
+      - '.github/workflows/**'
   workflow_dispatch:
 
 env:
@@ -460,7 +465,7 @@ jobs:
         echo "Updating appcast and release notes on GitHub Pages..."
         
         # Clone the main branch and update docs folder (where GitHub Pages serves from)
-        git clone https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git pages-repo
+        git clone --branch main --single-branch https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git pages-repo
         cd pages-repo
         
         # Copy the signed appcast to docs folder
@@ -479,7 +484,7 @@ jobs:
         git config user.email "actions@github.com"
         git add docs/appcast.xml "docs/${PRODUCT_NAME}-v${{ steps.version.outputs.new_version }}.html" || true
         git commit -m "Update appcast and release notes for v${{ steps.version.outputs.new_version }}" || true
-        git push origin main
+        git push origin HEAD:main
         
         echo "✅ Appcast and release notes updated on GitHub Pages"
         echo "📡 Release notes will be available at: https://microverse.ashwch.com/${PRODUCT_NAME}-v${{ steps.version.outputs.new_version }}.html"
