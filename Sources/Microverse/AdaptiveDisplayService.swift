@@ -193,7 +193,7 @@ class AdaptiveDisplayService: ObservableObject {
     }
     
     var isNotchAvailable: Bool {
-        NSScreen.main?.hasNotch ?? false
+        NSScreen.screens.contains(where: { $0.hasNotch })
     }
     
     var displayModeDescription: String {

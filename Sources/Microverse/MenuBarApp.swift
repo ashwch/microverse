@@ -21,6 +21,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     var statusItem: NSStatusItem!
     var popover: NSPopover!
     var viewModel: BatteryViewModel!
+    var weatherSettings: WeatherSettingsStore!
+    var weatherStore: WeatherStore!
+    var displayOrchestrator: DisplayOrchestrator!
+    var weatherAnimationBudget: WeatherAnimationBudget!
     var popoverContentViewController: NSViewController?
     private var cancellables = Set<AnyCancellable>()
     
@@ -115,8 +119,21 @@ Click it to access system monitoring, settings, and desktop widgets.
     @MainActor func setupBatteryManager() {
         logger.info("Setting up battery manager...")
         
-        // Create battery view model
+        // Construct shared services first, then the view model (so notch can render weather safely).
+        weatherSettings = WeatherSettingsStore()
+        weatherStore = WeatherStore(provider: makeWeatherProvider(), settings: weatherSettings)
+        weatherAnimationBudget = WeatherAnimationBudget(settings: weatherSettings)
+
+        // Create battery view model.
         viewModel = BatteryViewModel()
+
+        // Display orchestration (system ↔ weather swapping) for notch/widget surfaces.
+        displayOrchestrator = DisplayOrchestrator(settings: weatherSettings, weatherStore: weatherStore, batteryViewModel: viewModel)
+
+        viewModel.setWeatherEnvironment(settings: weatherSettings, store: weatherStore, orchestrator: displayOrchestrator, animationBudget: weatherAnimationBudget)
+
+        weatherStore.start()
+        viewModel.handleAppLaunchCompleted()
         
         // Update menu bar
         updateMenuBarDisplay()
@@ -129,6 +146,10 @@ Click it to access system monitoring, settings, and desktop widgets.
         
         let tabbedMainView = TabbedMainView()
             .environmentObject(viewModel)
+            .environmentObject(weatherSettings)
+            .environmentObject(weatherStore)
+            .environmentObject(displayOrchestrator)
+            .environmentObject(weatherAnimationBudget)
         
         popoverContentViewController = NSHostingController(rootView: tabbedMainView)
         popover.contentViewController = popoverContentViewController
@@ -149,12 +170,53 @@ Click it to access system monitoring, settings, and desktop widgets.
                 self?.updateMenuBarDisplay()
             }
             .store(in: &cancellables)
+
+        Publishers.MergeMany([
+            weatherStore.$current
+                .removeDuplicates()
+                .map { _ in () }
+                .eraseToAnyPublisher(),
+            weatherSettings.$weatherShowInMenuBar
+                .removeDuplicates()
+                .map { _ in () }
+                .eraseToAnyPublisher(),
+            weatherSettings.$weatherEnabled
+                .removeDuplicates()
+                .map { _ in () }
+                .eraseToAnyPublisher(),
+            weatherSettings.$weatherUnits
+                .removeDuplicates()
+                .map { _ in () }
+                .eraseToAnyPublisher(),
+            weatherSettings.$weatherLocation
+                .removeDuplicates()
+                .map { _ in () }
+                .eraseToAnyPublisher()
+        ])
+        .receive(on: DispatchQueue.main)
+        .sink { [weak self] _ in
+            self?.updateMenuBarDisplay()
+        }
+        .store(in: &cancellables)
+
+        // Coalesced refresh after sleep/wake (prevents stale “in 25m” becoming “8m ago”).
+        NSWorkspace.shared.notificationCenter.publisher(for: NSWorkspace.didWakeNotification)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.weatherStore.triggerRefresh(reason: "wake")
+                self?.displayOrchestrator.refresh(reason: "wake")
+            }
+            .store(in: &cancellables)
         
         logger.info("Battery manager setup complete")
 
         #if DEBUG
         maybeShowNotchGlowDebugIfRequested()
+        maybeOpenPopoverDebugIfRequested()
         maybeOpenSettingsDebugIfRequested()
+        maybePrintWeatherDebugHelpIfRequested()
+        maybeFetchWeatherDebugIfRequested()
+        maybeRunWeatherDemoDebugIfRequested()
         #endif
     }
 
@@ -197,38 +259,230 @@ Click it to access system monitoring, settings, and desktop widgets.
             self?.togglePopover(button)
         }
     }
+
+    private func maybeOpenPopoverDebugIfRequested() {
+        let args = ProcessInfo.processInfo.arguments
+        guard args.contains("--debug-open-popover") || args.contains("--debug-open-weather") else {
+            return
+        }
+        // Avoid double-open if settings or demo is requested.
+        guard !args.contains("--debug-open-settings"),
+              !args.contains("--debug-weather-demo") else {
+            return
+        }
+        guard let button = statusItem.button else { return }
+
+        Task { @MainActor [weak self] in
+            // Give the menu bar / run loop a moment to settle.
+            try? await Task.sleep(nanoseconds: 600_000_000)
+            self?.togglePopover(button)
+        }
+    }
+
+    private func maybeFetchWeatherDebugIfRequested() {
+        guard ProcessInfo.processInfo.arguments.contains("--debug-weather-fetch") else { return }
+
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+
+            if self.weatherSettings.weatherLocation == nil {
+                self.weatherSettings.weatherLocation = WeatherLocation(
+                    displayName: "San Francisco, CA, USA",
+                    latitude: 37.7749,
+                    longitude: -122.4194,
+                    timezoneIdentifier: "America/Los_Angeles"
+                )
+            }
+
+            self.weatherSettings.weatherEnabled = true
+            await self.weatherStore.refreshNow(reason: "debug-weather-fetch")
+
+            if let current = self.weatherStore.current {
+                print("WEATHER_OK tempC=\(current.temperatureC) bucket=\(current.bucket.rawValue) state=\(self.describeWeatherFetchState(self.weatherStore.fetchState))")
+            } else {
+                print("WEATHER_FAIL state=\(self.describeWeatherFetchState(self.weatherStore.fetchState))")
+            }
+
+            NSApplication.shared.terminate(nil)
+        }
+    }
+
+    private func describeWeatherFetchState(_ state: WeatherFetchState) -> String {
+        switch state {
+        case .idle: return "idle"
+        case .loading: return "loading"
+        case .loaded: return "loaded"
+        case .stale: return "stale"
+        case .failed(let message): return "failed(\(message))"
+        }
+    }
+
+    private func printWeatherDebugHelp() {
+        let scenarios = WeatherDebugScenarioProvider.Scenario.allCases.map(\.rawValue).joined(separator: ", ")
+        print(
+            """
+            WEATHER_DEBUG_HELP
+            Commands:
+              --debug-weather-fetch
+              --debug-weather-demo
+              --debug-weather-scenario=<scenario>
+                scenarios: \(scenarios)
+              --debug-open-popover
+              --debug-open-settings
+              --debug-open-weather
+
+            Notes:
+              - Microverse uses WeatherKit when available and falls back to Open‑Meteo if WeatherKit isn’t authorized.
+              - --debug-weather-demo temporarily forces notch+widget on, then restores settings and quits.
+            """
+        )
+    }
+
+    private func maybePrintWeatherDebugHelpIfRequested() {
+        guard ProcessInfo.processInfo.arguments.contains("--debug-weather-help") else { return }
+        printWeatherDebugHelp()
+        NSApplication.shared.terminate(nil)
+    }
+
+    private func maybeRunWeatherDemoDebugIfRequested() {
+        guard ProcessInfo.processInfo.arguments.contains("--debug-weather-demo") else { return }
+        // Mutually exclusive with the one-shot fetch command (which exits immediately).
+        guard !ProcessInfo.processInfo.arguments.contains("--debug-weather-fetch") else { return }
+
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+
+            let previous = DebugWeatherDemoSnapshot.capture(viewModel: viewModel, settings: weatherSettings)
+
+            // Ensure weather has a location and is enabled.
+            if self.weatherSettings.weatherLocation == nil {
+                self.weatherSettings.weatherLocation = WeatherLocation(
+                    displayName: "San Francisco, CA, USA",
+                    latitude: 37.7749,
+                    longitude: -122.4194,
+                    timezoneIdentifier: "America/Los_Angeles"
+                )
+            }
+
+            self.weatherSettings.weatherEnabled = true
+            self.weatherSettings.weatherShowInNotch = true
+            self.weatherSettings.weatherShowInWidget = true
+            self.weatherSettings.weatherSmartSwitchingEnabled = true
+
+            // Ensure notch is enabled if available.
+            if self.viewModel.isNotchAvailable, self.viewModel.notchLayoutMode == .off {
+                self.viewModel.notchLayoutMode = .split
+            }
+
+            // Ensure widget is visible (System Glance is the v1 swap surface).
+            self.viewModel.widgetStyle = .systemGlance
+            self.viewModel.showDesktopWidget = true
+
+            // Open the popover so the Weather tab is visible during the demo.
+            if let button = self.statusItem.button {
+                self.togglePopover(button)
+            }
+
+            // Give the UI time to mount, then fetch + preview.
+            try? await Task.sleep(nanoseconds: 900_000_000)
+            self.weatherStore.triggerRefresh(reason: "debug-weather-demo")
+            self.displayOrchestrator.previewWeatherInNotch(duration: 20)
+
+            // Expand the notch briefly to show the expanded weather row (if available).
+            if self.viewModel.isNotchAvailable {
+                try? await Task.sleep(nanoseconds: 1_400_000_000)
+                try? await NotchServiceLocator.current?.expandNotch()
+                try? await Task.sleep(nanoseconds: 3_000_000_000)
+                try? await NotchServiceLocator.current?.compactNotch()
+            }
+
+            // Keep the demo running briefly, then quit to avoid leaving debug state behind.
+            try? await Task.sleep(nanoseconds: 6_000_000_000)
+            previous.restore(viewModel: viewModel, settings: weatherSettings)
+            NSApplication.shared.terminate(nil)
+        }
+    }
+
+    @MainActor
+    private struct DebugWeatherDemoSnapshot {
+        var showDesktopWidget: Bool
+        var widgetStyle: WidgetStyle
+        var notchLayoutMode: MicroverseNotchViewModel.NotchLayoutMode
+
+        var weatherEnabled: Bool
+        var weatherShowInNotch: Bool
+        var weatherShowInWidget: Bool
+        var weatherSmartSwitchingEnabled: Bool
+        var weatherLocation: WeatherLocation?
+
+        static func capture(viewModel: BatteryViewModel, settings: WeatherSettingsStore) -> DebugWeatherDemoSnapshot {
+            DebugWeatherDemoSnapshot(
+                showDesktopWidget: viewModel.showDesktopWidget,
+                widgetStyle: viewModel.widgetStyle,
+                notchLayoutMode: viewModel.notchLayoutMode,
+                weatherEnabled: settings.weatherEnabled,
+                weatherShowInNotch: settings.weatherShowInNotch,
+                weatherShowInWidget: settings.weatherShowInWidget,
+                weatherSmartSwitchingEnabled: settings.weatherSmartSwitchingEnabled,
+                weatherLocation: settings.weatherLocation
+            )
+        }
+
+        func restore(viewModel: BatteryViewModel, settings: WeatherSettingsStore) {
+            // Restore Weather settings first (so surfaces gate correctly).
+            settings.weatherEnabled = weatherEnabled
+            settings.weatherShowInNotch = weatherShowInNotch
+            settings.weatherShowInWidget = weatherShowInWidget
+            settings.weatherSmartSwitchingEnabled = weatherSmartSwitchingEnabled
+            settings.weatherLocation = weatherLocation
+
+            // Restore UI surface settings.
+            viewModel.widgetStyle = widgetStyle
+            viewModel.showDesktopWidget = showDesktopWidget
+            viewModel.notchLayoutMode = notchLayoutMode
+        }
+    }
     #endif
     
     @MainActor func updateMenuBarDisplay() {
         guard let button = statusItem.button else { return }
         
         let info = viewModel.batteryInfo
-        
-        if viewModel.showPercentageInMenuBar {
-            // Show alien icon with battery percentage
-            if let alienIcon = getAppIcon() {
-                button.image = alienIcon
-            } else {
-                // Fallback to system icon with health indicator
-                button.image = createMicroverseIcon(
-                    batteryLevel: info.currentCharge,
-                    isCharging: info.isCharging,
-                    showHealth: true
-                )
-            }
-            button.title = " \(info.currentCharge)%"
-            button.imagePosition = .imageLeft
+
+        // Icon
+        if let alienIcon = getAppIcon() {
+            button.image = alienIcon
         } else {
-            // Show clean alien icon only
-            if let alienIcon = getAppIcon() {
-                button.image = alienIcon
-            } else {
-                // Fallback to system icon
-                button.image = createMicroverseIcon()
-            }
-            button.title = ""
-            button.imagePosition = .imageOnly
+            button.image = createMicroverseIcon(
+                batteryLevel: info.currentCharge,
+                isCharging: info.isCharging,
+                showHealth: viewModel.showPercentageInMenuBar
+            )
         }
+
+        // Title (battery % and/or temperature)
+        var parts: [String] = []
+        if viewModel.showPercentageInMenuBar {
+            parts.append("\(info.currentCharge)%")
+        }
+        if let t = menuBarWeatherText() {
+            parts.append(t)
+        }
+
+        let title = parts.isEmpty ? "" : " " + parts.joined(separator: " • ")
+        button.title = title
+        button.imagePosition = title.isEmpty ? .imageOnly : .imageLeft
+    }
+
+    private func menuBarWeatherText() -> String? {
+        guard weatherSettings.weatherEnabled else { return nil }
+        guard weatherSettings.weatherShowInMenuBar else { return nil }
+        guard weatherSettings.weatherLocation != nil else { return nil }
+
+        guard let c = weatherStore.current?.temperatureC else {
+            return "—°"
+        }
+        return weatherSettings.weatherUnits.formatTemperatureShort(celsius: c)
     }
     
     func createBatteryIcon(charge: Int, isCharging: Bool) -> NSImage? {
@@ -351,6 +605,10 @@ Click it to access system monitoring, settings, and desktop widgets.
                 // Recreate the content view to ensure fresh state
                 let tabbedMainView = TabbedMainView()
                     .environmentObject(viewModel)
+                    .environmentObject(weatherSettings)
+                    .environmentObject(weatherStore)
+                    .environmentObject(displayOrchestrator)
+                    .environmentObject(weatherAnimationBudget)
                 
                 popoverContentViewController = NSHostingController(rootView: tabbedMainView)
                 popover.contentViewController = popoverContentViewController
@@ -360,6 +618,31 @@ Click it to access system monitoring, settings, and desktop widgets.
             }
         }
     }
+
+    private func makeWeatherProvider() -> WeatherProvider {
+        #if DEBUG
+        if let scenario = debugWeatherScenarioFromArgs() {
+            return WeatherDebugScenarioProvider(scenario: scenario)
+        }
+        #endif
+
+        #if canImport(WeatherKit)
+        return WeatherProviderFallback(primary: WeatherKitProvider(), fallback: OpenMeteoProvider())
+        #else
+        return OpenMeteoProvider()
+        #endif
+    }
+
+    #if DEBUG
+    private func debugWeatherScenarioFromArgs() -> WeatherDebugScenarioProvider.Scenario? {
+        guard let arg = ProcessInfo.processInfo.arguments.first(where: { $0.hasPrefix("--debug-weather-scenario=") }) else {
+            return nil
+        }
+
+        let raw = arg.split(separator: "=", maxSplits: 1).last.map(String.init)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return WeatherDebugScenarioProvider.Scenario(rawValue: raw)
+    }
+    #endif
     
     // MARK: - NSPopoverDelegate
     

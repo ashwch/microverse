@@ -81,12 +81,28 @@ class BatteryViewModel: ObservableObject {
         }
     }
 
+    // Smart Notch interaction
+    @Published var notchClickToToggleExpanded = false {
+        didSet {
+            saveSetting("notchClickToToggleExpanded", value: notchClickToToggleExpanded)
+            if !notchClickToToggleExpanded, notchViewModel.notchStyle == .expanded {
+                Task { @MainActor in
+                    try? await self.notchViewModel.compactNotch()
+                }
+            }
+        }
+    }
+
     private let reader = BatteryReader()
     private var batteryRefreshTask: Task<Void, Never>?
     private var updateCheckTask: Task<Void, Never>?
     private var cancellables = Set<AnyCancellable>()
     private let logger = Logger(subsystem: "com.microverse.app", category: "BatteryViewModel")
     private var widgetManager: DesktopWidgetManager?
+    private weak var weatherSettingsStore: WeatherSettingsStore?
+    private weak var weatherStore: WeatherStore?
+    private weak var displayOrchestrator: DisplayOrchestrator?
+    private weak var weatherAnimationBudget: WeatherAnimationBudget?
 
     // Track previous state for alert transitions
     private var previousBatteryCharge: Int = -1
@@ -124,7 +140,37 @@ class BatteryViewModel: ObservableObject {
             }
             .store(in: &cancellables)
 
-        // Show notch on startup if enabled and supported
+        // Start automatic update checking if enabled
+        if checkForUpdatesAutomatically {
+            schedulePeriodicUpdateCheck()
+        }
+
+        logger.info("BatteryViewModel initialized")
+    }
+
+    func setWeatherEnvironment(
+        settings: WeatherSettingsStore,
+        store: WeatherStore,
+        orchestrator: DisplayOrchestrator,
+        animationBudget: WeatherAnimationBudget
+    ) {
+        weatherSettingsStore = settings
+        weatherStore = store
+        displayOrchestrator = orchestrator
+        weatherAnimationBudget = animationBudget
+
+        notchViewModel.setWeatherEnvironment(settings: settings, store: store, orchestrator: orchestrator, animationBudget: animationBudget)
+        widgetManager?.setWeatherEnvironment(settings: settings, store: store, orchestrator: orchestrator, animationBudget: animationBudget)
+
+        if showDesktopWidget {
+            widgetManager?.hideWidget()
+            widgetManager?.showWidget()
+        }
+    }
+
+    /// Called once by the app delegate after services are fully constructed.
+    func handleAppLaunchCompleted() {
+        // Show notch on startup if enabled and supported.
         if notchViewModel.layoutMode != .off, isNotchAvailable {
             Task { @MainActor in
                 do {
@@ -144,17 +190,9 @@ class BatteryViewModel: ObservableObject {
             }
         }
 
-        // Show widget if it was enabled
         if showDesktopWidget {
             widgetManager?.showWidget()
         }
-
-        // Start automatic update checking if enabled
-        if checkForUpdatesAutomatically {
-            schedulePeriodicUpdateCheck()
-        }
-
-        logger.info("BatteryViewModel initialized")
     }
 
     deinit {
@@ -262,7 +300,7 @@ class BatteryViewModel: ObservableObject {
     }
 
     var isNotchAvailable: Bool {
-        NSScreen.main?.hasNotch ?? false
+        NSScreen.screens.contains(where: { $0.hasNotch })
     }
 
     var notchViewModelInstance: MicroverseNotchViewModel {
@@ -436,6 +474,11 @@ class BatteryViewModel: ObservableObject {
         // Load startup notch animation setting (default true)
         if defaults.object(forKey: "enableNotchStartupAnimation") != nil {
             enableNotchStartupAnimation = defaults.bool(forKey: "enableNotchStartupAnimation")
+        }
+
+        // Load click-to-expand behavior (default off)
+        if defaults.object(forKey: "notchClickToToggleExpanded") != nil {
+            notchClickToToggleExpanded = defaults.bool(forKey: "notchClickToToggleExpanded")
         }
 
         // Note: launchAtStartup is already loaded from LaunchAtStartup.isEnabled

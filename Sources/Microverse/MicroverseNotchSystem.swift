@@ -7,6 +7,33 @@ import os.log
 
 // MARK: - Enhanced Notch System for Microverse
 
+private final class ExpandedAutoDismissObservers {
+    var workspace: NSObjectProtocol?
+    var app: NSObjectProtocol?
+    var window: NSObjectProtocol?
+    weak var observedWindow: NSWindow?
+
+    func removeAll() {
+        if let observer = workspace {
+            NSWorkspace.shared.notificationCenter.removeObserver(observer)
+            workspace = nil
+        }
+        if let observer = app {
+            NotificationCenter.default.removeObserver(observer)
+            app = nil
+        }
+        if let observer = window {
+            NotificationCenter.default.removeObserver(observer)
+            window = nil
+        }
+        observedWindow = nil
+    }
+
+    deinit {
+        removeAll()
+    }
+}
+
 // MARK: - Notch Service Errors
 
 /// Errors that can occur during notch service operations
@@ -67,8 +94,15 @@ class MicroverseNotchViewModel: ObservableObject, NotchServiceProtocol {
     @Published private(set) var compactTrailingContentWidth: CGFloat = 0
     
     private var currentNotch: (any DynamicNotchControllable)?
+    private weak var notchWindow: NSWindow?
     private weak var batteryViewModel: BatteryViewModel?
+    private weak var weatherSettings: WeatherSettingsStore?
+    private weak var weatherStore: WeatherStore?
+    private weak var displayOrchestrator: DisplayOrchestrator?
+    private weak var weatherAnimationBudget: WeatherAnimationBudget?
     private let logger = Logger(subsystem: "com.microverse.app", category: "MicroverseNotch")
+
+    private let expandedAutoDismiss = ExpandedAutoDismissObservers()
     
     /// Available display styles for the notch
     enum NotchDisplayStyle {
@@ -108,6 +142,21 @@ class MicroverseNotchViewModel: ObservableObject, NotchServiceProtocol {
     func setBatteryViewModel(_ viewModel: BatteryViewModel) {
         self.batteryViewModel = viewModel
     }
+
+    func setWeatherEnvironment(settings: WeatherSettingsStore, store: WeatherStore, orchestrator: DisplayOrchestrator, animationBudget: WeatherAnimationBudget) {
+        self.weatherSettings = settings
+        self.weatherStore = store
+        self.displayOrchestrator = orchestrator
+        self.weatherAnimationBudget = animationBudget
+
+        // If the notch is already visible, rebuild so the environment objects are present.
+        if isNotchVisible {
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                try? await self.showNotch()
+            }
+        }
+    }
     
     deinit {
         // Note: Cannot safely call async methods in deinit
@@ -125,14 +174,42 @@ class MicroverseNotchViewModel: ObservableObject, NotchServiceProtocol {
             throw NotchServiceError.noBatteryViewModel
         }
 
+        let weatherSettings = self.weatherSettings ?? WeatherSettingsStore()
+        let weatherStore = self.weatherStore ?? WeatherStore(provider: UnavailableWeatherProvider(), settings: weatherSettings)
+        let displayOrchestrator = self.displayOrchestrator ?? DisplayOrchestrator(
+            settings: weatherSettings,
+            weatherStore: weatherStore,
+            batteryViewModel: batteryViewModel
+        )
+        let weatherAnimationBudget = self.weatherAnimationBudget ?? WeatherAnimationBudget(settings: weatherSettings)
+
         // Reset compact width measurements before building a new notch.
         compactLeadingContentWidth = 0
         compactTrailingContentWidth = 0
         
         let screens = NSScreen.screens
-        guard !screens.isEmpty && self.selectedScreen >= 0 && self.selectedScreen < screens.count else {
-            logger.error("Invalid screen index: \(self.selectedScreen), available screens: \(screens.count)")
+        guard !screens.isEmpty else {
+            logger.error("No screens available for notch display")
             throw NotchServiceError.invalidScreenIndex(self.selectedScreen, available: screens.count)
+        }
+
+        // Ensure we target an actual notched display. Multi-monitor setups often have a non-notched primary
+        // display (index 0) with a notched built-in display as a secondary screen.
+        guard let firstNotchedIndex = screens.firstIndex(where: { $0.hasNotch }) else {
+            logger.error("No notched display available")
+            throw NotchServiceError.noNotchAvailable
+        }
+
+        let preferredIndex = self.selectedScreen
+        let targetIndex: Int
+        if preferredIndex >= 0, preferredIndex < screens.count, screens[preferredIndex].hasNotch {
+            targetIndex = preferredIndex
+        } else {
+            targetIndex = firstNotchedIndex
+            if preferredIndex != targetIndex {
+                logger.info("Selected screen \(preferredIndex) has no notch; using notched screen \(targetIndex)")
+                self.selectedScreen = targetIndex
+            }
         }
         
         // Hide existing notch
@@ -141,68 +218,82 @@ class MicroverseNotchViewModel: ObservableObject, NotchServiceProtocol {
             currentNotch = nil
         }
         
-        // Create new DynamicNotch with Microverse content based on layout mode
-        do {
-            let notch = DynamicNotch {
-                // Expanded View
-                MicroverseExpandedNotchView()
+        // Create new DynamicNotch with Microverse content based on layout mode.
+        let notch = DynamicNotch {
+            // Expanded View
+            MicroverseExpandedNotchView()
+                .environmentObject(batteryViewModel)
+                .environmentObject(weatherSettings)
+                .environmentObject(weatherStore)
+                .environmentObject(displayOrchestrator)
+                .environmentObject(weatherAnimationBudget)
+        } compactLeading: {
+            // Left side content based on layout mode
+            switch self.layoutMode {
+            case .left:
+                // All metrics unified on left side
+                MicroverseCompactUnifiedView()
                     .environmentObject(batteryViewModel)
-            } compactLeading: {
-                // Left side content based on layout mode
-                switch self.layoutMode {
-                case .left:
-                    // All metrics unified on left side
-                    MicroverseCompactUnifiedView()
-                        .environmentObject(batteryViewModel)
-                        .microverseReportWidth { self.compactLeadingContentWidth = $0 }
-                case .split:
-                    // Battery only on left side (asymmetric)
-                    MicroverseCompactLeadingView()
-                        .environmentObject(batteryViewModel)
-                        .microverseReportWidth { self.compactLeadingContentWidth = $0 }
-                case .off:
-                    // Should not reach here, but provide fallback
-                    EmptyView()
-                }
-            } compactTrailing: {
-                // Right side content based on layout mode
-                switch self.layoutMode {
-                case .left:
-                    // Nothing on right side for unified left layout
-                    EmptyView()
-                case .split:
-                    // CPU + Memory on right side (asymmetric)
-                    MicroverseCompactTrailingView()
-                        .environmentObject(batteryViewModel)
-                        .microverseReportWidth { self.compactTrailingContentWidth = $0 }
-                case .off:
-                    // Should not reach here, but provide fallback
-                    EmptyView()
-                }
+                    .environmentObject(weatherSettings)
+                    .environmentObject(weatherStore)
+                    .environmentObject(displayOrchestrator)
+                    .environmentObject(weatherAnimationBudget)
+                    .microverseReportWidth { self.compactLeadingContentWidth = $0 }
+            case .split:
+                // Battery only on left side (asymmetric)
+                MicroverseCompactLeadingView()
+                    .environmentObject(batteryViewModel)
+                    .environmentObject(weatherSettings)
+                    .environmentObject(weatherStore)
+                    .environmentObject(displayOrchestrator)
+                    .environmentObject(weatherAnimationBudget)
+                    .microverseReportWidth { self.compactLeadingContentWidth = $0 }
+            case .off:
+                // Should not reach here, but provide fallback
+                EmptyView()
             }
+        } compactTrailing: {
+            // Right side content based on layout mode
+            switch self.layoutMode {
+            case .left:
+                // Nothing on right side for unified left layout
+                EmptyView()
+            case .split:
+                // CPU + Memory on right side (asymmetric)
+                MicroverseCompactTrailingView()
+                    .environmentObject(batteryViewModel)
+                    .environmentObject(weatherSettings)
+                    .environmentObject(weatherStore)
+                    .environmentObject(displayOrchestrator)
+                    .environmentObject(weatherAnimationBudget)
+                    .microverseReportWidth { self.compactTrailingContentWidth = $0 }
+            case .off:
+                // Should not reach here, but provide fallback
+                EmptyView()
+            }
+        }
 
-            // Render the glow inside the DynamicNotchKit pill coordinate space (avoids external overlay drift).
-            notch.setDecoration {
-                MicroverseNotchGlowDecorationView()
-            }
-            
-            // Show on selected screen with bounds checking
-            let screens = NSScreen.screens
-            guard selectedScreen < screens.count else {
-                logger.error("Screen index out of bounds during display")
-                throw NotchServiceError.invalidScreenIndex(selectedScreen, available: screens.count)
-            }
-            let targetScreen = screens[selectedScreen]
-            await notch.compact(on: targetScreen)
-            
-            currentNotch = notch
-            isNotchVisible = true
-            
-            logger.info("Microverse notch displayed on screen \(self.selectedScreen)")
-        } catch {
-            logger.error("Failed to create and display notch: \(error)")
+        // Render the glow inside the DynamicNotchKit pill coordinate space (avoids external overlay drift).
+        notch.setDecoration {
+            MicroverseNotchGlowDecorationView()
+        }
+        
+        // Show on the resolved notched screen.
+        let targetScreen = screens[targetIndex]
+        await notch.compact(on: targetScreen)
+
+        guard let window = notch.windowController?.window else {
+            logger.error("Notch window controller missing after compact")
             throw NotchServiceError.notchCreationFailed
         }
+
+        currentNotch = notch
+        notchWindow = window
+        isNotchVisible = true
+        notchStyle = .compact
+        endExpandedAutoDismiss()
+        
+        logger.info("Microverse notch displayed on screen \(self.selectedScreen)")
     }
     
     /// Hides the currently visible notch
@@ -213,9 +304,12 @@ class MicroverseNotchViewModel: ObservableObject, NotchServiceProtocol {
             return 
         }
         
+        endExpandedAutoDismiss()
         await notch.hide()
         currentNotch = nil
+        notchWindow = nil
         isNotchVisible = false
+        notchStyle = .compact
         logger.info("Microverse notch hidden")
     }
     
@@ -236,6 +330,15 @@ class MicroverseNotchViewModel: ObservableObject, NotchServiceProtocol {
         let targetScreen = screens[selectedScreen]
         await notch.expand(on: targetScreen)
         notchStyle = .expanded
+
+        // When click-to-toggle is enabled, treat expanded notch like a popover: activate and key the panel so
+        // we can rely on native resign-active / resign-key signals instead of global event monitoring.
+        if batteryViewModel?.notchClickToToggleExpanded == true {
+            NSApp.activate(ignoringOtherApps: true)
+            notchWindow?.makeKeyAndOrderFront(nil)
+        }
+
+        beginExpandedAutoDismissIfNeeded()
         logger.info("Microverse notch expanded")
     }
     
@@ -256,7 +359,78 @@ class MicroverseNotchViewModel: ObservableObject, NotchServiceProtocol {
         let targetScreen = screens[selectedScreen]
         await notch.compact(on: targetScreen)
         notchStyle = .compact
+        endExpandedAutoDismiss()
         logger.info("Microverse notch compacted")
+    }
+
+    private func beginExpandedAutoDismissIfNeeded() {
+        guard batteryViewModel?.notchClickToToggleExpanded == true else { return }
+
+        if expandedAutoDismiss.workspace == nil {
+            expandedAutoDismiss.workspace = NSWorkspace.shared.notificationCenter.addObserver(
+                forName: NSWorkspace.didActivateApplicationNotification,
+                object: nil,
+                queue: .main
+            ) { [weak self] notification in
+                let activated = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication
+                let otherBundleID = activated?.bundleIdentifier
+                let myBundleID = Bundle.main.bundleIdentifier
+
+                Task { @MainActor [weak self] in
+                    guard let self else { return }
+                    guard self.notchStyle == .expanded else { return }
+                    guard self.batteryViewModel?.notchClickToToggleExpanded == true else { return }
+                    guard let otherBundleID, otherBundleID != myBundleID else { return }
+                    try? await self.compactNotch()
+                }
+            }
+        }
+
+        // If the app resigns active (click into another app), compact the notch.
+        if expandedAutoDismiss.app == nil {
+            expandedAutoDismiss.app = NotificationCenter.default.addObserver(
+                forName: NSApplication.didResignActiveNotification,
+                object: nil,
+                queue: .main
+            ) { [weak self] _ in
+                Task { @MainActor [weak self] in
+                    guard let self else { return }
+                    guard self.notchStyle == .expanded else { return }
+                    guard self.batteryViewModel?.notchClickToToggleExpanded == true else { return }
+                    try? await self.compactNotch()
+                }
+            }
+        }
+
+        // If the notch panel becomes key, treat loss of key as "click away".
+        if let window = notchWindow {
+            if expandedAutoDismiss.observedWindow !== window {
+                if let observer = expandedAutoDismiss.window {
+                    NotificationCenter.default.removeObserver(observer)
+                    expandedAutoDismiss.window = nil
+                }
+                expandedAutoDismiss.observedWindow = window
+            }
+
+            if expandedAutoDismiss.window == nil {
+                expandedAutoDismiss.window = NotificationCenter.default.addObserver(
+                    forName: NSWindow.didResignKeyNotification,
+                    object: window,
+                    queue: .main
+                ) { [weak self] _ in
+                    Task { @MainActor [weak self] in
+                        guard let self else { return }
+                        guard self.notchStyle == .expanded else { return }
+                        guard self.batteryViewModel?.notchClickToToggleExpanded == true else { return }
+                        try? await self.compactNotch()
+                    }
+                }
+            }
+        }
+    }
+
+    private func endExpandedAutoDismiss() {
+        expandedAutoDismiss.removeAll()
     }
     
     // MARK: - Keyboard Shortcuts
@@ -351,6 +525,40 @@ private extension View {
     }
 }
 
+private struct MicroverseNotchTapToToggleExpandedModifier: ViewModifier {
+    let enabled: Bool
+
+    func body(content: Content) -> some View {
+        content
+            .contentShape(Rectangle())
+            .onTapGesture {
+                // Avoid toggling on ctrl-click, which is commonly used to open context menus.
+                if let event = NSApp.currentEvent, event.modifierFlags.contains(.control) {
+                    return
+                }
+                Task { @MainActor in
+                    guard let notchService = NotchServiceLocator.current else { return }
+                    do {
+                        if notchService.notchStyle == .expanded {
+                            try await notchService.compactNotch()
+                        } else {
+                            guard enabled else { return }
+                            try await notchService.expandNotch()
+                        }
+                    } catch {
+                        // Swallow errors; the notch may not be visible/available.
+                    }
+                }
+            }
+    }
+}
+
+private extension View {
+    func microverseNotchTapToToggleExpanded(enabled: Bool) -> some View {
+        modifier(MicroverseNotchTapToToggleExpandedModifier(enabled: enabled))
+    }
+}
+
 // MARK: - Compact Leading View (Battery)
 // "Simplicity is not about the absence of clutter. It's about the presence of the right things."
 
@@ -413,6 +621,7 @@ struct MicroverseCompactLeadingView: View {
                         .stroke(.white.opacity(MicroverseDesign.Notch.Materials.strokeOpacity), lineWidth: MicroverseDesign.Notch.Materials.strokeWidth)
                 )
         )
+        .microverseNotchTapToToggleExpanded(enabled: viewModel.notchClickToToggleExpanded)
     }
     
     private var batteryIcon: String {
@@ -443,25 +652,101 @@ struct MicroverseCompactLeadingView: View {
 
 /// Unified compact view combining all system metrics on the left side of the notch
 /// Battery, CPU, and Memory in a single cohesive widget for minimal space usage
-struct MicroverseCompactUnifiedView: View {
-    @EnvironmentObject var viewModel: BatteryViewModel
-    @StateObject private var systemService = SystemMonitoringService.shared
+    struct MicroverseCompactUnifiedView: View {
+        @EnvironmentObject var viewModel: BatteryViewModel
+        @EnvironmentObject private var weatherSettings: WeatherSettingsStore
+        @EnvironmentObject private var weatherStore: WeatherStore
+        @EnvironmentObject private var displayOrchestrator: DisplayOrchestrator
+        @EnvironmentObject private var weatherAnimationBudget: WeatherAnimationBudget
+        @Environment(\.accessibilityReduceMotion) private var reduceMotion
+        @StateObject private var systemService = SystemMonitoringService.shared
+        @State private var stableNonPinnedWidth: CGFloat?
+        @State private var stablePinnedWidth: CGFloat?
+        
+        var body: some View {
+            Group {
+                if pinnedInNotch {
+                    unifiedPinnedContent
+                        .fixedSize(horizontal: true, vertical: false)
+                        .microverseReportWidth(growPinnedWidth)
+                } else {
+                    ZStack {
+                        unifiedSystemContent
+                            .opacity(showWeather ? 0 : 1)
+                            .offset(y: showWeather ? -1 : 0)
+                            .allowsHitTesting(!showWeather)
+                            .accessibilityHidden(showWeather)
+                            .fixedSize(horizontal: true, vertical: false)
+                            .microverseReportWidth(growNonPinnedWidth)
     
-    var body: some View {
-        HStack(spacing: MicroverseDesign.Notch.Spacing.compactInternal) {
-            // Battery - Primary metric with charging indicator
-            NotchCompactMetric(
+                        unifiedWeatherContent
+                            .opacity(showWeather ? 1 : 0)
+                            .offset(y: showWeather ? 0 : 1)
+                            .allowsHitTesting(showWeather)
+                            .accessibilityHidden(!showWeather)
+                            .fixedSize(horizontal: true, vertical: false)
+                            .microverseReportWidth(growNonPinnedWidth)
+                    }
+                    .compositingGroup()
+                }
+            }
+            .frame(width: pinnedInNotch ? stablePinnedWidth : stableNonPinnedWidth, height: MicroverseDesign.Notch.Dimensions.compactWidgetHeight, alignment: .leading)
+            .padding(.horizontal, MicroverseDesign.Notch.Spacing.compactHorizontal)
+            .padding(.vertical, MicroverseDesign.Notch.Spacing.compactVertical)
+            .background(
+            RoundedRectangle(cornerRadius: MicroverseDesign.Notch.Dimensions.compactCornerRadius)
+                .fill(MicroverseDesign.Notch.Materials.compactBackground)
+                .opacity(MicroverseDesign.Notch.Materials.compactOpacity)
+                .overlay(
+                    RoundedRectangle(cornerRadius: MicroverseDesign.Notch.Dimensions.compactCornerRadius)
+                        .stroke(.white.opacity(MicroverseDesign.Notch.Materials.strokeOpacity), lineWidth: MicroverseDesign.Notch.Materials.strokeWidth)
+                )
+            )
+            .onAppear { displayOrchestrator.refresh(reason: "notch_unified") }
+            .animation(MicroverseDesign.Animation.notchPeek, value: compactPresentation)
+            .microverseNotchTapToToggleExpanded(enabled: viewModel.notchClickToToggleExpanded)
+        }
+    
+        private enum CompactPresentation: Equatable {
+            case system
+            case weather
+            case pinned
+        }
+    
+        private var compactPresentation: CompactPresentation {
+            if pinnedInNotch { return .pinned }
+            return showWeather ? .weather : .system
+        }
+
+        private var showWeather: Bool {
+            displayOrchestrator.compactTrailing == .weather
+                && weatherSettings.weatherEnabled
+                && weatherSettings.weatherShowInNotch
+                && weatherSettings.weatherLocation != nil
+        }
+    
+        private var pinnedInNotch: Bool {
+            weatherSettings.weatherEnabled
+                && weatherSettings.weatherShowInNotch
+                && weatherSettings.weatherPinInNotch
+                && weatherSettings.weatherLocation != nil
+        }
+
+        private var unifiedSystemContent: some View {
+            HStack(spacing: MicroverseDesign.Notch.Spacing.compactInternal) {
+                // Battery - Primary metric with charging indicator
+                NotchCompactMetric(
                 icon: batteryIcon,
                 value: viewModel.batteryInfo.currentCharge,
                 color: batteryColor,
                 isPrimary: true
             )
-            
+
             // Subtle separator
             Circle()
                 .fill(.white.opacity(MicroverseDesign.Notch.Materials.separatorOpacity))
                 .frame(width: MicroverseDesign.Notch.Spacing.separatorWidth, height: MicroverseDesign.Notch.Spacing.separatorHeight)
-            
+
             // CPU - Secondary metric
             NotchCompactMetric(
                 icon: "cpu",
@@ -469,12 +754,12 @@ struct MicroverseCompactUnifiedView: View {
                 color: cpuColor,
                 isPrimary: false
             )
-            
+
             // Subtle separator
             Circle()
                 .fill(.white.opacity(MicroverseDesign.Notch.Materials.separatorOpacity))
                 .frame(width: MicroverseDesign.Notch.Spacing.separatorWidth, height: MicroverseDesign.Notch.Spacing.separatorHeight)
-            
+
             // Memory - Secondary metric
             NotchCompactMetric(
                 icon: "memorychip",
@@ -483,21 +768,166 @@ struct MicroverseCompactUnifiedView: View {
                 isPrimary: false
             )
         }
-        .frame(
-            minWidth: MicroverseDesign.Notch.Dimensions.compactWidgetMinWidth * 2.5, // Wider for all metrics
-            minHeight: MicroverseDesign.Notch.Dimensions.compactWidgetHeight
-        )
-        .padding(.horizontal, MicroverseDesign.Notch.Spacing.compactHorizontal)
-        .padding(.vertical, MicroverseDesign.Notch.Spacing.compactVertical)
-        .background(
-            RoundedRectangle(cornerRadius: MicroverseDesign.Notch.Dimensions.compactCornerRadius)
-                .fill(MicroverseDesign.Notch.Materials.compactBackground)
-                .opacity(MicroverseDesign.Notch.Materials.compactOpacity)
-                .overlay(
-                    RoundedRectangle(cornerRadius: MicroverseDesign.Notch.Dimensions.compactCornerRadius)
-                        .stroke(.white.opacity(MicroverseDesign.Notch.Materials.strokeOpacity), lineWidth: MicroverseDesign.Notch.Materials.strokeWidth)
+    }
+
+        private var unifiedWeatherContent: some View {
+            HStack(spacing: MicroverseDesign.Notch.Spacing.compactInternal) {
+                MicroverseWeatherGlyph(
+                    bucket: weatherStore.current?.bucket ?? .unknown,
+                    isDaylight: weatherStore.current?.isDaylight ?? true,
+                    renderMode: compactWeatherGlyphMode
                 )
-        )
+                .font(MicroverseDesign.Notch.Typography.compactIcon)
+                .foregroundColor(.white.opacity(0.85))
+                .symbolRenderingMode(.hierarchical)
+                .frame(width: MicroverseDesign.Layout.iconSizeSmall, height: MicroverseDesign.Layout.iconSizeSmall, alignment: .center)
+
+                Text(unifiedTemperatureText)
+                    .font(MicroverseDesign.Notch.Typography.compactValue)
+                    .foregroundColor(MicroverseDesign.Colors.accent)
+                .monospacedDigit()
+
+            if let e = compactUpcomingEvent {
+                Circle()
+                    .fill(.white.opacity(MicroverseDesign.Notch.Materials.separatorOpacity))
+                    .frame(width: 2, height: 2)
+
+                Image(systemName: MicroverseWeatherAnnouncement.symbolName(for: e, isDaylight: weatherStore.current?.isDaylight ?? true))
+                    .font(.system(size: 9, weight: .semibold))
+                    .foregroundColor(.white.opacity(0.55))
+                    .symbolRenderingMode(.hierarchical)
+                    .frame(width: 10, alignment: .center)
+
+                TimelineView(.periodic(from: .now, by: 60)) { tl in
+                    Text(MicroverseWeatherAnnouncement.relativeTimeShort(from: tl.date, to: e.startTime))
+                        .font(MicroverseDesign.Notch.Typography.statusText)
+                        .foregroundColor(.white.opacity(0.55))
+                        .monospacedDigit()
+                }
+            } else if weatherStore.nextEvent != nil {
+                Circle()
+                    .fill(.white.opacity(MicroverseDesign.Notch.Materials.separatorOpacity))
+                    .frame(width: 2, height: 2)
+            }
+            }
+        }
+    
+        private var unifiedPinnedContent: some View {
+            HStack(spacing: MicroverseDesign.Notch.Spacing.compactInternal) {
+                NotchCompactMetric(
+                    icon: batteryIcon,
+                    value: viewModel.batteryInfo.currentCharge,
+                    color: batteryColor,
+                    isPrimary: true
+                )
+    
+                Circle()
+                    .fill(.white.opacity(MicroverseDesign.Notch.Materials.separatorOpacity))
+                    .frame(width: MicroverseDesign.Notch.Spacing.separatorWidth, height: MicroverseDesign.Notch.Spacing.separatorHeight)
+    
+                switch weatherSettings.weatherPinnedNotchReplaces {
+                case .cpu:
+                    NotchCompactMetric(
+                        icon: "memorychip",
+                        value: Int(systemService.memoryInfo.usagePercentage),
+                        color: memoryColor,
+                        isPrimary: false
+                    )
+                case .memory:
+                    NotchCompactMetric(
+                        icon: "cpu",
+                        value: Int(systemService.cpuUsage),
+                        color: cpuColor,
+                        isPrimary: false
+                    )
+                }
+    
+                Circle()
+                    .fill(.white.opacity(MicroverseDesign.Notch.Materials.separatorOpacity))
+                    .frame(width: MicroverseDesign.Notch.Spacing.separatorWidth, height: MicroverseDesign.Notch.Spacing.separatorHeight)
+    
+                MicroverseWeatherGlyph(
+                    bucket: weatherStore.current?.bucket ?? .unknown,
+                    isDaylight: weatherStore.current?.isDaylight ?? true,
+                    renderMode: compactWeatherGlyphMode
+                    )
+                    .font(MicroverseDesign.Notch.Typography.compactIcon)
+                    .foregroundColor(.white.opacity(0.85))
+                    .symbolRenderingMode(.hierarchical)
+                    .frame(width: MicroverseDesign.Layout.iconSizeSmall, height: MicroverseDesign.Layout.iconSizeSmall, alignment: .center)
+    
+                Text(unifiedTemperatureText)
+                    .font(MicroverseDesign.Notch.Typography.compactValue)
+                    .foregroundColor(MicroverseDesign.Colors.accent)
+                    .monospacedDigit()
+    
+                if let e = compactUpcomingEvent {
+                    Circle()
+                        .fill(.white.opacity(MicroverseDesign.Notch.Materials.separatorOpacity))
+                        .frame(width: 2, height: 2)
+    
+                        Image(systemName: MicroverseWeatherAnnouncement.symbolName(for: e, isDaylight: weatherStore.current?.isDaylight ?? true))
+                            .font(.system(size: 9, weight: .semibold))
+                            .foregroundColor(.white.opacity(0.55))
+                            .symbolRenderingMode(.hierarchical)
+                            .frame(width: 10, alignment: .center)
+    
+                    TimelineView(.periodic(from: .now, by: 60)) { tl in
+                        Text(MicroverseWeatherAnnouncement.relativeTimeShort(from: tl.date, to: e.startTime))
+                            .font(MicroverseDesign.Notch.Typography.statusText)
+                            .foregroundColor(.white.opacity(0.55))
+                            .monospacedDigit()
+                    }
+                } else if weatherStore.nextEvent != nil {
+                    Circle()
+                        .fill(.white.opacity(MicroverseDesign.Notch.Materials.separatorOpacity))
+                        .frame(width: 2, height: 2)
+                }
+            }
+        }
+
+        private var compactUpcomingEvent: WeatherEvent? {
+            guard pinnedInNotch || showWeather else { return nil }
+            guard let e = weatherStore.nextEvent else { return nil }
+            let now = Date()
+            guard e.startTime >= now else { return nil }
+            guard e.startTime.timeIntervalSince(now) <= MicroverseWeatherAnnouncement.leadTime else { return nil }
+        return e
+    }
+
+        private var unifiedTemperatureText: String {
+            guard let c = weatherStore.current?.temperatureC else { return "—" }
+            return weatherSettings.weatherUnits.formatTemperatureShort(celsius: c)
+        }
+    
+        private var compactWeatherGlyphMode: WeatherRenderMode {
+            weatherAnimationBudget.renderMode(for: .compactNotch, isVisible: pinnedInNotch || showWeather, reduceMotion: reduceMotion)
+        }
+
+    private func growNonPinnedWidth(_ width: CGFloat) {
+        let maxSaneWidth: CGFloat = 240
+        guard width > 0 else { return }
+        let next = max(stableNonPinnedWidth ?? 0, min(width, maxSaneWidth))
+        guard stableNonPinnedWidth == nil || next > (stableNonPinnedWidth ?? 0) + 0.5 else { return }
+
+        var t = Transaction()
+        t.animation = nil
+        withTransaction(t) {
+            stableNonPinnedWidth = next
+        }
+    }
+
+    private func growPinnedWidth(_ width: CGFloat) {
+        let maxSaneWidth: CGFloat = 240
+        guard width > 0 else { return }
+        let next = max(stablePinnedWidth ?? 0, min(width, maxSaneWidth))
+        guard stablePinnedWidth == nil || next > (stablePinnedWidth ?? 0) + 0.5 else { return }
+
+        var t = Transaction()
+        t.animation = nil
+        withTransaction(t) {
+            stablePinnedWidth = next
+        }
     }
     
     private var batteryIcon: String {
@@ -549,40 +979,48 @@ struct MicroverseCompactUnifiedView: View {
 
 /// Compact system metrics view for the notch trailing edge
 /// Shows CPU and memory usage with semantic color coding
-struct MicroverseCompactTrailingView: View {
-    @EnvironmentObject var viewModel: BatteryViewModel
-    @StateObject private var systemService = SystemMonitoringService.shared
+    struct MicroverseCompactTrailingView: View {
+        @EnvironmentObject var viewModel: BatteryViewModel
+        @EnvironmentObject private var weatherSettings: WeatherSettingsStore
+        @EnvironmentObject private var weatherStore: WeatherStore
+        @EnvironmentObject private var displayOrchestrator: DisplayOrchestrator
+        @EnvironmentObject private var weatherAnimationBudget: WeatherAnimationBudget
+        @Environment(\.accessibilityReduceMotion) private var reduceMotion
+        @StateObject private var systemService = SystemMonitoringService.shared
+        @State private var stableNonPinnedWidth: CGFloat?
+        @State private var stablePinnedWidth: CGFloat?
+        
+        var body: some View {
+            Group {
+                if pinnedInNotch {
+                    compactPinnedContent
+                        .fixedSize(horizontal: true, vertical: false)
+                        .microverseReportWidth(growPinnedWidth)
+                } else {
+                    ZStack {
+                        compactSystemContent
+                            .opacity(showWeather ? 0 : 1)
+                            .offset(y: showWeather ? -1 : 0)
+                            .allowsHitTesting(!showWeather)
+                            .accessibilityHidden(showWeather)
+                            .fixedSize(horizontal: true, vertical: false)
+                            .microverseReportWidth(growNonPinnedWidth)
     
-    var body: some View {
-        HStack(spacing: MicroverseDesign.Notch.Spacing.compactInternal) {
-            // CPU - Clear primary metric
-            NotchCompactMetric(
-                icon: "cpu",
-                value: Int(systemService.cpuUsage),
-                color: cpuColor,
-                isPrimary: true
-            )
-            
-            // Subtle separator
-            Circle()
-                .fill(.white.opacity(MicroverseDesign.Notch.Materials.separatorOpacity))
-                .frame(width: 2, height: 2)
-            
-            // Memory - Secondary but equally important
-            NotchCompactMetric(
-                icon: "memorychip", 
-                value: Int(systemService.memoryInfo.usagePercentage),
-                color: memoryColor,
-                isPrimary: false
-            )
-        }
-        .frame(
-            minWidth: MicroverseDesign.Notch.Dimensions.compactWidgetMinWidth * 1.3, // Symmetrical with left side
-            minHeight: MicroverseDesign.Notch.Dimensions.compactWidgetHeight
-        ) // Perfect symmetry with leading view
-        .padding(.horizontal, MicroverseDesign.Notch.Spacing.compactHorizontal)
-        .padding(.vertical, MicroverseDesign.Notch.Spacing.compactVertical)
-        .background(
+                        compactWeatherContent
+                            .opacity(showWeather ? 1 : 0)
+                            .offset(y: showWeather ? 0 : 1)
+                            .allowsHitTesting(showWeather)
+                            .accessibilityHidden(!showWeather)
+                            .fixedSize(horizontal: true, vertical: false)
+                            .microverseReportWidth(growNonPinnedWidth)
+                    }
+                    .compositingGroup()
+                }
+            }
+            .frame(width: pinnedInNotch ? stablePinnedWidth : stableNonPinnedWidth, height: MicroverseDesign.Notch.Dimensions.compactWidgetHeight, alignment: .trailing)
+            .padding(.horizontal, MicroverseDesign.Notch.Spacing.compactHorizontal)
+            .padding(.vertical, MicroverseDesign.Notch.Spacing.compactVertical)
+            .background(
             // Consistent material language
             RoundedRectangle(cornerRadius: MicroverseDesign.Notch.Dimensions.compactCornerRadius)
                 .fill(MicroverseDesign.Notch.Materials.compactBackground)
@@ -591,7 +1029,209 @@ struct MicroverseCompactTrailingView: View {
                     RoundedRectangle(cornerRadius: MicroverseDesign.Notch.Dimensions.compactCornerRadius)
                         .stroke(.white.opacity(MicroverseDesign.Notch.Materials.strokeOpacity), lineWidth: MicroverseDesign.Notch.Materials.strokeWidth)
                 )
-        )
+            )
+            .onAppear { displayOrchestrator.refresh(reason: "notch_compact") }
+            .animation(MicroverseDesign.Animation.notchPeek, value: compactPresentation)
+            .microverseNotchTapToToggleExpanded(enabled: viewModel.notchClickToToggleExpanded)
+        }
+    
+        private enum CompactPresentation: Equatable {
+            case system
+            case weather
+            case pinned
+        }
+    
+        private var compactPresentation: CompactPresentation {
+            if pinnedInNotch { return .pinned }
+            return showWeather ? .weather : .system
+        }
+
+        private var showWeather: Bool {
+            displayOrchestrator.compactTrailing == .weather
+                && weatherSettings.weatherEnabled
+                && weatherSettings.weatherShowInNotch
+                && weatherSettings.weatherLocation != nil
+        }
+    
+        private var pinnedInNotch: Bool {
+            weatherSettings.weatherEnabled
+                && weatherSettings.weatherShowInNotch
+                && weatherSettings.weatherPinInNotch
+                && weatherSettings.weatherLocation != nil
+        }
+
+    private var compactSystemContent: some View {
+        HStack(spacing: MicroverseDesign.Notch.Spacing.compactInternal) {
+            // CPU - Clear primary metric
+            NotchCompactMetric(
+                icon: "cpu",
+                value: Int(systemService.cpuUsage),
+                color: cpuColor,
+                isPrimary: true
+            )
+
+            // Subtle separator
+            Circle()
+                .fill(.white.opacity(MicroverseDesign.Notch.Materials.separatorOpacity))
+                .frame(width: 2, height: 2)
+
+            // Memory - Secondary but equally important
+            NotchCompactMetric(
+                icon: "memorychip",
+                value: Int(systemService.memoryInfo.usagePercentage),
+                color: memoryColor,
+                isPrimary: false
+            )
+        }
+    }
+
+        private var compactWeatherContent: some View {
+            HStack(spacing: MicroverseDesign.Notch.Spacing.compactInternal) {
+                MicroverseWeatherGlyph(
+                    bucket: weatherStore.current?.bucket ?? .unknown,
+                    isDaylight: weatherStore.current?.isDaylight ?? true,
+                    renderMode: compactWeatherGlyphMode
+                    )
+                    .font(MicroverseDesign.Notch.Typography.compactIcon)
+                    .foregroundColor(.white.opacity(0.85))
+                    .symbolRenderingMode(.hierarchical)
+                    .frame(width: MicroverseDesign.Layout.iconSizeSmall, height: MicroverseDesign.Layout.iconSizeSmall, alignment: .center)
+
+            Text(compactTemperatureText)
+                .font(MicroverseDesign.Notch.Typography.compactValue)
+                .foregroundColor(MicroverseDesign.Colors.accent)
+                .monospacedDigit()
+
+            if let e = compactUpcomingEvent {
+                Circle()
+                    .fill(.white.opacity(MicroverseDesign.Notch.Materials.separatorOpacity))
+                    .frame(width: 2, height: 2)
+
+                Image(systemName: MicroverseWeatherAnnouncement.symbolName(for: e, isDaylight: weatherStore.current?.isDaylight ?? true))
+                    .font(.system(size: 9, weight: .semibold))
+                    .foregroundColor(.white.opacity(0.55))
+                    .symbolRenderingMode(.hierarchical)
+                    .frame(width: 10, alignment: .center)
+
+                TimelineView(.periodic(from: .now, by: 60)) { tl in
+                    Text(MicroverseWeatherAnnouncement.relativeTimeShort(from: tl.date, to: e.startTime))
+                        .font(MicroverseDesign.Notch.Typography.statusText)
+                        .foregroundColor(.white.opacity(0.55))
+                        .monospacedDigit()
+                }
+            } else if weatherStore.nextEvent != nil {
+                Circle()
+                    .fill(.white.opacity(MicroverseDesign.Notch.Materials.separatorOpacity))
+                    .frame(width: 2, height: 2)
+            }
+            }
+        }
+    
+        private var compactPinnedContent: some View {
+            HStack(spacing: MicroverseDesign.Notch.Spacing.compactInternal) {
+                switch weatherSettings.weatherPinnedNotchReplaces {
+                case .cpu:
+                    NotchCompactMetric(
+                        icon: "memorychip",
+                        value: Int(systemService.memoryInfo.usagePercentage),
+                        color: memoryColor,
+                        isPrimary: true
+                    )
+                case .memory:
+                    NotchCompactMetric(
+                        icon: "cpu",
+                        value: Int(systemService.cpuUsage),
+                        color: cpuColor,
+                        isPrimary: true
+                    )
+                }
+    
+                Circle()
+                    .fill(.white.opacity(MicroverseDesign.Notch.Materials.separatorOpacity))
+                    .frame(width: 2, height: 2)
+    
+                MicroverseWeatherGlyph(
+                    bucket: weatherStore.current?.bucket ?? .unknown,
+                    isDaylight: weatherStore.current?.isDaylight ?? true,
+                    renderMode: compactWeatherGlyphMode
+                    )
+                    .font(MicroverseDesign.Notch.Typography.compactIcon)
+                    .foregroundColor(.white.opacity(0.85))
+                    .symbolRenderingMode(.hierarchical)
+                    .frame(width: MicroverseDesign.Layout.iconSizeSmall, height: MicroverseDesign.Layout.iconSizeSmall, alignment: .center)
+    
+                Text(compactTemperatureText)
+                    .font(MicroverseDesign.Notch.Typography.compactValue)
+                    .foregroundColor(MicroverseDesign.Colors.accent)
+                    .monospacedDigit()
+    
+                if let e = compactUpcomingEvent {
+                    Circle()
+                        .fill(.white.opacity(MicroverseDesign.Notch.Materials.separatorOpacity))
+                        .frame(width: 2, height: 2)
+    
+                        Image(systemName: MicroverseWeatherAnnouncement.symbolName(for: e, isDaylight: weatherStore.current?.isDaylight ?? true))
+                            .font(.system(size: 9, weight: .semibold))
+                            .foregroundColor(.white.opacity(0.55))
+                            .symbolRenderingMode(.hierarchical)
+                            .frame(width: 10, alignment: .center)
+    
+                    TimelineView(.periodic(from: .now, by: 60)) { tl in
+                        Text(MicroverseWeatherAnnouncement.relativeTimeShort(from: tl.date, to: e.startTime))
+                            .font(MicroverseDesign.Notch.Typography.statusText)
+                            .foregroundColor(.white.opacity(0.55))
+                            .monospacedDigit()
+                    }
+                } else if weatherStore.nextEvent != nil {
+                    Circle()
+                        .fill(.white.opacity(MicroverseDesign.Notch.Materials.separatorOpacity))
+                        .frame(width: 2, height: 2)
+                }
+            }
+        }
+
+        private var compactUpcomingEvent: WeatherEvent? {
+            guard pinnedInNotch || showWeather else { return nil }
+            guard let e = weatherStore.nextEvent else { return nil }
+            let now = Date()
+            guard e.startTime >= now else { return nil }
+            guard e.startTime.timeIntervalSince(now) <= MicroverseWeatherAnnouncement.leadTime else { return nil }
+        return e
+    }
+
+        private var compactTemperatureText: String {
+            guard let c = weatherStore.current?.temperatureC else { return "—" }
+            return weatherSettings.weatherUnits.formatTemperatureShort(celsius: c)
+        }
+    
+        private var compactWeatherGlyphMode: WeatherRenderMode {
+            weatherAnimationBudget.renderMode(for: .compactNotch, isVisible: pinnedInNotch || showWeather, reduceMotion: reduceMotion)
+        }
+
+    private func growNonPinnedWidth(_ width: CGFloat) {
+        let maxSaneWidth: CGFloat = 200
+        guard width > 0 else { return }
+        let next = max(stableNonPinnedWidth ?? 0, min(width, maxSaneWidth))
+        guard stableNonPinnedWidth == nil || next > (stableNonPinnedWidth ?? 0) + 0.5 else { return }
+
+        var t = Transaction()
+        t.animation = nil
+        withTransaction(t) {
+            stableNonPinnedWidth = next
+        }
+    }
+
+    private func growPinnedWidth(_ width: CGFloat) {
+        let maxSaneWidth: CGFloat = 200
+        guard width > 0 else { return }
+        let next = max(stablePinnedWidth ?? 0, min(width, maxSaneWidth))
+        guard stablePinnedWidth == nil || next > (stablePinnedWidth ?? 0) + 0.5 else { return }
+
+        var t = Transaction()
+        t.animation = nil
+        withTransaction(t) {
+            stablePinnedWidth = next
+        }
     }
     
     private var cpuColor: Color {
@@ -646,10 +1286,14 @@ struct CompactMetric: View {
 
 /// Full-featured expanded notch view showing comprehensive system status
 /// Includes battery, CPU, memory metrics with elegant typography and materials
-struct MicroverseExpandedNotchView: View {
-    @EnvironmentObject var viewModel: BatteryViewModel
-    @StateObject private var systemService = SystemMonitoringService.shared
-    @State private var animationOffset: CGFloat = 0
+    struct MicroverseExpandedNotchView: View {
+        @EnvironmentObject var viewModel: BatteryViewModel
+        @EnvironmentObject private var weatherSettings: WeatherSettingsStore
+        @EnvironmentObject private var weatherStore: WeatherStore
+        @EnvironmentObject private var weatherAnimationBudget: WeatherAnimationBudget
+        @Environment(\.accessibilityReduceMotion) private var reduceMotion
+        @StateObject private var systemService = SystemMonitoringService.shared
+        @State private var animationOffset: CGFloat = 0
     
     var body: some View {
         VStack(spacing: MicroverseDesign.Layout.space1) {
@@ -667,6 +1311,9 @@ struct MicroverseExpandedNotchView: View {
             
             // Primary metrics with perfect spacing
             metricsSection
+
+            // Optional weather module (polish lives in expanded notch, not compact).
+            weatherSection
             
             // Subtle system status indicator
             statusSection
@@ -688,6 +1335,7 @@ struct MicroverseExpandedNotchView: View {
                         )
                 )
         )
+        .microverseNotchTapToToggleExpanded(enabled: viewModel.notchClickToToggleExpanded)
         .contextMenu {
             MicroverseNotchContextMenu()
         }
@@ -695,6 +1343,7 @@ struct MicroverseExpandedNotchView: View {
             withAnimation(MicroverseDesign.Animation.notchExpansion) {
                 animationOffset = 0
             }
+            weatherStore.triggerRefresh(reason: "notch-expanded")
         }
     }
     
@@ -784,6 +1433,98 @@ struct MicroverseExpandedNotchView: View {
                 .textCase(.lowercase)
         }
         .padding(.bottom, MicroverseDesign.Layout.space1)
+    }
+
+        private var weatherSection: some View {
+            Group {
+                if weatherSettings.weatherEnabled, weatherSettings.weatherShowInNotch, weatherSettings.weatherLocation != nil {
+                    HStack(spacing: MicroverseDesign.Notch.Spacing.statusSpacing) {
+                        MicroverseWeatherGlyph(
+                            bucket: weatherStore.current?.bucket ?? .unknown,
+                            isDaylight: weatherStore.current?.isDaylight ?? true,
+                            renderMode: weatherAnimationBudget.renderMode(for: .expandedNotch, isVisible: true, reduceMotion: reduceMotion)
+                            )
+                            .font(MicroverseDesign.Notch.Typography.expandedIcon)
+                            .foregroundColor(.white.opacity(0.85))
+                            .symbolRenderingMode(.hierarchical)
+                            .frame(width: MicroverseDesign.Layout.iconSize + 4, height: MicroverseDesign.Layout.iconSize + 4)
+                            .clipped()
+
+                            VStack(alignment: .leading, spacing: 1) {
+                            Text(expandedWeatherTitle)
+                                .font(MicroverseDesign.Notch.Typography.expandedLabel)
+                            .foregroundColor(MicroverseDesign.Colors.accentSubtle)
+                            .tracking(0.8)
+                            .lineLimit(1)
+
+                        Text(expandedWeatherValue)
+                            .font(MicroverseDesign.Notch.Typography.statusText)
+                            .foregroundColor(.white.opacity(MicroverseDesign.Notch.Opacity.statusText))
+                            .monospacedDigit()
+                            .lineLimit(1)
+                    }
+
+                    Spacer()
+
+                    if let e = weatherStore.nextEvent {
+                        TimelineView(.periodic(from: .now, by: 60)) { tl in
+                            HStack(spacing: 4) {
+                                Text(e.title.lowercased())
+                                    .font(MicroverseDesign.Notch.Typography.statusText)
+                                    .foregroundColor(.white.opacity(0.55))
+                                    .lineLimit(1)
+
+                                Text(relativeTime(from: tl.date, to: e.startTime))
+                                    .font(MicroverseDesign.Notch.Typography.statusText)
+                                    .foregroundColor(.white.opacity(0.55))
+                                    .monospacedDigit()
+                            }
+                        }
+                    } else {
+                        Text("steady")
+                            .font(MicroverseDesign.Notch.Typography.statusText)
+                            .foregroundColor(.white.opacity(0.45))
+                    }
+                }
+                .padding(.horizontal, MicroverseDesign.Layout.space2)
+                .padding(.vertical, MicroverseDesign.Layout.space2)
+                .background(
+                    RoundedRectangle(cornerRadius: MicroverseDesign.Notch.Dimensions.compactCornerRadius)
+                        .fill(.white.opacity(0.04))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: MicroverseDesign.Notch.Dimensions.compactCornerRadius)
+                                .stroke(.white.opacity(0.08), lineWidth: 0.5)
+                        )
+                )
+                .padding(.bottom, MicroverseDesign.Layout.space2)
+            }
+        }
+    }
+
+        private var expandedWeatherValue: String {
+            guard let current = weatherStore.current else { return "—" }
+            return weatherSettings.weatherUnits.formatTemperature(celsius: current.temperatureC)
+        }
+
+        private var expandedWeatherTitle: String {
+            let displayName = weatherSettings.weatherLocation?.displayName ?? "—"
+            let city = displayName.split(separator: ",").first.map(String.init) ?? displayName
+            return city
+        }
+
+    private func relativeTime(from now: Date, to target: Date) -> String {
+        let delta = target.timeIntervalSince(now)
+        if abs(delta) < 60 { return "now" }
+
+        let minutes = Int((delta / 60).rounded())
+        if minutes < 0 {
+            return "\(-minutes)m ago"
+        }
+        if minutes < 60 {
+            return "in \(minutes)m"
+        }
+        let hours = Int((Double(minutes) / 60.0).rounded(.down))
+        return "in \(hours)h"
     }
     
     // MARK: - Computed Properties with Steve Jobs' attention to language

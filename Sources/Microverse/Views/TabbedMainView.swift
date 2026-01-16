@@ -32,6 +32,7 @@ struct TabbedMainView: View {
         case battery = "Battery"
         case cpu = "CPU"
         case memory = "Memory"
+        case weather = "Weather"
         
         var icon: String {
             switch self {
@@ -39,6 +40,7 @@ struct TabbedMainView: View {
             case .battery: return "battery.100"
             case .cpu: return "cpu"
             case .memory: return "memorychip"
+            case .weather: return "cloud.sun"
             }
         }
     }
@@ -73,6 +75,8 @@ struct TabbedMainView: View {
                     UnifiedCPUTab()
                 case .memory:
                     UnifiedMemoryTab()
+                case .weather:
+                    WeatherTab()
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -138,6 +142,11 @@ struct TabbedMainView: View {
         .frame(width: 280, height: 500)
         .onAppear {
             #if DEBUG
+            if ProcessInfo.processInfo.arguments.contains("--debug-weather-demo")
+                || ProcessInfo.processInfo.arguments.contains("--debug-open-weather") {
+                selectedTab = .weather
+            }
+
             if ProcessInfo.processInfo.arguments.contains("--debug-open-settings") {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
                     showingSettings = true
@@ -260,6 +269,10 @@ struct SettingsView: View {
                         .background(Color.white.opacity(0.03))
                     }
                     
+                    SettingsDivider()
+
+                    WeatherSettingsSection()
+
                     SettingsDivider()
 
                     // Smart Notch + Notch Glow (only show on Macs with a notch)
@@ -453,6 +466,24 @@ struct SmartNotchSection: View {
                 Text(viewModel.notchLayoutMode.description)
                     .font(MicroverseDesign.Typography.caption)
                     .foregroundColor(.white.opacity(0.6))
+
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Click notch to show details")
+                            .font(MicroverseDesign.Typography.caption)
+                            .foregroundColor(.white.opacity(0.7))
+                        Text("Toggle expanded Smart Notch view")
+                            .font(.system(size: 10, weight: .regular))
+                            .foregroundColor(.white.opacity(0.5))
+                    }
+
+                    Spacer()
+
+                    Toggle("", isOn: $viewModel.notchClickToToggleExpanded)
+                        .labelsHidden()
+                        .toggleStyle(ElegantToggleStyle())
+                }
+                .padding(.top, MicroverseDesign.Layout.space2)
             }
         }
         .padding(.horizontal, MicroverseDesign.Layout.space5)

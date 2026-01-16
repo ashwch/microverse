@@ -103,6 +103,7 @@ enum MicroverseDesign {
         static let standard = SwiftUI.Animation.easeInOut(duration: 0.3)
         static let spring = SwiftUI.Animation.spring(response: 0.4, dampingFraction: 0.8)
         static let notchToggle = SwiftUI.Animation.spring(response: 0.25, dampingFraction: 0.85, blendDuration: 0)
+        static let notchPeek = SwiftUI.Animation.easeInOut(duration: 0.32)
         static let notchExpansion = SwiftUI.Animation.spring(response: 0.35, dampingFraction: 0.9)
         static let statusPulse = SwiftUI.Animation.easeInOut(duration: 1.5).repeatForever(autoreverses: true)
     }

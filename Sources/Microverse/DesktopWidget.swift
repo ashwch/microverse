@@ -30,9 +30,25 @@ class DesktopWidgetManager: ObservableObject {
     private var window: DesktopWidgetWindow?
     private var hostingView: NSHostingView<AnyView>?
     private weak var viewModel: BatteryViewModel?
+    private weak var weatherSettings: WeatherSettingsStore?
+    private weak var weatherStore: WeatherStore?
+    private weak var displayOrchestrator: DisplayOrchestrator?
+    private weak var weatherAnimationBudget: WeatherAnimationBudget?
     
     init(viewModel: BatteryViewModel) {
         self.viewModel = viewModel
+    }
+
+    func setWeatherEnvironment(
+        settings: WeatherSettingsStore,
+        store: WeatherStore,
+        orchestrator: DisplayOrchestrator,
+        animationBudget: WeatherAnimationBudget
+    ) {
+        weatherSettings = settings
+        weatherStore = store
+        displayOrchestrator = orchestrator
+        weatherAnimationBudget = animationBudget
     }
     
     @MainActor
@@ -45,11 +61,21 @@ class DesktopWidgetManager: ObservableObject {
         let size = getWidgetSize(for: viewModel.widgetStyle)
         window = DesktopWidgetWindow(size: size)
         
-        // Create widget view that observes viewModel changes
-        let widgetView = AnyView(
-            DesktopWidgetView()
-                .environmentObject(viewModel)
-        )
+        let base = DesktopWidgetView()
+            .environmentObject(viewModel)
+
+        let widgetView: AnyView
+        if let weatherSettings, let weatherStore, let displayOrchestrator, let weatherAnimationBudget {
+            widgetView = AnyView(
+                base
+                    .environmentObject(weatherSettings)
+                    .environmentObject(weatherStore)
+                    .environmentObject(displayOrchestrator)
+                    .environmentObject(weatherAnimationBudget)
+            )
+        } else {
+            widgetView = AnyView(base)
+        }
         
         // Create hosting view with exact window size
         hostingView = NSHostingView(rootView: widgetView)
@@ -184,6 +210,11 @@ struct BatterySimpleWidget: View {
 // System Glance - Compact view of all three metrics
 struct SystemGlanceWidget: View {
     let batteryInfo: BatteryInfo
+    @EnvironmentObject private var weatherSettings: WeatherSettingsStore
+    @EnvironmentObject private var weatherStore: WeatherStore
+    @EnvironmentObject private var displayOrchestrator: DisplayOrchestrator
+    @EnvironmentObject private var weatherAnimationBudget: WeatherAnimationBudget
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @StateObject private var systemService = SystemMonitoringService.shared
     
     var body: some View {
@@ -202,17 +233,13 @@ struct SystemGlanceWidget: View {
             }
             .frame(maxWidth: .infinity)
             
-            // CPU
-            VStack(spacing: 1) {
-                Image(systemName: "cpu")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(MicroverseDesign.Colors.processor)
-                Text("\(Int(systemService.cpuUsage))")
-                    .font(.system(size: 15, weight: .bold, design: .rounded))
-                    .foregroundColor(.white)
-                Text("...") // Visual separator
-                    .font(.system(size: 6))
-                    .foregroundColor(.white.opacity(0.3))
+            // CPU or Weather (swap-in)
+            Group {
+                if shouldShowWeatherInWidget {
+                    weatherColumn
+                } else {
+                    cpuColumn
+                }
             }
             .frame(maxWidth: .infinity)
             
@@ -234,6 +261,57 @@ struct SystemGlanceWidget: View {
         .padding(.horizontal, 8)
         .frame(width: 160, height: 50)
         .widgetBackground()
+    }
+
+    private var shouldShowWeatherInWidget: Bool {
+        weatherSettings.weatherEnabled
+            && weatherSettings.weatherShowInWidget
+            && weatherSettings.weatherLocation != nil
+            && displayOrchestrator.compactTrailing == .weather
+    }
+
+    private var cpuColumn: some View {
+        VStack(spacing: 1) {
+            Image(systemName: "cpu")
+                .font(.system(size: 12, weight: .medium))
+                .foregroundColor(MicroverseDesign.Colors.processor)
+
+            Text("\(Int(systemService.cpuUsage))")
+                .font(.system(size: 15, weight: .bold, design: .rounded))
+                .foregroundColor(.white)
+
+            Text("...") // Visual separator
+                .font(.system(size: 6))
+                .foregroundColor(.white.opacity(0.3))
+        }
+    }
+
+    private var weatherColumn: some View {
+        VStack(spacing: 1) {
+            MicroverseWeatherGlyph(
+                bucket: weatherStore.current?.bucket ?? .unknown,
+                isDaylight: weatherStore.current?.isDaylight ?? true,
+                renderMode: weatherAnimationBudget.renderMode(for: .desktopWidget, isVisible: shouldShowWeatherInWidget, reduceMotion: reduceMotion)
+            )
+            .font(.system(size: 12, weight: .medium))
+            .foregroundColor(.white.opacity(0.9))
+            .symbolRenderingMode(.hierarchical)
+            .frame(width: 16, height: 16)
+
+            Text(widgetTemperatureText)
+                .font(.system(size: 15, weight: .bold, design: .rounded))
+                .foregroundColor(.white)
+                .monospacedDigit()
+
+            Text(weatherStore.nextEvent != nil ? "•" : "...")
+                .font(.system(size: 6))
+                .foregroundColor(.white.opacity(0.3))
+        }
+    }
+
+    private var widgetTemperatureText: String {
+        guard let c = weatherStore.current?.temperatureC else { return "—" }
+        return weatherSettings.weatherUnits.formatTemperatureShort(celsius: c)
     }
 }
 

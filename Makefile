@@ -68,6 +68,8 @@ app: build
 	@rm -rf /tmp/$(APP_NAME).app
 	@mv $(TEMP_DIR)/$(APP_NAME).app /tmp/
 	@rmdir $(TEMP_DIR)
+	@echo "🔏 Ad-hoc code signing /tmp/$(APP_NAME).app (binds Info.plist + stable bundle id)..."
+	@codesign --force --deep --sign - /tmp/$(APP_NAME).app
 	@echo "✅ App bundle created at /tmp/$(APP_NAME).app"
 
 # Create app bundle structure (Debug)
@@ -88,6 +90,8 @@ debug-app: build-debug
 	@rm -rf /tmp/$(APP_NAME).app
 	@mv $(TEMP_DIR)/$(APP_NAME).app /tmp/
 	@rmdir $(TEMP_DIR)
+	@echo "🔏 Ad-hoc code signing /tmp/$(APP_NAME).app (binds Info.plist + stable bundle id)..."
+	@codesign --force --deep --sign - /tmp/$(APP_NAME).app
 	@echo "✅ Debug app bundle created at /tmp/$(APP_NAME).app"
 
 # Uninstall app
