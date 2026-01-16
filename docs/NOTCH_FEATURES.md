@@ -19,6 +19,18 @@ Configured in Settings → **Smart Notch**:
 - **Split**: battery on the left, CPU + Memory on the right
 - **Off**: disables notch UI
 
+### Weather (optional)
+
+When Weather is enabled (Settings → **Weather**) and “Show in Smart Notch” is on, Microverse can:
+
+- Peek temperature in the compact notch (rotation peeks or event-driven highlights)
+- Pin temperature in the compact notch (replaces CPU or Memory)
+- Show a small weather row in the expanded notch
+
+### Interaction (optional)
+
+- **Click notch to show details**: toggles expanded/compact Smart Notch view (Settings → **Smart Notch**)
+
 ## Notch Glow Alerts
 
 Notch Glow Alerts render a glow + sweep + sparkles around the notch pill when key battery events occur.

@@ -22,14 +22,15 @@ Perfect for developers who need real-time system insights without compromising p
 - **Battery Intelligence**: Health metrics, cycle count, time estimates, charging optimization
 - **CPU Performance**: Real-time usage, core breakdown, thermal state monitoring  
 - **Memory Analysis**: Pressure detection, usage breakdown, swap monitoring
+- **Weather (Optional)**: Temperature and upcoming changes in the Weather tab, menu bar, Smart Notch, and desktop widget
 - **System Health**: Intelligent insights with actionable recommendations
 
 ### 🎨 **Adaptive User Interface**
 - **Desktop Widget Styles**: Multiple layout options from compact to comprehensive displays
 - **Smart Notch Integration**: Seamless integration with macOS notch area
 - **Notch Glow Alerts**: Animated glow around the notch on key battery events
-- **Menu Bar Integration**: Elegant system icon with percentage display
-- **Tabbed Interface**: Overview, Battery, CPU, Memory with unified design system
+- **Menu Bar Integration**: Battery percentage and optional temperature display
+- **Tabbed Interface**: Overview, Battery, CPU, Memory, Weather with unified design system
 
 ### ⚡ **Performance Excellence**
 - **Adaptive Refresh Rates**: 2s critical → 30s idle (up to 83% CPU reduction)
@@ -40,7 +41,7 @@ Perfect for developers who need real-time system insights without compromising p
 ### 🔒 **Enterprise-Grade Security**
 - **Secure Auto-Updates**: Sparkle 2.7.1 with code signature verification
 - **Sandboxed Architecture**: Minimal entitlements, maximum security
-- **Privacy First**: No data collection, everything stays local
+- **Privacy First**: No analytics; system metrics are local; optional network requests for updates + weather
 
 ## 📸 Screenshots
 
@@ -50,6 +51,10 @@ Perfect for developers who need real-time system insights without compromising p
 <td><img src="docs/screenshots/notch-widget-compact.png" width="300"/><br><b>Compact Mode</b><br>Unified metrics display</td>
 <td><img src="docs/screenshots/notch-widget-expanded.png" width="300"/><br><b>Expanded Mode</b><br>Detailed system status</td>
 </tr>
+<tr>
+<td><img src="docs/screenshots/notch-weather-compact.png" width="300"/><br><b>Weather Peek</b><br>Temperature + upcoming change</td>
+<td><img src="docs/screenshots/notch-weather-expanded.png" width="300"/><br><b>Weather (Expanded)</b><br>Optional weather row</td>
+</tr>
 </table>
 
 ### Desktop Widgets
@@ -58,6 +63,9 @@ Perfect for developers who need real-time system insights without compromising p
 <td><img src="docs/screenshots/desktop-widget-glance.png" width="150"/><br><b>System Glance</b><br>Compact horizontal layout</td>
 <td><img src="docs/screenshots/desktop-widget-status.png" width="150"/><br><b>System Status</b><br>Three-column detailed view</td>
 <td><img src="docs/screenshots/desktop-widget-dashboard.png" width="150"/><br><b>System Dashboard</b><br>Comprehensive metrics display</td>
+</tr>
+<tr>
+<td colspan="3"><img src="docs/screenshots/desktop-widget-glance-weather.png" width="200"/><br><b>Weather Peek</b><br>System Glance temperature swap-in</td>
 </tr>
 </table>
 
@@ -72,7 +80,8 @@ Perfect for developers who need real-time system insights without compromising p
 <td><img src="docs/screenshots/app-memory-tab.png" width="200"/><br><b>Memory Tab</b><br>Memory usage and pressure</td>
 </tr>
 <tr>
-<td colspan="2"><img src="docs/screenshots/app-settings-compact.png" width="200"/><br><b>Settings</b><br>Elegant controls and preferences</td>
+<td><img src="docs/screenshots/app-weather-tab.png" width="200"/><br><b>Weather Tab</b><br>Temperature + upcoming changes</td>
+<td><img src="docs/screenshots/app-settings-compact.png" width="200"/><br><b>Settings</b><br>Elegant controls and preferences</td>
 </tr>
 </table>
 
@@ -110,9 +119,10 @@ Package.swift
 ```
 
 ### Quick Usage
-**Menu Bar**: Click 👽 icon → Overview/Battery/CPU/Memory tabs  
+**Menu Bar**: Click 👽 icon → Overview/Battery/CPU/Memory/Weather tabs  
 **Desktop Widgets**: Settings → Desktop Widget (toggle + style)  
 **Smart Notch**: Settings → Smart Notch (Left / Split / Off)  
+**Weather**: Settings → Weather (manual location + surfaces + optional peeks/highlights)  
 **Notch Glow Alerts**: Settings → Notch Glow Alerts (toggle + test buttons)
 
 ### Data Flow
@@ -206,10 +216,9 @@ We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guid
 ## 🔒 Security
 
 - **Sandboxed Application**: Minimal entitlements for maximum security
-- **Code Signed**: Developer ID signing for trusted distribution
-- **Secure Updates**: Sparkle framework with signature verification
-- **Privacy First**: No analytics, no data collection, everything local
-- **Minimal Permissions**: Only IOKit access for battery/system monitoring
+- **Secure Updates**: Sparkle framework with signed appcast verification
+- **Privacy First**: No analytics; system metrics are local; optional network requests for updates + weather
+- **Minimal Permissions**: Network client for updates/weather + local system APIs for monitoring
 
 ## 📊 Performance Metrics
 

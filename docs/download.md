@@ -79,7 +79,7 @@ description: Download Microverse - elegant system monitoring for macOS
         </div>
         <div class="security-item">
           <h3>No Data Collection</h3>
-          <p>Microverse does not collect, store, or transmit any personal data. All monitoring happens locally on your Mac.</p>
+          <p>Microverse does not collect or sell personal data. System monitoring is local; optional features (updates + weather) make network requests to their providers.</p>
         </div>
         <div class="security-item">
           <h3>Open Source</h3>

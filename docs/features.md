@@ -24,6 +24,7 @@ description: Explore the comprehensive features of Microverse - elegant system m
         <p>Unified metrics display in the notch area with elegant glass effect styling.</p>
         <ul>
           <li>Battery, CPU, and Memory percentages</li>
+          <li>Optional temperature peeks and upcoming-change highlights</li>
           <li>Integrated with system design language</li>
           <li>Minimal visual footprint</li>
           <li>Always accessible in notch area</li>
@@ -38,6 +39,7 @@ description: Explore the comprehensive features of Microverse - elegant system m
           <li>System health status (Optimal)</li>
           <li>Battery cycle count tracking</li>
           <li>Health scoring system</li>
+          <li>Optional weather row with “up next” highlights</li>
           <li>Comprehensive at-a-glance metrics</li>
         </ul>
       </div>
@@ -53,10 +55,22 @@ description: Explore the comprehensive features of Microverse - elegant system m
         <p>Compact horizontal layout displaying essential system metrics in a minimalist design.</p>
         <ul>
           <li>Battery, CPU, and Memory percentages</li>
+          <li>Optional weather swap-in during peeks/highlights</li>
           <li>Compact horizontal format</li>
           <li>Glass effect background</li>
           <li>Essential metrics only</li>
           <li>Clean, minimal design</li>
+        </ul>
+      </div>
+
+      <div class="widget-item">
+        <img src="/assets/images/desktop-widget-glance-weather.png" alt="System Glance Weather">
+        <h3>Weather Peek</h3>
+        <p>When Weather is enabled, System Glance can temporarily swap in the current temperature and the next change.</p>
+        <ul>
+          <li>Condition glyph + temperature</li>
+          <li>Upcoming-change indicator</li>
+          <li>Designed to be power-safe (low FPS / gated)</li>
         </ul>
       </div>
 
@@ -81,6 +95,37 @@ description: Explore the comprehensive features of Microverse - elegant system m
           <li>Battery cycle count tracking</li>
           <li>Complete metric overview</li>
           <li>Ultimate monitoring solution</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="features">
+  <div class="wrapper">
+    <h2>Weather (Optional)</h2>
+    <p>Get the current temperature and upcoming changes without leaving your workflow.</p>
+
+    <div class="widget-showcase">
+      <div class="widget-item">
+        <img src="/assets/images/app-weather-tab.png" alt="Weather Tab">
+        <h3>Weather Tab</h3>
+        <p>Current temperature, “up next”, and an hourly strip in the menu bar popover.</p>
+        <ul>
+          <li>Manual location search (no automatic location in v1)</li>
+          <li>°C/°F units + refresh interval</li>
+          <li>Attribution links for data sources</li>
+        </ul>
+      </div>
+
+      <div class="widget-item">
+        <img src="/assets/images/notch-weather-compact.png" alt="Notch Weather Compact">
+        <h3>Smart Notch & Compact Surfaces</h3>
+        <p>Optional peeks and highlights in compact surfaces (Smart Notch + System Glance widget).</p>
+        <ul>
+          <li>Weather highlights + cooldown</li>
+          <li>Occasional temperature peeks</li>
+          <li>Pinned temperature option in compact notch</li>
         </ul>
       </div>
     </div>
@@ -192,12 +237,12 @@ description: Explore the comprehensive features of Microverse - elegant system m
         <div class="feature-icon">🛡️</div>
         <h3>Privacy First</h3>
         <ul>
-          <li>No data collection</li>
-          <li>No network requests</li>
           <li>No analytics or tracking</li>
-          <li>Local processing only</li>
+          <li>No accounts</li>
+          <li>No data collection by Microverse</li>
+          <li>Optional network requests (updates + weather)</li>
+          <li>Local-first processing for system metrics</li>
           <li>Open source transparency</li>
-          <li>Your data stays yours</li>
         </ul>
       </div>
     </div>
@@ -239,6 +284,14 @@ description: Explore the comprehensive features of Microverse - elegant system m
         <div class="app-feature-content">
           <h3>Memory Insights</h3>
           <p>Understand memory usage patterns with detailed breakdowns of app memory, wired memory, compressed memory, and swap usage. Optimize system performance.</p>
+        </div>
+      </div>
+
+      <div class="app-feature">
+        <img src="/assets/images/app-weather-tab.png" alt="Weather Tab">
+        <div class="app-feature-content">
+          <h3>Weather</h3>
+          <p>See the current temperature, “up next” highlights, and an hourly strip — with attribution links built in.</p>
         </div>
       </div>
     </div>

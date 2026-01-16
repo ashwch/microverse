@@ -36,6 +36,11 @@ permalink: /
         <p>Track memory pressure, usage breakdown, and system performance indicators.</p>
       </div>
       <div class="feature-card">
+        <div class="feature-icon">🌤️</div>
+        <h3>Weather Glances</h3>
+        <p>Optional temperature and upcoming changes in the menu bar, Smart Notch, desktop widget, and a dedicated Weather tab.</p>
+      </div>
+      <div class="feature-card">
         <div class="feature-icon">📱</div>
         <h3>Smart Notch Integration</h3>
         <p>Seamless integration with macOS notch area using DynamicNotchKit for elegant system monitoring.</p>
@@ -69,12 +74,20 @@ permalink: /
         <h4>Notch Integration</h4>
       </div>
       <div class="screenshot-item">
+        <img src="/assets/images/notch-weather-expanded.png" alt="Notch Weather">
+        <h4>Notch Weather</h4>
+      </div>
+      <div class="screenshot-item">
         <img src="/assets/images/notch-glow-success.png" alt="Notch Glow Alert">
         <h4>Notch Glow Alerts</h4>
       </div>
       <div class="screenshot-item">
         <img src="/assets/images/desktop-widget-glance.png" alt="Desktop Widget Glance">
         <h4>System Glance</h4>
+      </div>
+      <div class="screenshot-item">
+        <img src="/assets/images/desktop-widget-glance-weather.png" alt="Desktop Widget Glance Weather">
+        <h4>Weather Glance</h4>
       </div>
       <div class="screenshot-item">
         <img src="/assets/images/desktop-widget-status.png" alt="Desktop Widget Status">
@@ -108,6 +121,10 @@ permalink: /
       <div class="screenshot-item">
         <img src="/assets/images/app-memory-tab.png" alt="Memory Tab">
         <h4>Memory Analysis</h4>
+      </div>
+      <div class="screenshot-item">
+        <img src="/assets/images/app-weather-tab.png" alt="Weather Tab">
+        <h4>Weather</h4>
       </div>
     </div>
   </div>

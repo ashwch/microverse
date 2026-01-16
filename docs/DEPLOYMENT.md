@@ -11,8 +11,9 @@
 ## Branch Strategy
 
 - **main branch**: Contains app code AND website files in `/docs` folder
-  - Pushes to main trigger both app releases AND website updates
-  - Website files are in `/docs/` directory
+  - Pushes to main always update the website (GitHub Pages serves from `main:/docs`)
+  - App releases are cut by `.github/workflows/release.yml` on pushes to `main`, but **docs-only** pushes are ignored (see `paths-ignore`)
+- Website files are in `/docs/` directory
 - **dev branch**: For development work (app + docs)
   - No automatic deployment - changes must be merged to main
 
@@ -33,17 +34,17 @@
 
 ## How to Update Website
 
-### Method 1: Direct updates to main (triggers app release)
+### Method 1: Direct updates to main
 ```bash
 git checkout main
 # Edit files in docs/ folder
 git add docs/
 git commit -m "docs: update website content"
 git push origin main
-# → Updates website AND triggers app release
+# → Updates website (docs-only pushes do NOT trigger an app release)
 ```
 
-### Method 2: Update via dev branch (recommended for docs-only)
+### Method 2: Update via dev branch (recommended)
 ```bash
 git checkout dev
 # Edit files in docs/ folder
@@ -52,7 +53,7 @@ git commit -m "docs: update website content"
 git push origin dev
 
 # Then create PR: dev → main
-# Merge when ready to deploy both docs and any app changes
+# Merge when ready to deploy docs (and/or app changes)
 ```
 
 ## DNS Configuration (microverse.ashwch.com)
@@ -70,7 +71,7 @@ DNS is already configured:
 
 ## Key Points
 
-⚠️ **Important**: Pushing to main triggers app releases via semantic versioning
+⚠️ **Important**: Pushing to main only triggers app releases when changes include non-ignored paths (not `docs/**`, workflows, etc.)
 ✅ Website files are versioned with the app in the same repository  
 ✅ Jekyll automatically processes markdown files in `/docs`
 ✅ No manual build steps required - GitHub handles everything

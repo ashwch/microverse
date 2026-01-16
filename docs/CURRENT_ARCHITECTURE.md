@@ -5,6 +5,7 @@
 ## Executive Summary
 
 Microverse is a sophisticated system monitoring application that combines modern Swift architecture with elegant UI design. Built for macOS developers who need real-time insights into their system's health without compromising performance, it features smart notch integration via DynamicNotchKit, secure auto-updates through Sparkle, and a comprehensive widget ecosystem.
+It also includes an optional Weather module for temperature glances across the popover, Smart Notch, desktop widget, and menu bar.
 
 ### Key Metrics & Achievements
 - **Performance**: <1% CPU impact, <50MB memory footprint  
@@ -28,6 +29,7 @@ Microverse is a sophisticated system monitoring application that combines modern
 │  ├── UnifiedBatteryTab (Detailed Power Metrics)                         │
 │  ├── UnifiedCPUTab (Processor Performance Analysis)                     │
 │  ├── UnifiedMemoryTab (Memory Usage & Pressure)                         │
+│  ├── WeatherTab (Temperature + “Up Next” Highlights)                    │
 │  ├── DesktopWidget (Multi-style Widget System)                          │
 │  ├── MicroverseNotchSystem (DynamicNotchKit Views)                      │
 │  └── UpdateView (Sparkle Auto-Update UI)                                │
@@ -35,6 +37,10 @@ Microverse is a sophisticated system monitoring application that combines modern
 │  🧠 Business Logic Layer                                                │
 │  ├── BatteryViewModel (Settings & App State Management)                 │
 │  ├── SystemMonitoringService (Reactive System Metrics)                  │
+│  ├── WeatherSettingsStore (UserDefaults-backed Settings)                │
+│  ├── WeatherStore (Fetch + Cache + Published Weather State)             │
+│  ├── DisplayOrchestrator (Compact Surface Switching)                    │
+│  ├── WeatherAnimationBudget (Power-safe Animation Policy)               │
 │  ├── SecureUpdateService (Sparkle Integration)                          │
 │  ├── AdaptiveDisplayService (Smart Refresh Management)                  │
 │  ├── MicroverseNotchViewModel (DynamicNotchKit State)                   │
