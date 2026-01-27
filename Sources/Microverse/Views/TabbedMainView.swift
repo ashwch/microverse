@@ -155,13 +155,20 @@ struct TabbedMainView: View {
     .frame(width: 280, height: 500)
     .onAppear {
       #if DEBUG
-        if ProcessInfo.processInfo.arguments.contains("--debug-weather-demo")
-          || ProcessInfo.processInfo.arguments.contains("--debug-open-weather")
-        {
+        let args = ProcessInfo.processInfo.arguments
+
+        if args.contains("--debug-weather-demo") || args.contains("--debug-open-weather") {
           selectedTab = .weather
+        } else if args.contains("--debug-open-alerts") {
+          selectedTab = .alerts
+        } else if args.contains("--debug-open-system-network") || args.contains("--debug-open-system-audio") {
+          selectedTab = .system
         }
 
-        if ProcessInfo.processInfo.arguments.contains("--debug-open-settings") {
+        if let openSettingsArg = args.first(where: { $0.hasPrefix("--debug-open-settings") }) {
+          if let category = Self.debugSettingsCategory(from: openSettingsArg) {
+            settingsSelection = category
+          }
           DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
             showingSettings = true
           }
@@ -173,6 +180,28 @@ struct TabbedMainView: View {
         .environmentObject(viewModel)
     }
   }
+
+  #if DEBUG
+    private static func debugSettingsCategory(from arg: String) -> SettingsView.Category? {
+      let parts = arg.split(separator: "=", maxSplits: 1).map(String.init)
+      guard parts.count == 2 else { return nil }
+
+      switch parts[1].lowercased() {
+      case "general":
+        return .general
+      case "weather":
+        return .weather
+      case "notch":
+        return .notch
+      case "alerts":
+        return .alerts
+      case "updates", "update":
+        return .updates
+      default:
+        return nil
+      }
+    }
+  #endif
 }
 
 private struct SystemTab: View {
@@ -196,7 +225,14 @@ private struct SystemTab: View {
     }
   }
 
-  @State private var selection: Section = .overview
+  @State private var selection: Section = {
+    #if DEBUG
+      let args = ProcessInfo.processInfo.arguments
+      if args.contains("--debug-open-system-network") { return .network }
+      if args.contains("--debug-open-system-audio") { return .audio }
+    #endif
+    return .overview
+  }()
 
   var body: some View {
     VStack(spacing: 0) {

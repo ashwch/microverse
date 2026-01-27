@@ -34,6 +34,16 @@ Useful debug helpers:
 open -n /tmp/Microverse.app --args --debug-open-popover
 open -n /tmp/Microverse.app --args --debug-open-weather
 
+# Open specific popover tabs/sections (handy for capturing new features)
+open -n /tmp/Microverse.app --args --debug-open-alerts
+open -n /tmp/Microverse.app --args --debug-open-system-network
+open -n /tmp/Microverse.app --args --debug-open-system-audio
+
+# Open Settings directly (optionally pre-select a section)
+open -n /tmp/Microverse.app --args --debug-open-settings
+open -n /tmp/Microverse.app --args --debug-open-settings=alerts
+open -n /tmp/Microverse.app --args --debug-open-settings=weather
+
 # Deterministic Weather demo (exercises notch + widget; then quits)
 open -n /tmp/Microverse.app --args --debug-weather-demo
 ```
@@ -106,4 +116,3 @@ Then update:
 - Use a generic location name (e.g. “San Francisco, CA”) for Weather.
 - Avoid showing SSIDs or device serials.
 - Keep the popover at its default size (don’t resize mid-capture).
-

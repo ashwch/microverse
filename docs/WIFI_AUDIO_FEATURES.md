@@ -121,6 +121,16 @@ make debug-app
 open -n /tmp/Microverse.app
 ```
 
+### Jump to the relevant UI quickly (debug builds)
+
+```bash
+# Open directly to System → Network
+open -n /tmp/Microverse.app --args --debug-open-system-network
+
+# Open directly to System → Audio
+open -n /tmp/Microverse.app --args --debug-open-system-audio
+```
+
 ### Manual QA checklist
 
 Wi‑Fi:
@@ -171,4 +181,3 @@ Device icons are intentionally heuristic:
 When adding new mappings:
 - keep it optional (“nice icon” not “business logic”)
 - don’t rely on it for correctness (names can vary)
-

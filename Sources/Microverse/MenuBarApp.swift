@@ -270,7 +270,7 @@ Click it to access system monitoring, settings, and desktop widgets.
     }
 
     private func maybeOpenSettingsDebugIfRequested() {
-        guard ProcessInfo.processInfo.arguments.contains("--debug-open-settings") else {
+        guard ProcessInfo.processInfo.arguments.contains(where: { $0.hasPrefix("--debug-open-settings") }) else {
             return
         }
         guard let button = statusItem.button else { return }
@@ -284,11 +284,20 @@ Click it to access system monitoring, settings, and desktop widgets.
 
     private func maybeOpenPopoverDebugIfRequested() {
         let args = ProcessInfo.processInfo.arguments
-        guard args.contains("--debug-open-popover") || args.contains("--debug-open-weather") else {
+        let shouldOpen =
+          args.contains("--debug-open-popover")
+          || args.contains("--debug-open-weather")
+          || args.contains("--debug-open-alerts")
+          || args.contains("--debug-open-system-network")
+          || args.contains("--debug-open-system-audio")
+
+        guard shouldOpen else {
             return
         }
+
+        let hasOpenSettings = args.contains(where: { $0.hasPrefix("--debug-open-settings") })
         // Avoid double-open if settings or demo is requested.
-        guard !args.contains("--debug-open-settings"),
+        guard !hasOpenSettings,
               !args.contains("--debug-weather-demo") else {
             return
         }
@@ -352,7 +361,10 @@ Click it to access system monitoring, settings, and desktop widgets.
               --debug-weather-scenario=<scenario>
                 scenarios: \(scenarios)
               --debug-open-popover
-              --debug-open-settings
+              --debug-open-alerts
+              --debug-open-system-network
+              --debug-open-system-audio
+              --debug-open-settings[=<general|weather|notch|alerts|updates>]
               --debug-open-weather
 
             Notes:
