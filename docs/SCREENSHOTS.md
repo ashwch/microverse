@@ -36,6 +36,10 @@ open -n /tmp/Microverse.app --args --debug-open-weather
 
 # Open specific popover tabs/sections (handy for capturing new features)
 open -n /tmp/Microverse.app --args --debug-open-alerts
+open -n /tmp/Microverse.app --args --debug-open-system-overview
+open -n /tmp/Microverse.app --args --debug-open-system-battery
+open -n /tmp/Microverse.app --args --debug-open-system-cpu
+open -n /tmp/Microverse.app --args --debug-open-system-memory
 open -n /tmp/Microverse.app --args --debug-open-system-network
 open -n /tmp/Microverse.app --args --debug-open-system-audio
 

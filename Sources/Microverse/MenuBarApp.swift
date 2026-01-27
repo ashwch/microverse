@@ -288,6 +288,10 @@ Click it to access system monitoring, settings, and desktop widgets.
           args.contains("--debug-open-popover")
           || args.contains("--debug-open-weather")
           || args.contains("--debug-open-alerts")
+          || args.contains("--debug-open-system-overview")
+          || args.contains("--debug-open-system-battery")
+          || args.contains("--debug-open-system-cpu")
+          || args.contains("--debug-open-system-memory")
           || args.contains("--debug-open-system-network")
           || args.contains("--debug-open-system-audio")
 
@@ -362,6 +366,10 @@ Click it to access system monitoring, settings, and desktop widgets.
                 scenarios: \(scenarios)
               --debug-open-popover
               --debug-open-alerts
+              --debug-open-system-overview
+              --debug-open-system-battery
+              --debug-open-system-cpu
+              --debug-open-system-memory
               --debug-open-system-network
               --debug-open-system-audio
               --debug-open-settings[=<general|weather|notch|alerts|updates>]

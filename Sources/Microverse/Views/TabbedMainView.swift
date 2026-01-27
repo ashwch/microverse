@@ -161,7 +161,13 @@ struct TabbedMainView: View {
           selectedTab = .weather
         } else if args.contains("--debug-open-alerts") {
           selectedTab = .alerts
-        } else if args.contains("--debug-open-system-network") || args.contains("--debug-open-system-audio") {
+        } else if args.contains("--debug-open-system-overview")
+          || args.contains("--debug-open-system-battery")
+          || args.contains("--debug-open-system-cpu")
+          || args.contains("--debug-open-system-memory")
+          || args.contains("--debug-open-system-network")
+          || args.contains("--debug-open-system-audio")
+        {
           selectedTab = .system
         }
 
@@ -228,6 +234,10 @@ private struct SystemTab: View {
   @State private var selection: Section = {
     #if DEBUG
       let args = ProcessInfo.processInfo.arguments
+      if args.contains("--debug-open-system-overview") { return .overview }
+      if args.contains("--debug-open-system-battery") { return .battery }
+      if args.contains("--debug-open-system-cpu") { return .cpu }
+      if args.contains("--debug-open-system-memory") { return .memory }
       if args.contains("--debug-open-system-network") { return .network }
       if args.contains("--debug-open-system-audio") { return .audio }
     #endif
