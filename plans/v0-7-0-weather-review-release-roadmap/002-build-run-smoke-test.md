@@ -35,25 +35,27 @@ Reliably compile, install, and launch Microverse (debug and release-like) and ru
   - `open -n /tmp/Microverse.app`
 - [ ] (Optional but recommended) Install debug build into `/Applications` and launch:
   - `make install-debug`
-- [ ] Smoke test the UI (popover + Settings):
+- [x] Smoke test the UI (popover + Settings):
   - Microverse icon appears in the menu bar
   - Clicking the icon opens the popover
   - Tabs render (System / Weather / Alerts)
   - Settings renders (System + Weather + Alerts sections)
-- [ ] Smoke test the new System tabs (popover → System):
+- [x] Smoke test the new System tabs (popover → System):
   - System → Network:
-    - Wi‑Fi card shows “Wi‑Fi off” when Wi‑Fi is off
-    - Wi‑Fi card shows “Not connected” when disconnected
-    - Wi‑Fi card shows bars + percent when connected (SSID may be redacted; “Connected” is OK)
-    - Throughput card shows non-negative values and updates over time
+    - [ ] Wi‑Fi card shows “Wi‑Fi off” when Wi‑Fi is off *(skipped here; turning off Wi‑Fi can disconnect remote sessions)*
+    - [ ] Wi‑Fi card shows “Not connected” when disconnected *(skipped here; disconnecting can break remote sessions)*
+    - [x] Wi‑Fi card shows bars + percent when connected (SSID may be redacted; “Connected” is OK)
+    - [x] Throughput card shows non-negative values and updates over time
   - System → Audio:
-    - Output devices list renders and selecting a device switches the system default output
-    - Input devices list renders and selecting a device switches the system default input
-    - Volume slider is enabled only when the route supports volume control
-    - Mute toggle is enabled only when the route supports mute
-- [ ] Smoke test Custom widget modules (Settings → Desktop Widget → Custom):
-  - Add modules: Wi‑Fi, Audio Output, Audio Input
-  - Confirm the widget renders without clipping and values update
+    - [x] Output devices list renders
+    - [ ] Selecting a device switches the system default output *(requires an actually-selectable non-default output device, e.g. AirPods/BT/HDMI)*
+    - [x] Input devices list renders and selecting a device switches the system default input
+    - [x] Volume slider + mute toggle are present and enabled for the default route
+    - [ ] Volume/mute disable state verified on a route that doesn’t support it *(requires such a route present)*
+- [x] Smoke test Custom widget modules (Settings → Desktop Widget → Custom):
+  - [x] Enable Desktop Widget and set style to Custom
+  - [x] Ensure the module list includes: Wi‑Fi, Audio Output, Audio Input
+  - [x] Confirm the widget window renders without clipping (values should update live)
 - [x] Run a minimal Weather debug fetch (prints a single-line result and quits):
   - `open -n /tmp/Microverse.app --args --debug-weather-fetch`
   - If you need help / scenario names:
@@ -76,8 +78,8 @@ Reliably compile, install, and launch Microverse (debug and release-like) and ru
 
 ## Completion Criteria
 
-- [ ] You can reproduce a launchable `/tmp/Microverse.app` from a clean checkout using only `make debug-app` / `make app`.
-- [ ] The menu bar icon and popover appear, and no obvious runtime crashes occur on startup.
+- [x] You can reproduce a launchable `/tmp/Microverse.app` from a clean checkout using only `make debug-app` / `make app`.
+- [x] The menu bar icon and popover appear, and no obvious runtime crashes occur on startup.
 - [x] `--debug-weather-fetch` prints `WEATHER_OK ...` or a clear failure state and then exits.
 
 ## Notes
@@ -91,3 +93,13 @@ Microverse is a menu bar app that depends on correct bundle structure (Info.plis
 - An old instance is still running (especially after `make install-debug`).
 - The app launched but has no Dock icon (expected for LSUIElement menu bar apps).
 - The popover is off-screen due to multi-monitor/menu bar layout (try toggling the icon, or move to the primary display).
+
+### Remote-session safety (Wi‑Fi toggles)
+
+If you’re working over SSH / a remote desktop / an agent session, avoid:
+
+- turning Wi‑Fi off
+- disconnecting from the current network
+
+Those steps are useful for validating UI states, but they can also disconnect your session. In those environments,
+verify the “connected” UI state + throughput updates instead, and do the “off/disconnected” checks locally later.

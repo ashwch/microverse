@@ -25,7 +25,7 @@
 ## Task Index
 
 - [ ] 001 - Context and Changes (`001-context-and-changes.md`)
-- [ ] 002 - Build, Run, Smoke Test (`002-build-run-smoke-test.md`)
+- [x] 002 - Build, Run, Smoke Test (`002-build-run-smoke-test.md`)
 - [ ] 003 - Feature Review: Weather (`003-feature-review-weather.md`)
 - [ ] 004 - Code Review Checklist (`004-code-review-checklist.md`)
 - [ ] 005 - Release + Website Playbook (`005-release-and-website-playbook.md`)
