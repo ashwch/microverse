@@ -1,7 +1,15 @@
+import AppKit
 import CoreLocation
 import SwiftUI
 
 struct WeatherSettingsSection: View {
+    enum Style {
+        case settings
+        case card
+    }
+
+    var style: Style = .settings
+
     @EnvironmentObject private var viewModel: BatteryViewModel
     @EnvironmentObject private var settings: WeatherSettingsStore
     @EnvironmentObject private var weatherStore: WeatherStore
@@ -12,9 +20,14 @@ struct WeatherSettingsSection: View {
     @State private var isSearching = false
     @State private var errorMessage: String?
     @State private var searchTask: Task<Void, Never>?
+    @State private var hoveredLocationID: String?
     #if DEBUG
     @State private var isShowingIconGallery = false
     #endif
+
+    private var selectedLocation: WeatherLocation? {
+        settings.selectedLocation
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: MicroverseDesign.Layout.space3) {
@@ -53,8 +66,13 @@ struct WeatherSettingsSection: View {
                 }
             }
         }
-        .padding(.horizontal, MicroverseDesign.Layout.space5)
-        .padding(.vertical, MicroverseDesign.Layout.space4)
+        .padding(.horizontal, style == .settings ? MicroverseDesign.Layout.space5 : 12)
+        .padding(.vertical, style == .settings ? MicroverseDesign.Layout.space4 : 12)
+        .background {
+            if style == .card {
+                MicroverseDesign.cardBackground()
+            }
+        }
         .onDisappear {
             searchTask?.cancel()
             searchTask = nil
@@ -69,13 +87,7 @@ struct WeatherSettingsSection: View {
 
             Spacer()
 
-            Picker("", selection: $settings.weatherUnits) {
-                Text("°C").tag(WeatherUnits.celsius)
-                Text("°F").tag(WeatherUnits.fahrenheit)
-            }
-            .labelsHidden()
-            .pickerStyle(MenuPickerStyle())
-            .frame(width: 120)
+            unitsControl
         }
         .padding(.top, MicroverseDesign.Layout.space2)
     }
@@ -88,14 +100,7 @@ struct WeatherSettingsSection: View {
 
             Spacer()
 
-            Picker("", selection: $settings.weatherRefreshInterval) {
-                Text("15m").tag(15.0 * 60.0)
-                Text("30m").tag(30.0 * 60.0)
-                Text("60m").tag(60.0 * 60.0)
-            }
-            .labelsHidden()
-            .pickerStyle(MenuPickerStyle())
-            .frame(width: 120)
+            refreshIntervalControl
         }
     }
 
@@ -108,14 +113,7 @@ struct WeatherSettingsSection: View {
 
                 Spacer()
 
-                Picker("", selection: $settings.weatherAnimatedIconsMode) {
-                    Text("Off").tag(WeatherSettingsStore.AnimatedIconsMode.off)
-                    Text("Subtle").tag(WeatherSettingsStore.AnimatedIconsMode.subtle)
-                    Text("Full").tag(WeatherSettingsStore.AnimatedIconsMode.full)
-                }
-                .labelsHidden()
-                .pickerStyle(MenuPickerStyle())
-                .frame(width: 120)
+                animatedIconsModeControl
             }
 
             if settings.weatherShowInNotch, settings.weatherAnimatedIconsMode != .off {
@@ -240,13 +238,35 @@ struct WeatherSettingsSection: View {
 
                             Spacer()
 
-                            Picker("", selection: $settings.weatherPinnedNotchReplaces) {
-                                Text("CPU").tag(WeatherSettingsStore.PinnedNotchReplacement.cpu)
-                                Text("Memory").tag(WeatherSettingsStore.PinnedNotchReplacement.memory)
+                            pinnedReplacementControl
+                        }
+                        .padding(.leading, MicroverseDesign.Layout.space3)
+
+                        let canCycleLocations =
+                            settings.weatherLocations.count > 1
+                            || (settings.weatherUseCurrentLocation && !settings.weatherLocations.isEmpty)
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Show all locations")
+                                    .font(MicroverseDesign.Typography.caption)
+                                    .foregroundColor(.white.opacity(0.7))
+                                Text(
+                                    canCycleLocations
+                                        ? (settings.weatherUseCurrentLocation
+                                            ? "Cycles through current + saved locations in compact notch"
+                                            : "Cycles through saved locations in compact notch")
+                                        : "Add another location to enable cycling"
+                                )
+                                    .font(.system(size: 10, weight: .regular))
+                                    .foregroundColor(.white.opacity(0.5))
                             }
-                            .labelsHidden()
-                            .pickerStyle(MenuPickerStyle())
-                            .frame(width: 120)
+
+                            Spacer()
+
+                            Toggle("", isOn: $settings.weatherShowAllLocationsInNotch)
+                                .labelsHidden()
+                                .toggleStyle(ElegantToggleStyle())
+                                .disabled(!canCycleLocations)
                         }
                         .padding(.leading, MicroverseDesign.Layout.space3)
                     }
@@ -284,24 +304,240 @@ struct WeatherSettingsSection: View {
 
                         Spacer()
 
-                        Picker("", selection: $settings.weatherRotationInterval) {
-                            Text("10s").tag(10.0)
-                            Text("20s").tag(20.0)
-                            Text("30s").tag(30.0)
-                            Text("1m").tag(60.0)
-                            Text("2m").tag(2.0 * 60.0)
-                            Text("5m").tag(5.0 * 60.0)
-                            Text("10m").tag(10.0 * 60.0)
-                            Text("15m").tag(15.0 * 60.0)
-                        }
-                        .labelsHidden()
-                        .pickerStyle(MenuPickerStyle())
-                        .frame(width: 120)
+                        peekIntervalControl
                     }
                     .padding(.leading, MicroverseDesign.Layout.space3)
                 }
             }
         }
+    }
+
+    private var unitsControl: some View {
+        HStack(spacing: 0) {
+            unitsButton(.celsius, title: "°C")
+            unitsButton(.fahrenheit, title: "°F")
+        }
+        .background(
+            RoundedRectangle(cornerRadius: 6)
+                .fill(Color.white.opacity(0.08))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 6)
+                        .stroke(Color.white.opacity(0.12), lineWidth: 1)
+                )
+        )
+    }
+
+    private func unitsButton(_ units: WeatherUnits, title: String) -> some View {
+        let isSelected = settings.weatherUnits == units
+
+        return Button {
+            settings.weatherUnits = units
+        } label: {
+            Text(title)
+                .font(.system(size: 11, weight: .medium))
+                .foregroundColor(isSelected ? .white : .white.opacity(0.7))
+                .frame(height: 24)
+                .padding(.horizontal, 12)
+                .background(
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(isSelected ? Color.white.opacity(0.14) : Color.clear)
+                )
+        }
+        .buttonStyle(PlainButtonStyle())
+        .accessibilityLabel("Units \(title)")
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+    }
+
+    private static let refreshIntervals: [(title: String, value: TimeInterval)] = [
+        ("15m", 15 * 60),
+        ("30m", 30 * 60),
+        ("60m", 60 * 60),
+    ]
+
+    private var refreshIntervalControl: some View {
+        HStack(spacing: 0) {
+            ForEach(Self.refreshIntervals, id: \.value) { option in
+                refreshIntervalButton(option)
+            }
+        }
+        .background(
+            RoundedRectangle(cornerRadius: 6)
+                .fill(Color.white.opacity(0.08))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 6)
+                        .stroke(Color.white.opacity(0.12), lineWidth: 1)
+                )
+        )
+    }
+
+    private func refreshIntervalButton(_ option: (title: String, value: TimeInterval)) -> some View {
+        let isSelected = abs(settings.weatherRefreshInterval - option.value) < 0.5
+
+        return Button {
+            settings.weatherRefreshInterval = option.value
+        } label: {
+            Text(option.title)
+                .font(.system(size: 11, weight: .medium))
+                .foregroundColor(isSelected ? .white : .white.opacity(0.7))
+                .frame(height: 24)
+                .padding(.horizontal, 12)
+                .background(
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(isSelected ? Color.white.opacity(0.14) : Color.clear)
+                )
+        }
+        .buttonStyle(PlainButtonStyle())
+        .accessibilityLabel("Refresh \(option.title)")
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+    }
+
+    private var animatedIconsModeControl: some View {
+        HStack(spacing: 0) {
+            animatedIconsModeButton(.off, title: "Off")
+            animatedIconsModeButton(.subtle, title: "Subtle")
+            animatedIconsModeButton(.full, title: "Full")
+        }
+        .background(
+            RoundedRectangle(cornerRadius: 6)
+                .fill(Color.white.opacity(0.08))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 6)
+                        .stroke(Color.white.opacity(0.12), lineWidth: 1)
+                )
+        )
+    }
+
+    private func animatedIconsModeButton(_ mode: WeatherSettingsStore.AnimatedIconsMode, title: String) -> some View {
+        let isSelected = settings.weatherAnimatedIconsMode == mode
+
+        return Button {
+            settings.weatherAnimatedIconsMode = mode
+        } label: {
+            Text(title)
+                .font(.system(size: 11, weight: .medium))
+                .foregroundColor(isSelected ? .white : .white.opacity(0.7))
+                .frame(height: 24)
+                .padding(.horizontal, 10)
+                .background(
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(isSelected ? Color.white.opacity(0.14) : Color.clear)
+                )
+        }
+        .buttonStyle(PlainButtonStyle())
+        .accessibilityLabel("Animated icons \(title)")
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+    }
+
+    private var pinnedReplacementControl: some View {
+        HStack(spacing: 2) {
+            pinnedReplacementButton(.auto, title: "Auto", systemIcon: "sparkles")
+            pinnedReplacementButton(.cpu, title: "CPU", systemIcon: "cpu")
+            pinnedReplacementButton(.memory, title: "Memory", systemIcon: "memorychip")
+        }
+        .padding(2)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(Color.white.opacity(0.08))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(Color.white.opacity(0.12), lineWidth: 1)
+                )
+        )
+    }
+
+    private func pinnedReplacementButton(
+        _ replacement: WeatherSettingsStore.PinnedNotchReplacement,
+        title: String,
+        systemIcon: String
+    ) -> some View {
+        let isSelected = settings.weatherPinnedNotchReplaces == replacement
+
+        return Button {
+            settings.weatherPinnedNotchReplaces = replacement
+        } label: {
+            HStack(spacing: 5) {
+                Image(systemName: systemIcon)
+                    .font(.system(size: 10, weight: .semibold))
+                Text(title)
+                    .font(.system(size: 11, weight: .medium))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+            }
+            .foregroundColor(isSelected ? .white : .white.opacity(0.7))
+            .frame(height: 24)
+            .padding(.horizontal, 10)
+            .background(
+                RoundedRectangle(cornerRadius: 4)
+                    .fill(isSelected ? Color.white.opacity(0.14) : Color.clear)
+            )
+        }
+        .buttonStyle(PlainButtonStyle())
+        .accessibilityLabel("Replace \(title)")
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+    }
+
+    private static let peekIntervals: [TimeInterval] = [
+        10, 20, 30,
+        60, 2 * 60,
+        5 * 60, 10 * 60, 15 * 60,
+    ]
+
+    private var peekIntervalControl: some View {
+        let options = Self.peekIntervals
+        let idx = options.firstIndex(where: { abs($0 - settings.weatherRotationInterval) < 0.5 }) ?? 0
+
+        return HStack(spacing: 8) {
+            Button {
+                let next = max(0, idx - 1)
+                settings.weatherRotationInterval = options[next]
+            } label: {
+                Image(systemName: "minus")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundColor(.white.opacity(idx == 0 ? 0.25 : 0.75))
+                    .frame(width: 18, height: 18)
+            }
+            .buttonStyle(PlainButtonStyle())
+            .disabled(idx == 0)
+            .accessibilityLabel("Decrease interval")
+
+            Text(formatPeekInterval(options[idx]))
+                .font(.system(size: 11, weight: .medium))
+                .foregroundColor(.white.opacity(0.8))
+                .monospacedDigit()
+                .frame(minWidth: 42, alignment: .center)
+
+            Button {
+                let next = min(options.count - 1, idx + 1)
+                settings.weatherRotationInterval = options[next]
+            } label: {
+                Image(systemName: "plus")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundColor(.white.opacity(idx == options.count - 1 ? 0.25 : 0.75))
+                    .frame(width: 18, height: 18)
+            }
+            .buttonStyle(PlainButtonStyle())
+            .disabled(idx == options.count - 1)
+            .accessibilityLabel("Increase interval")
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 5)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(Color.white.opacity(0.06))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(Color.white.opacity(0.12), lineWidth: 1)
+                )
+        )
+        .accessibilityLabel("Peek interval")
+        .accessibilityValue(formatPeekInterval(options[idx]))
+    }
+
+    private func formatPeekInterval(_ interval: TimeInterval) -> String {
+        let seconds = Int(interval.rounded())
+        if seconds < 60 { return "\(seconds)s" }
+        let minutes = seconds / 60
+        return "\(minutes)m"
     }
 
     private var smartNotchHint: some View {
@@ -332,7 +568,7 @@ struct WeatherSettingsSection: View {
                 .foregroundColor(.white.opacity(0.5))
                 .tracking(0.8)
 
-            if settings.weatherLocation == nil {
+            if selectedLocation == nil {
                 Text("Set a location to test scenarios.")
                     .font(MicroverseDesign.Typography.caption)
                     .foregroundColor(.white.opacity(0.55))
@@ -352,7 +588,7 @@ struct WeatherSettingsSection: View {
                     }
                 }
                 .buttonStyle(FlatButtonStyle())
-                .disabled(settings.weatherLocation == nil)
+                .disabled(selectedLocation == nil)
             }
 
             HStack(spacing: MicroverseDesign.Layout.space2) {
@@ -387,12 +623,12 @@ struct WeatherSettingsSection: View {
             displayOrchestrator.previewWeatherInNotch(duration: 20)
         }
         .buttonStyle(FlatButtonStyle())
-        .disabled(settings.weatherLocation == nil)
+        .disabled(selectedLocation == nil)
     }
 
     @MainActor
     private func runWeatherDebugDemo() async {
-        guard settings.weatherLocation != nil else { return }
+        guard selectedLocation != nil else { return }
 
         let previous = DebugWeatherSettingsSnapshot.capture(settings: settings)
         defer { previous.restore(settings: settings) }
@@ -452,28 +688,40 @@ struct WeatherSettingsSection: View {
     private var locationRow: some View {
         VStack(alignment: .leading, spacing: MicroverseDesign.Layout.space2) {
             HStack {
-                Text("Location")
+                Text("Locations")
                     .font(MicroverseDesign.Typography.caption)
                     .foregroundColor(.white.opacity(0.7))
 
                 Spacer()
 
-                if settings.weatherLocation != nil {
-                    Button("Clear") {
-                        settings.weatherLocation = nil
-                        results = []
-                        errorMessage = nil
-                    }
-                    .buttonStyle(PlainButtonStyle())
-                    .foregroundColor(.white.opacity(0.7))
+                if !settings.weatherLocations.isEmpty {
+                    Text("\(settings.weatherLocations.count) saved")
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundColor(.white.opacity(0.45))
+                        .monospacedDigit()
                 }
             }
 
-            if let location = settings.weatherLocation {
-                Text(location.displayName)
-                    .font(MicroverseDesign.Typography.body)
-                    .foregroundColor(.white)
-                    .lineLimit(1)
+            currentLocationRow
+
+            if settings.weatherLocations.isEmpty {
+                Text("No saved locations.")
+                    .font(MicroverseDesign.Typography.caption)
+                    .foregroundColor(.white.opacity(0.55))
+            } else {
+                VStack(spacing: 0) {
+                    ForEach(settings.weatherLocations) { location in
+                        locationRowItem(location)
+                    }
+                }
+                .background(
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(Color.white.opacity(0.04))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10)
+                                .stroke(Color.white.opacity(0.10), lineWidth: 1)
+                        )
+                )
             }
 
             HStack(spacing: 8) {
@@ -513,18 +761,40 @@ struct WeatherSettingsSection: View {
                 VStack(spacing: 0) {
                     ForEach(Array(results.prefix(6).enumerated()), id: \.offset) { idx, placemark in
                         Button(action: { select(placemark) }) {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(placemarkDisplayName(placemark))
-                                    .font(.system(size: 11, weight: .medium))
-                                    .foregroundColor(.white)
-                                    .lineLimit(1)
+                            let displayName = WeatherPlacemarkNameFormatter.displayName(for: placemark)
+                            let parts = displayName
+                                .split(separator: ",")
+                                .map { String($0).trimmingCharacters(in: .whitespacesAndNewlines) }
+                                .filter { !$0.isEmpty }
+                            let primary = parts.first ?? displayName
+                            let secondary = parts.dropFirst().joined(separator: " · ")
 
-                                if let loc = placemark.location {
-                                    Text("\(loc.coordinate.latitude, specifier: "%.3f"), \(loc.coordinate.longitude, specifier: "%.3f")")
-                                        .font(.system(size: 10))
-                                        .foregroundColor(.white.opacity(0.55))
-                                        .monospacedDigit()
+                            HStack(spacing: 10) {
+                                VStack(alignment: .leading, spacing: 1) {
+                                    Text(primary)
+                                        .font(.system(size: 11, weight: .medium))
+                                        .foregroundColor(.white)
+                                        .lineLimit(1)
+
+                                    if !secondary.isEmpty {
+                                        Text(secondary)
+                                            .font(.system(size: 9, weight: .regular))
+                                            .foregroundColor(.white.opacity(0.55))
+                                            .lineLimit(1)
+                                    }
                                 }
+
+                                Spacer()
+
+                                Image(systemName: "plus")
+                                    .font(.system(size: 11, weight: .semibold))
+                                    .foregroundColor(.white.opacity(0.85))
+                                    .frame(width: 18, height: 18)
+                                    .padding(4)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 7)
+                                            .fill(Color.white.opacity(0.06))
+                                    )
                             }
                             .padding(.vertical, 6)
                             .padding(.horizontal, 10)
@@ -547,6 +817,78 @@ struct WeatherSettingsSection: View {
                                 .stroke(Color.white.opacity(0.10), lineWidth: 1)
                         )
                 )
+            }
+        }
+    }
+
+    private func locationRowItem(_ location: WeatherLocation) -> some View {
+        let isSelected = !settings.weatherUseCurrentLocation && location.id == settings.weatherSelectedLocationID
+        let isHovered = hoveredLocationID == location.id
+        let primary = location.microversePrimaryName()
+        let secondary = location.microverseSecondaryName()
+
+        return ZStack(alignment: .trailing) {
+            Button {
+                settings.selectLocation(id: location.id)
+                results = []
+                errorMessage = nil
+            } label: {
+                HStack(spacing: 8) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(primary)
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundColor(.white.opacity(isSelected ? 1.0 : 0.85))
+                            .lineLimit(1)
+
+                        if let secondary {
+                            Text(secondary)
+                                .font(.system(size: 9, weight: .regular))
+                                .foregroundColor(.white.opacity(0.45))
+                                .lineLimit(1)
+                        }
+                    }
+
+                    Spacer()
+
+                    if isSelected {
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundColor(MicroverseDesign.Colors.accent)
+                    }
+
+                    // Reserve space so the row doesn't jump when the hover action appears.
+                    Color.clear
+                        .frame(width: 22, height: 22)
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 8)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.white.opacity(isSelected ? 0.08 : (isHovered ? 0.04 : 0.0)))
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(PlainButtonStyle())
+
+            if isHovered || isSelected {
+                Button {
+                    settings.removeLocation(id: location.id)
+                    results = []
+                    errorMessage = nil
+                } label: {
+                    Image(systemName: "trash")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundColor(.white.opacity(0.55))
+                        .frame(width: 22, height: 22)
+                }
+                .buttonStyle(PlainButtonStyle())
+                .help("Remove")
+                .padding(.trailing, 10)
+            }
+        }
+        .onHover { hovering in
+            if hovering {
+                hoveredLocationID = location.id
+            } else if hoveredLocationID == location.id {
+                hoveredLocationID = nil
             }
         }
     }
@@ -587,7 +929,7 @@ struct WeatherSettingsSection: View {
         guard let loc = placemark.location else { return }
 
         let tz = placemark.timeZone?.identifier ?? TimeZone.current.identifier
-        let name = placemarkDisplayName(placemark)
+        let name = WeatherPlacemarkNameFormatter.displayName(for: placemark)
 
         guard let location = WeatherLocation(
             displayName: name,
@@ -599,33 +941,155 @@ struct WeatherSettingsSection: View {
             return
         }
 
-        settings.weatherLocation = location
+        settings.addOrSelectLocation(location)
 
+        query = ""
         results = []
         errorMessage = nil
     }
 
-    private func placemarkDisplayName(_ placemark: CLPlacemark) -> String {
-        var parts: [String] = []
+    private var currentLocationRow: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 10) {
+                Image(systemName: "location.fill")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(settings.weatherUseCurrentLocation ? MicroverseDesign.Colors.accent : .white.opacity(0.7))
+                    .frame(width: 16, height: 16, alignment: .center)
 
-        if let locality = placemark.locality, !locality.isEmpty {
-            parts.append(locality)
-        } else if let name = placemark.name, !name.isEmpty {
-            parts.append(name)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Current location")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundColor(.white.opacity(0.9))
+
+                    Text(currentLocationSubtitle)
+                        .font(.system(size: 9, weight: .regular))
+                        .foregroundColor(.white.opacity(0.55))
+                        .lineLimit(1)
+                }
+
+                Spacer()
+
+                if settings.weatherUseCurrentLocation, settings.weatherCurrentLocationIsUpdating, settings.weatherCurrentLocation == nil {
+                    ProgressView()
+                        .controlSize(.small)
+                        .tint(.white.opacity(0.65))
+                }
+
+                Toggle("", isOn: $settings.weatherUseCurrentLocation)
+                    .labelsHidden()
+                    .toggleStyle(ElegantToggleStyle())
+                    .onChange(of: settings.weatherUseCurrentLocation) { enabled in
+                        guard enabled else { return }
+                        settings.requestCurrentLocationAuthorization()
+                    }
+            }
+
+            if settings.weatherUseCurrentLocation {
+                if let error = settings.weatherCurrentLocationErrorMessage {
+                    HStack(spacing: 8) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundColor(MicroverseDesign.Colors.warning.opacity(0.9))
+                        Text(error)
+                            .font(.system(size: 10, weight: .regular))
+                            .foregroundColor(.white.opacity(0.55))
+                            .lineLimit(2)
+                            .fixedSize(horizontal: false, vertical: true)
+                        Spacer()
+                    }
+                } else if shouldShowLocationPermissionCTA {
+                    HStack {
+                        Text("Allow Microverse to use your location for local weather.")
+                            .font(.system(size: 10, weight: .regular))
+                            .foregroundColor(.white.opacity(0.55))
+
+                        Spacer()
+
+                        Button("Allow") {
+                            settings.requestCurrentLocationAuthorization()
+                        }
+                        .buttonStyle(FlatButtonStyle())
+                    }
+                } else if shouldShowLocationSettingsCTA {
+                    HStack {
+                        Text("Enable Location Services for Microverse in System Settings.")
+                            .font(.system(size: 10, weight: .regular))
+                            .foregroundColor(.white.opacity(0.55))
+
+                        Spacer()
+
+                        Button("Open Settings") {
+                            openLocationSystemSettings()
+                        }
+                        .buttonStyle(FlatButtonStyle())
+                    }
+                }
+            }
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 10)
+        .background(
+            RoundedRectangle(cornerRadius: 10)
+                .fill(Color.white.opacity(0.04))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10)
+                        .stroke(Color.white.opacity(0.10), lineWidth: 1)
+                )
+        )
+    }
+
+    private var currentLocationSubtitle: String {
+        guard settings.weatherUseCurrentLocation else {
+            return "Use your Mac’s location for Weather"
         }
 
-        if let admin = placemark.administrativeArea, !admin.isEmpty {
-            parts.append(admin)
+        if let location = settings.weatherCurrentLocation {
+            let name = location.microverseDisplayName()
+            return name.isEmpty ? "Using current location" : "Using \(name)"
         }
 
-        if let country = placemark.country, !country.isEmpty {
-            parts.append(country)
+        let status = settings.weatherCurrentLocationAuthorizationStatus
+        if !CLLocationManager.locationServicesEnabled() {
+            return "Location Services are off"
         }
 
-        if parts.isEmpty {
-            return "Selected Location"
+        switch status {
+        case .notDetermined:
+            return "Needs permission"
+        case .restricted, .denied:
+            return "No access"
+        case .authorizedAlways, .authorized:
+            return "Locating…"
+        @unknown default:
+            return "Locating…"
         }
+    }
 
-        return parts.joined(separator: ", ")
+    private var shouldShowLocationPermissionCTA: Bool {
+        guard settings.weatherUseCurrentLocation else { return false }
+        guard CLLocationManager.locationServicesEnabled() else { return false }
+        return settings.weatherCurrentLocationAuthorizationStatus == .notDetermined
+    }
+
+    private var shouldShowLocationSettingsCTA: Bool {
+        guard settings.weatherUseCurrentLocation else { return false }
+        guard CLLocationManager.locationServicesEnabled() else { return true }
+        switch settings.weatherCurrentLocationAuthorizationStatus {
+        case .restricted, .denied:
+            return true
+        default:
+            return false
+        }
+    }
+
+    private func openLocationSystemSettings() {
+        // Best-effort deep link; falls back to opening System Settings if the URL isn't supported.
+        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_LocationServices") {
+            NSWorkspace.shared.open(url)
+            return
+        }
+        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security") {
+            NSWorkspace.shared.open(url)
+        }
     }
 }

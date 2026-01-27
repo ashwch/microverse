@@ -227,6 +227,10 @@ jobs:
             <string>NSApplication</string>
             <key>LSUIElement</key>
             <true/>
+            <key>NSLocationWhenInUseUsageDescription</key>
+            <string>Microverse uses your location to show local weather in the notch, widgets, and menu bar.</string>
+            <key>NSBluetoothAlwaysUsageDescription</key>
+            <string>Microverse uses Bluetooth to read AirPods battery levels for alerts and widgets.</string>
             <key>NSSupportsAutomaticTermination</key>
             <false/>
             <key>NSSupportsSuddenTermination</key>

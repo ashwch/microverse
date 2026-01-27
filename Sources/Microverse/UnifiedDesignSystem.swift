@@ -198,12 +198,14 @@ enum MicroverseDesign {
 struct NotchCompactMetric: View {
     let icon: String
     let value: Int
+    let suffix: String?
     let color: Color
     let isPrimary: Bool
     
-    init(icon: String, value: Int, color: Color, isPrimary: Bool = false) {
+    init(icon: String, value: Int, suffix: String? = nil, color: Color, isPrimary: Bool = false) {
         self.icon = icon
         self.value = value
+        self.suffix = suffix
         self.color = color
         self.isPrimary = isPrimary
     }
@@ -214,13 +216,22 @@ struct NotchCompactMetric: View {
                 .font(isPrimary ? MicroverseDesign.Notch.Typography.compactIcon : MicroverseDesign.Notch.Typography.compactIcon.weight(.medium))
                 .foregroundColor(color)
                 .symbolRenderingMode(.monochrome)
-                .frame(width: MicroverseDesign.Layout.iconSizeSmall, alignment: .center) // Compact icon width
+                .frame(width: MicroverseDesign.Layout.iconSizeSmall + 2, alignment: .center) // Prevent icon clipping
             
-            Text("\(value)")
-                .font(isPrimary ? MicroverseDesign.Notch.Typography.compactValue : MicroverseDesign.Notch.Typography.compactValue.weight(.medium))
-                .foregroundColor(MicroverseDesign.Colors.accent)
-                .monospacedDigit()
-                .frame(minWidth: MicroverseDesign.Layout.space3, alignment: .leading) // Compact minimum width
+            HStack(spacing: 1) {
+                Text("\(value)")
+                    .font(isPrimary ? MicroverseDesign.Notch.Typography.compactValue : MicroverseDesign.Notch.Typography.compactValue.weight(.medium))
+                    .foregroundColor(MicroverseDesign.Colors.accent)
+                    .monospacedDigit()
+
+                if let suffix {
+                    Text(suffix)
+                        .font(.system(size: 9, weight: isPrimary ? .semibold : .medium, design: .rounded))
+                        .foregroundColor(.white.opacity(0.6))
+                        .baselineOffset(1)
+                }
+            }
+            .frame(minWidth: MicroverseDesign.Layout.space3, alignment: .leading) // Compact minimum width
         }
         .frame(
             minWidth: MicroverseDesign.Notch.Dimensions.compactWidgetMinWidth,

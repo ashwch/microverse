@@ -1,9 +1,16 @@
 import Foundation
 
 struct OpenMeteoProvider: WeatherProvider {
-    private let session: URLSession
+    enum Mode: Sendable, Equatable {
+        case full
+        case currentOnly
+    }
 
-    init(session: URLSession = .shared) {
+    private let session: URLSession
+    private let mode: Mode
+
+    init(mode: Mode = .full, session: URLSession = .shared) {
+        self.mode = mode
         self.session = session
     }
 
@@ -29,7 +36,7 @@ struct OpenMeteoProvider: WeatherProvider {
             expiration: nil
         )
 
-        let hourly = makeHourly(decoded.hourly, parser: parser)
+        let hourly = decoded.hourly.map { makeHourly($0, parser: parser) } ?? []
 
         return WeatherPayload(
             provider: .openMeteo,
@@ -43,15 +50,20 @@ struct OpenMeteoProvider: WeatherProvider {
 
     private func makeURL(location: WeatherLocation) -> URL? {
         var components = URLComponents(string: "https://api.open-meteo.com/v1/forecast")
-        components?.queryItems = [
+        var items: [URLQueryItem] = [
             URLQueryItem(name: "latitude", value: String(location.latitude)),
             URLQueryItem(name: "longitude", value: String(location.longitude)),
             URLQueryItem(name: "timezone", value: location.timezoneIdentifier),
             URLQueryItem(name: "current", value: "temperature_2m,is_day,weather_code"),
-            URLQueryItem(name: "hourly", value: "temperature_2m,is_day,precipitation_probability,weather_code,wind_speed_10m"),
-            URLQueryItem(name: "forecast_hours", value: "24"),
-            URLQueryItem(name: "wind_speed_unit", value: "kmh")
         ]
+
+        if mode == .full {
+            items.append(URLQueryItem(name: "hourly", value: "temperature_2m,is_day,precipitation_probability,weather_code,wind_speed_10m"))
+            items.append(URLQueryItem(name: "forecast_hours", value: "24"))
+            items.append(URLQueryItem(name: "wind_speed_unit", value: "kmh"))
+        }
+
+        components?.queryItems = items
         return components?.url
     }
 
@@ -119,7 +131,7 @@ private struct OpenMeteoResponse: Decodable {
     }
 
     var current: Current
-    var hourly: Hourly
+    var hourly: Hourly?
 }
 
 private final class OpenMeteoDateParser {

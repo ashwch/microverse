@@ -17,6 +17,14 @@
     <!-- File system access for update downloads -->
     <key>com.apple.security.files.downloads.read-write</key>
     <true/>
+
+    <!-- Location access for current-location weather -->
+    <key>com.apple.security.personal-information.location</key>
+    <true/>
+
+    <!-- Bluetooth access for AirPods battery monitoring -->
+    <key>com.apple.security.device.bluetooth</key>
+    <true/>
     
     <!-- CRITICAL: Sparkle XPC service entitlements for sandboxed apps -->
     <key>com.apple.security.temporary-exception.mach-lookup.global-name</key>

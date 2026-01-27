@@ -23,8 +23,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     var viewModel: BatteryViewModel!
     var weatherSettings: WeatherSettingsStore!
     var weatherStore: WeatherStore!
+    var weatherLocationsStore: WeatherLocationsStore!
     var displayOrchestrator: DisplayOrchestrator!
     var weatherAnimationBudget: WeatherAnimationBudget!
+    var weatherAlertEngine: WeatherAlertEngine!
+    var networkStore: NetworkStore!
     var popoverContentViewController: NSViewController?
     private var cancellables = Set<AnyCancellable>()
     
@@ -122,6 +125,7 @@ Click it to access system monitoring, settings, and desktop widgets.
         // Construct shared services first, then the view model (so notch can render weather safely).
         weatherSettings = WeatherSettingsStore()
         weatherStore = WeatherStore(provider: makeWeatherProvider(), settings: weatherSettings)
+        weatherLocationsStore = WeatherLocationsStore(provider: makeWeatherSummaryProvider(), settings: weatherSettings)
         weatherAnimationBudget = WeatherAnimationBudget(settings: weatherSettings)
 
         // Create battery view model.
@@ -130,10 +134,19 @@ Click it to access system monitoring, settings, and desktop widgets.
         // Display orchestration (system ↔ weather swapping) for notch/widget surfaces.
         displayOrchestrator = DisplayOrchestrator(settings: weatherSettings, weatherStore: weatherStore, batteryViewModel: viewModel)
 
-        viewModel.setWeatherEnvironment(settings: weatherSettings, store: weatherStore, orchestrator: displayOrchestrator, animationBudget: weatherAnimationBudget)
+        viewModel.setWeatherEnvironment(
+            settings: weatherSettings,
+            store: weatherStore,
+            locationsStore: weatherLocationsStore,
+            orchestrator: displayOrchestrator,
+            animationBudget: weatherAnimationBudget
+        )
 
         weatherStore.start()
+        weatherAlertEngine = WeatherAlertEngine(settings: weatherSettings, weather: weatherStore, battery: viewModel)
         viewModel.handleAppLaunchCompleted()
+
+        networkStore = NetworkStore()
         
         // Update menu bar
         updateMenuBarDisplay()
@@ -148,8 +161,12 @@ Click it to access system monitoring, settings, and desktop widgets.
             .environmentObject(viewModel)
             .environmentObject(weatherSettings)
             .environmentObject(weatherStore)
+            .environmentObject(weatherLocationsStore)
             .environmentObject(displayOrchestrator)
             .environmentObject(weatherAnimationBudget)
+            .environmentObject(networkStore)
+            .environmentObject(viewModel.wifiStore)
+            .environmentObject(viewModel.audioDevicesStore)
         
         popoverContentViewController = NSHostingController(rootView: tabbedMainView)
         popover.contentViewController = popoverContentViewController
@@ -188,7 +205,11 @@ Click it to access system monitoring, settings, and desktop widgets.
                 .removeDuplicates()
                 .map { _ in () }
                 .eraseToAnyPublisher(),
-            weatherSettings.$weatherLocation
+            weatherSettings.$weatherSelectedLocationID
+                .removeDuplicates()
+                .map { _ in () }
+                .eraseToAnyPublisher(),
+            weatherSettings.$weatherLocations
                 .removeDuplicates()
                 .map { _ in () }
                 .eraseToAnyPublisher()
@@ -203,6 +224,7 @@ Click it to access system monitoring, settings, and desktop widgets.
         NSWorkspace.shared.notificationCenter.publisher(for: NSWorkspace.didWakeNotification)
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
+                self?.weatherSettings.requestCurrentLocationUpdate()
                 self?.weatherStore.triggerRefresh(reason: "wake")
                 self?.displayOrchestrator.refresh(reason: "wake")
             }
@@ -285,13 +307,15 @@ Click it to access system monitoring, settings, and desktop widgets.
         Task { @MainActor [weak self] in
             guard let self else { return }
 
-            if self.weatherSettings.weatherLocation == nil {
-                self.weatherSettings.weatherLocation = WeatherLocation(
+            if self.weatherSettings.selectedLocation == nil,
+               let location = WeatherLocation(
                     displayName: "San Francisco, CA, USA",
                     latitude: 37.7749,
                     longitude: -122.4194,
                     timezoneIdentifier: "America/Los_Angeles"
                 )
+            {
+                self.weatherSettings.addOrSelectLocation(location)
             }
 
             self.weatherSettings.weatherEnabled = true
@@ -355,13 +379,15 @@ Click it to access system monitoring, settings, and desktop widgets.
             let previous = DebugWeatherDemoSnapshot.capture(viewModel: viewModel, settings: weatherSettings)
 
             // Ensure weather has a location and is enabled.
-            if self.weatherSettings.weatherLocation == nil {
-                self.weatherSettings.weatherLocation = WeatherLocation(
+            if self.weatherSettings.selectedLocation == nil,
+               let location = WeatherLocation(
                     displayName: "San Francisco, CA, USA",
                     latitude: 37.7749,
                     longitude: -122.4194,
                     timezoneIdentifier: "America/Los_Angeles"
                 )
+            {
+                self.weatherSettings.addOrSelectLocation(location)
             }
 
             self.weatherSettings.weatherEnabled = true
@@ -413,7 +439,8 @@ Click it to access system monitoring, settings, and desktop widgets.
         var weatherShowInNotch: Bool
         var weatherShowInWidget: Bool
         var weatherSmartSwitchingEnabled: Bool
-        var weatherLocation: WeatherLocation?
+        var weatherLocations: [WeatherLocation]
+        var weatherSelectedLocationID: String?
 
         static func capture(viewModel: BatteryViewModel, settings: WeatherSettingsStore) -> DebugWeatherDemoSnapshot {
             DebugWeatherDemoSnapshot(
@@ -424,7 +451,8 @@ Click it to access system monitoring, settings, and desktop widgets.
                 weatherShowInNotch: settings.weatherShowInNotch,
                 weatherShowInWidget: settings.weatherShowInWidget,
                 weatherSmartSwitchingEnabled: settings.weatherSmartSwitchingEnabled,
-                weatherLocation: settings.weatherLocation
+                weatherLocations: settings.weatherLocations,
+                weatherSelectedLocationID: settings.weatherSelectedLocationID
             )
         }
 
@@ -434,7 +462,8 @@ Click it to access system monitoring, settings, and desktop widgets.
             settings.weatherShowInNotch = weatherShowInNotch
             settings.weatherShowInWidget = weatherShowInWidget
             settings.weatherSmartSwitchingEnabled = weatherSmartSwitchingEnabled
-            settings.weatherLocation = weatherLocation
+            settings.weatherLocations = weatherLocations
+            settings.weatherSelectedLocationID = weatherSelectedLocationID
 
             // Restore UI surface settings.
             viewModel.widgetStyle = widgetStyle
@@ -477,7 +506,7 @@ Click it to access system monitoring, settings, and desktop widgets.
     private func menuBarWeatherText() -> String? {
         guard weatherSettings.weatherEnabled else { return nil }
         guard weatherSettings.weatherShowInMenuBar else { return nil }
-        guard weatherSettings.weatherLocation != nil else { return nil }
+        guard weatherSettings.selectedLocation != nil else { return nil }
 
         guard let c = weatherStore.current?.temperatureC else {
             return "—°"
@@ -602,19 +631,28 @@ Click it to access system monitoring, settings, and desktop widgets.
             if popover.isShown {
                 popover.performClose(nil)
             } else {
+                // Ensure the popover is interactive immediately (scroll, clicks, keyboard focus).
+                NSApp.activate(ignoringOtherApps: true)
+
                 // Recreate the content view to ensure fresh state
                 let tabbedMainView = TabbedMainView()
                     .environmentObject(viewModel)
                     .environmentObject(weatherSettings)
                     .environmentObject(weatherStore)
+                    .environmentObject(weatherLocationsStore)
                     .environmentObject(displayOrchestrator)
                     .environmentObject(weatherAnimationBudget)
+                    .environmentObject(networkStore)
+                    .environmentObject(viewModel.wifiStore)
+                    .environmentObject(viewModel.audioDevicesStore)
                 
                 popoverContentViewController = NSHostingController(rootView: tabbedMainView)
                 popover.contentViewController = popoverContentViewController
                 
                 popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
-                popover.contentViewController?.view.window?.makeKey()
+                DispatchQueue.main.async { [weak self] in
+                    self?.popover.contentViewController?.view.window?.makeKeyAndOrderFront(nil)
+                }
             }
         }
     }
@@ -630,6 +668,20 @@ Click it to access system monitoring, settings, and desktop widgets.
         return WeatherProviderFallback(primary: WeatherKitProvider(), fallback: OpenMeteoProvider())
         #else
         return OpenMeteoProvider()
+        #endif
+    }
+
+    private func makeWeatherSummaryProvider() -> WeatherProvider {
+        #if DEBUG
+        if let scenario = debugWeatherScenarioFromArgs() {
+            return WeatherDebugScenarioProvider(scenario: scenario)
+        }
+        #endif
+
+        #if canImport(WeatherKit)
+        return WeatherProviderFallback(primary: WeatherKitProvider(), fallback: OpenMeteoProvider(mode: .currentOnly))
+        #else
+        return OpenMeteoProvider(mode: .currentOnly)
         #endif
     }
 
@@ -655,21 +707,17 @@ Click it to access system monitoring, settings, and desktop widgets.
         if eventMonitor == nil {
             eventMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] event in
                 if let strongSelf = self, strongSelf.popover.isShown {
-                    // Check if click is within popover bounds
                     if let contentView = strongSelf.popover.contentViewController?.view,
-                       let window = contentView.window {
-                        let clickLocation = event.locationInWindow
-                        let screenLocation = NSPoint(
-                            x: window.frame.origin.x + clickLocation.x,
-                            y: window.frame.origin.y + clickLocation.y
-                        )
-                        
-                        // Don't close if click is within popover window
+                       let window = contentView.window
+                    {
+                        // Global monitor events report screen coordinates; use the current mouse location to
+                        // avoid mixing coordinate spaces and accidentally treating inside clicks as outside.
+                        let screenLocation = NSEvent.mouseLocation
                         if window.frame.contains(screenLocation) {
                             return
                         }
                     }
-                    
+
                     strongSelf.closePopover()
                 }
             }

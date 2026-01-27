@@ -1,6 +1,13 @@
 import SwiftUI
 
 struct ElegantUpdateSection: View {
+    enum Style {
+        case settings
+        case card
+    }
+
+    var style: Style = .settings
+
     @EnvironmentObject var viewModel: BatteryViewModel
     @StateObject private var updateService = SecureUpdateService.shared
     
@@ -86,8 +93,8 @@ struct ElegantUpdateSection: View {
             }
         }
         .background(MicroverseDesign.cardBackground())
-        .padding(.horizontal, MicroverseDesign.Layout.space3)
-        .padding(.vertical, MicroverseDesign.Layout.space3)
+        .padding(.horizontal, style == .settings ? MicroverseDesign.Layout.space3 : 0)
+        .padding(.vertical, style == .settings ? MicroverseDesign.Layout.space3 : 0)
     }
     
     @ViewBuilder

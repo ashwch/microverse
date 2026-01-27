@@ -2,6 +2,15 @@ import Combine
 import Foundation
 import os.log
 
+/// Fetches and publishes weather for the *currently selected* location.
+///
+/// This store is intentionally single-location: it always reflects `WeatherSettingsStore.selectedLocation`.
+/// When Microverse needs multiple locations (e.g. cycling in the compact notch), it uses `WeatherLocationsStore`.
+///
+/// Design goals:
+/// - Debounced refresh (avoid hot polling while the user is toggling settings).
+/// - Disk cache per location (fast startup + offline/stale UI).
+/// - Provider-agnostic (WeatherKit when available, with a network fallback via `WeatherProviderFallback`).
 @MainActor
 final class WeatherStore: ObservableObject {
     @Published private(set) var current: WeatherSnapshot?
@@ -25,11 +34,13 @@ final class WeatherStore: ObservableObject {
         self.provider = provider
         self.settings = settings
         self.detector = detector
-        self.cache = WeatherDiskCache(filename: "weather-cache-v1.json")
+        self.cache = WeatherDiskCache(filename: "weather-cache-v2.json")
 
         Task { [weak self] in
             guard let self else { return }
-            if let cached = await cache.load() {
+            if let locationID = settings.selectedLocation?.id,
+               let cached = await cache.load(locationID: locationID)
+            {
                 self.apply(payload: cached, isStale: true)
             }
         }
@@ -50,11 +61,52 @@ final class WeatherStore: ObservableObject {
             }
             .store(in: &cancellables)
 
-        settings.$weatherLocation
-            .removeDuplicates()
-            .dropFirst()
-            .sink { [weak self] _ in
+        Publishers.CombineLatest4(
+            settings.$weatherSelectedLocationID,
+            settings.$weatherLocations,
+            settings.$weatherUseCurrentLocation,
+            settings.$weatherCurrentLocation
+        )
+        .map { (selectedID, locations, useCurrentLocation, currentLocation) -> WeatherLocation? in
+            if useCurrentLocation {
+                return currentLocation
+            }
+            if let selectedID, let found = locations.first(where: { $0.id == selectedID }) {
+                return found
+            }
+            return locations.first
+        }
+        .removeDuplicates(by: { lhs, rhs in lhs?.id == rhs?.id })
+        .dropFirst()
+        .sink { [weak self] (location: WeatherLocation?) in
                 guard let self else { return }
+                self.inFlightFetch?.task.cancel()
+                self.inFlightFetch = nil
+
+                if let location {
+                    // Avoid showing stale data from a previously-selected location.
+                    self.current = nil
+                    self.hourly = []
+                    self.nextEvent = nil
+                    self.lastUpdated = nil
+                    self.lastProvider = nil
+                    self.fetchState = .loading
+
+                    Task { @MainActor [weak self] in
+                        guard let self else { return }
+                        if let cached = await self.cache.load(locationID: location.id) {
+                            self.apply(payload: cached, isStale: true)
+                        }
+                    }
+                } else {
+                    self.current = nil
+                    self.hourly = []
+                    self.nextEvent = nil
+                    self.lastUpdated = nil
+                    self.lastProvider = nil
+                    self.fetchState = .idle
+                }
+
                 self.triggerRefresh(reason: "settings_location")
             }
             .store(in: &cancellables)
@@ -87,7 +139,7 @@ final class WeatherStore: ObservableObject {
     }
 
     func triggerRefresh(reason: String) {
-        guard settings.weatherEnabled, settings.weatherLocation != nil else { return }
+        guard settings.weatherEnabled, settings.selectedLocation != nil else { return }
 
         debouncedRefreshTask?.cancel()
         debouncedRefreshTask = Task { [weak self] in
@@ -148,7 +200,7 @@ final class WeatherStore: ObservableObject {
             return
         }
         guard settings.weatherEnabled else { return }
-        guard payload.location.id == settings.weatherLocation?.id else { return }
+        guard payload.location.id == settings.selectedLocation?.id else { return }
 
         lastProvider = payload.provider
         current = sanitize(snapshot: payload.current)
@@ -181,7 +233,7 @@ final class WeatherStore: ObservableObject {
 
     #if DEBUG
     func debugApplyScenario(_ scenario: WeatherDebugScenarioProvider.Scenario) {
-        guard settings.weatherEnabled, let location = settings.weatherLocation else { return }
+        guard settings.weatherEnabled, let location = settings.selectedLocation else { return }
 
         Task { @MainActor [weak self] in
             guard let self else { return }
@@ -201,6 +253,8 @@ actor WeatherDiskCache {
     private static let logger = Logger(subsystem: "com.microverse.app", category: "WeatherCache")
 
     private let url: URL
+    private var hasLoaded = false
+    private var storage: [String: WeatherPayload] = [:]
 
     init(filename: String) {
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
@@ -215,27 +269,42 @@ actor WeatherDiskCache {
     }
 
     func save(_ payload: WeatherPayload) {
+        loadStorageIfNeeded()
+        storage[payload.location.id] = payload
+
         do {
-            let data = try JSONEncoder().encode(payload)
+            let data = try JSONEncoder().encode(storage)
             try data.write(to: url, options: [.atomic])
         } catch {
             Self.logger.error("Failed to save weather cache: \(error.localizedDescription, privacy: .public)")
         }
     }
 
-    func load() -> WeatherPayload? {
+    func load(locationID: String) -> WeatherPayload? {
+        loadStorageIfNeeded()
+        return storage[locationID]
+    }
+
+    func loadAll() -> [String: WeatherPayload] {
+        loadStorageIfNeeded()
+        return storage
+    }
+
+    private func loadStorageIfNeeded() {
+        guard !hasLoaded else { return }
+        hasLoaded = true
+
         let data: Data
         do {
             data = try Data(contentsOf: url)
         } catch {
-            return nil
+            return
         }
 
         do {
-            return try JSONDecoder().decode(WeatherPayload.self, from: data)
+            storage = try JSONDecoder().decode([String: WeatherPayload].self, from: data)
         } catch {
             Self.logger.error("Failed to decode weather cache: \(error.localizedDescription, privacy: .public)")
-            return nil
         }
     }
 }

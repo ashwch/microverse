@@ -124,6 +124,75 @@ struct WeatherLocation: Codable, Equatable, Hashable, Identifiable, Sendable {
     }
 }
 
+extension WeatherLocation {
+    func microversePrimaryName() -> String {
+        microverseDisplayParts().first ?? displayName
+    }
+
+    func microverseSecondaryName() -> String? {
+        let parts = microverseDisplayParts()
+        guard parts.count > 1 else { return nil }
+        return parts.dropFirst().joined(separator: " · ")
+    }
+
+    func microverseDisplayName() -> String {
+        let parts = microverseDisplayParts()
+        if parts.isEmpty { return displayName }
+        return parts.joined(separator: ", ")
+    }
+
+    private func microverseDisplayParts() -> [String] {
+        func trimmed(_ value: Substring) -> String? {
+            let next = value.trimmingCharacters(in: .whitespacesAndNewlines)
+            return next.isEmpty ? nil : next
+        }
+
+        let components = displayName
+            .split(separator: ",")
+            .compactMap(trimmed)
+
+        guard let primary = components.first else {
+            return [displayName]
+        }
+
+        let secondary = components.dropFirst().compactMap { part in
+            microverseNormalizeLocationPart(part)
+        }
+
+        return [primary] + secondary
+    }
+
+    private func microverseNormalizeLocationPart(_ part: String) -> String? {
+        let value = part.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !value.isEmpty else { return nil }
+
+        let upper = value.uppercased()
+        let isCompactCode = upper.count <= 4 && upper == value && upper.allSatisfy { $0.isLetter || $0.isNumber }
+
+        guard isCompactCode, let countryName = Locale.current.localizedString(forRegionCode: upper) else {
+            return value
+        }
+
+        let ambiguousUSStateCodes: Set<String> = [
+            "AL", "AK", "AZ", "AR", "CA", "CO", "CT", "DE", "FL", "GA",
+            "HI", "ID", "IL", "IN", "IA", "KS", "KY", "LA", "ME", "MD",
+            "MA", "MI", "MN", "MS", "MO", "MT", "NE", "NV", "NH", "NJ",
+            "NM", "NY", "NC", "ND", "OH", "OK", "OR", "PA", "RI", "SC",
+            "SD", "TN", "TX", "UT", "VT", "VA", "WA", "WV", "WI", "WY",
+            "DC",
+        ]
+
+        if ambiguousUSStateCodes.contains(upper) {
+            let looksAmerican = timezoneIdentifier.hasPrefix("America/") && longitude < 0
+            if looksAmerican {
+                return value
+            }
+        }
+
+        return countryName
+    }
+}
+
 enum WeatherConditionBucket: String, Codable, Equatable, Sendable, CaseIterable {
     case clear
     case cloudy
