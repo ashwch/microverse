@@ -157,7 +157,10 @@ struct TabbedMainView: View {
       #if DEBUG
         let args = ProcessInfo.processInfo.arguments
 
-        if args.contains("--debug-weather-demo") || args.contains("--debug-open-weather") {
+        if args.contains("--debug-weather-demo")
+          || args.contains("--debug-open-weather")
+          || args.contains("--debug-screenshot-weather")
+        {
           selectedTab = .weather
         } else if args.contains("--debug-open-alerts") {
           selectedTab = .alerts

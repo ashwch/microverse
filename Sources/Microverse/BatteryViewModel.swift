@@ -1,4 +1,5 @@
 import BatteryCore
+import AppKit
 import Combine
 import Foundation
 import SwiftUI
@@ -510,6 +511,21 @@ class BatteryViewModel: ObservableObject {
   var notchViewModelInstance: MicroverseNotchViewModel {
     notchViewModel
   }
+
+  #if DEBUG
+  /// DEBUG-only access to the desktop widget window (for deterministic screenshot generation).
+  var debugDesktopWidgetWindow: NSWindow? {
+    widgetManager?.debugWindow
+  }
+
+  /// Toggle the Desktop Widget without persisting the preference.
+  ///
+  /// Why: screenshot automation wants to temporarily show widget variants without altering the user's setup.
+  func debugSetDesktopWidgetVisible(_ visible: Bool) {
+    desktopWidgetPersistenceOverride = false
+    showDesktopWidget = visible
+  }
+  #endif
 
   /// Triggers a test notch glow alert
   func testNotchAlert(type: NotchAlertType) {

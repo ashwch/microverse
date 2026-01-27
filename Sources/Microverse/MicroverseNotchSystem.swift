@@ -105,6 +105,13 @@ class MicroverseNotchViewModel: ObservableObject, NotchServiceProtocol {
 
   private let expandedAutoDismiss = ExpandedAutoDismissObservers()
 
+  #if DEBUG
+  /// Exposes the underlying notch window for DEBUG-only automation (e.g., screenshot generation).
+  ///
+  /// Important: this is intentionally not used in production code paths.
+  var debugNotchWindow: NSWindow? { notchWindow }
+  #endif
+
   /// Available display styles for the notch
   enum NotchDisplayStyle {
     case compact

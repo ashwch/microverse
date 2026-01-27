@@ -103,6 +103,12 @@ final class AudioDevicesStore: ObservableObject {
   private var outputMuteListener: AudioObjectPropertyListenerBlock?
   private var observedOutputDeviceID: AudioDeviceID?
 
+  #if DEBUG
+  private var isScreenshotMode: Bool {
+    ProcessInfo.processInfo.arguments.contains("--debug-screenshot-mode")
+  }
+  #endif
+
   var defaultOutputDevice: Device? {
     guard let id = defaultOutputDeviceID else { return nil }
     return outputDevices.first(where: { $0.id == id })
@@ -147,6 +153,14 @@ final class AudioDevicesStore: ObservableObject {
     activeClients += 1
     guard monitorTask == nil else { return }
 
+    #if DEBUG
+    if isScreenshotMode {
+      refresh(reason: "screenshot")
+      logger.debug("AudioDevicesStore screenshot mode started (clients=\(self.activeClients))")
+      return
+    }
+    #endif
+
     refresh(reason: "start")
     installPropertyListenersIfNeeded()
 
@@ -179,6 +193,55 @@ final class AudioDevicesStore: ObservableObject {
 
   func refresh(reason: String) {
     let now = Date()
+
+    #if DEBUG
+    if isScreenshotMode {
+      // Privacy-safe, deterministic list (avoid exposing a user's actual device names).
+      let builtInOut = Device(
+        id: 1,
+        name: "MacBook Pro Speakers",
+        uid: "builtin-output",
+        transportType: kAudioDeviceTransportTypeBuiltIn
+      )
+      let airPodsOut = Device(
+        id: 2,
+        name: "AirPods Pro",
+        uid: "airpods-output",
+        transportType: kAudioDeviceTransportTypeBluetooth
+      )
+      let hdmiOut = Device(
+        id: 3,
+        name: "HDMI Display",
+        uid: "hdmi-output",
+        transportType: kAudioDeviceTransportTypeHDMI
+      )
+
+      let builtInIn = Device(
+        id: 101,
+        name: "MacBook Pro Microphone",
+        uid: "builtin-input",
+        transportType: kAudioDeviceTransportTypeBuiltIn
+      )
+      let airPodsIn = Device(
+        id: 102,
+        name: "AirPods Pro Microphone",
+        uid: "airpods-input",
+        transportType: kAudioDeviceTransportTypeBluetooth
+      )
+
+      outputDevices = [builtInOut, airPodsOut, hdmiOut]
+      inputDevices = [builtInIn, airPodsIn]
+      defaultOutputDeviceID = builtInOut.id
+      defaultInputDeviceID = builtInIn.id
+
+      outputVolume = 0.42
+      canSetOutputVolume = true
+      outputMuted = false
+      canSetOutputMute = true
+      lastUpdated = now
+      return
+    }
+    #endif
 
     let deviceIDs = Self.getAllDeviceIDs()
     let defaultOutput = Self.getDefaultDeviceID(selector: kAudioHardwarePropertyDefaultOutputDevice)

@@ -27,6 +27,23 @@ make debug-app
 open -n /tmp/Microverse.app
 ```
 
+## Fully-automated refresh (recommended)
+
+If you just want to update every image used by the website + README (with consistent cropping and without
+any OS-level screen-capture permissions), run:
+
+```bash
+scripts/refresh_screenshots.sh
+```
+
+How it works:
+- Runs `/tmp/Microverse.app/Contents/MacOS/Microverse` directly in a fresh process per screenshot.
+- Uses `--debug-screenshot-mode` so screenshots never leak SSIDs or real device names.
+- Uses the in-app DEBUG PNG exporter (`--debug-export-*`) so this works in CI/agent environments.
+
+Important:
+- This will **quit any running Microverse instances** to avoid “wrong window” screenshots.
+
 Useful debug helpers:
 
 ```bash

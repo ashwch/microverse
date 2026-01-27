@@ -29,6 +29,19 @@ final class NetworkStore: ObservableObject {
     func start(interval: TimeInterval = 1.0) {
         guard monitorTask == nil else { return }
 
+        #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("--debug-screenshot-mode") {
+            // Deterministic, “looks alive” values for docs screenshots.
+            downloadBytesPerSecond = 2_400_000
+            uploadBytesPerSecond = 320_000
+            totalDownloadedBytes = 12_345_678_901
+            totalUploadedBytes = 1_234_567_890
+            lastUpdated = Date()
+            logger.debug("NetworkStore screenshot mode started")
+            return
+        }
+        #endif
+
         let initial = snapshot()
         let now = Date()
         totalDownloadedBytes = initial.inBytes

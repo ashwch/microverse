@@ -45,6 +45,11 @@ class DesktopWidgetManager: ObservableObject {
   private weak var displayOrchestrator: DisplayOrchestrator?
   private weak var weatherAnimationBudget: WeatherAnimationBudget?
 
+  #if DEBUG
+  /// DEBUG-only window access used by the screenshot exporter.
+  @MainActor var debugWindow: NSWindow? { window }
+  #endif
+
   init(viewModel: BatteryViewModel) {
     self.viewModel = viewModel
   }

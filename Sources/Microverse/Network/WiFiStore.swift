@@ -33,9 +33,23 @@ final class WiFiStore: ObservableObject {
     private var monitorTask: Task<Void, Never>?
     private var activeClients = 0
 
+    #if DEBUG
+    private var isScreenshotMode: Bool {
+        ProcessInfo.processInfo.arguments.contains("--debug-screenshot-mode")
+    }
+    #endif
+
     func start(interval: TimeInterval = 2.0) {
         activeClients += 1
         guard monitorTask == nil else { return }
+
+        #if DEBUG
+        if isScreenshotMode {
+            refresh(reason: "screenshot")
+            logger.debug("WiFiStore screenshot mode started")
+            return
+        }
+        #endif
 
         refresh(reason: "start")
 
@@ -67,6 +81,18 @@ final class WiFiStore: ObservableObject {
 
     func refresh(reason: String) {
         let now = Date()
+
+        #if DEBUG
+        if isScreenshotMode {
+            // Privacy-safe, deterministic values for website/docs screenshots.
+            status = .connected(networkName: nil)  // Avoid leaking SSID in captures.
+            rssi = -55
+            noise = -92
+            transmitRateMbps = 866
+            lastUpdated = now
+            return
+        }
+        #endif
 
         guard let iface = CWWiFiClient.shared().interface() else {
             status = .unavailable

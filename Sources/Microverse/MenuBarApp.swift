@@ -36,6 +36,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     // Constants
     private static let menuBarIconSize: CGFloat = 22
     private static let welcomeDelay: TimeInterval = 0.5
+
+    #if DEBUG
+    // Captured before screenshot-mode mutations so we can restore user preferences after exporting.
+    private var debugAutomationSnapshot: DebugWeatherDemoSnapshot?
+    #endif
     
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Hide dock icon
@@ -71,6 +76,15 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     }
     
     private func showFirstRunWelcomeIfNeeded() {
+        #if DEBUG
+        // Screenshot automation and other debug runs should never be blocked by a modal welcome alert.
+        if ProcessInfo.processInfo.arguments.contains("--debug-screenshot-mode")
+            || ProcessInfo.processInfo.arguments.contains(where: { $0.hasPrefix("--debug-export-") })
+        {
+            return
+        }
+        #endif
+
         let hasShownWelcome = UserDefaults.standard.bool(forKey: "hasShownFirstRunWelcome")
         
         if !hasShownWelcome {
@@ -233,16 +247,33 @@ Click it to access system monitoring, settings, and desktop widgets.
         logger.info("Battery manager setup complete")
 
         #if DEBUG
-        maybeShowNotchGlowDebugIfRequested()
-        maybeOpenPopoverDebugIfRequested()
-        maybeOpenSettingsDebugIfRequested()
-        maybePrintWeatherDebugHelpIfRequested()
-        maybeFetchWeatherDebugIfRequested()
-        maybeRunWeatherDemoDebugIfRequested()
+        if isDebugScreenshotExportRun {
+            debugAutomationSnapshot = DebugWeatherDemoSnapshot.capture(viewModel: viewModel, settings: weatherSettings)
+            // Screenshot runs: set up requested UI surfaces, export, restore, quit.
+            maybeApplyScreenshotDefaultsIfRequested()
+            maybeApplyNotchDebugOverridesIfRequested()
+            maybeApplyWidgetDebugOverridesIfRequested()
+            maybeShowNotchGlowDebugIfRequested()
+            maybeOpenPopoverDebugIfRequested()
+            maybeOpenSettingsDebugIfRequested()
+            maybeExportScreenshotsIfRequested()
+        } else {
+            // Interactive debug helpers.
+            maybeShowNotchGlowDebugIfRequested()
+            maybeOpenPopoverDebugIfRequested()
+            maybeOpenSettingsDebugIfRequested()
+            maybePrintWeatherDebugHelpIfRequested()
+            maybeFetchWeatherDebugIfRequested()
+            maybeRunWeatherDemoDebugIfRequested()
+        }
         #endif
     }
 
     #if DEBUG
+    private var isDebugScreenshotExportRun: Bool {
+        ProcessInfo.processInfo.arguments.contains(where: { $0.hasPrefix("--debug-export-") })
+    }
+
     private func maybeShowNotchGlowDebugIfRequested() {
         guard let arg = ProcessInfo.processInfo.arguments.first(where: { $0.hasPrefix("--debug-notch-glow") }) else {
             return
@@ -312,6 +343,324 @@ Click it to access system monitoring, settings, and desktop widgets.
             try? await Task.sleep(nanoseconds: 600_000_000)
             self?.togglePopover(button)
         }
+    }
+
+    /// Apply Desktop Widget overrides intended for deterministic screenshot capture.
+    ///
+    /// These flags are designed to be used with `--debug-export-widget=...` in CI/automation contexts:
+    /// - `--debug-widget-style=<custom|systemGlance|systemStatus|systemDashboard|...>`
+    /// - `--debug-widget-show`
+    private func maybeApplyWidgetDebugOverridesIfRequested() {
+        let args = ProcessInfo.processInfo.arguments
+
+        if let styleArg = args.first(where: { $0.hasPrefix("--debug-widget-style=") }) {
+            let raw = styleArg.split(separator: "=", maxSplits: 1).last.map(String.init) ?? ""
+            let normalized = raw.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+
+            let style: WidgetStyle? = {
+                switch normalized {
+                case "custom":
+                    return .custom
+                case "battery", "batterysimple", "battery-simple":
+                    return .batterySimple
+                case "cpu", "cpumonitor", "cpu-monitor":
+                    return .cpuMonitor
+                case "memory", "memorymonitor", "memory-monitor":
+                    return .memoryMonitor
+                case "glance", "systemglance", "system-glance":
+                    return .systemGlance
+                case "status", "systemstatus", "system-status":
+                    return .systemStatus
+                case "dashboard", "systemdashboard", "system-dashboard":
+                    return .systemDashboard
+                default:
+                    return nil
+                }
+            }()
+
+            if let style {
+                viewModel.widgetStyle = style
+            }
+        }
+
+        if args.contains("--debug-widget-show") {
+            viewModel.debugSetDesktopWidgetVisible(true)
+        }
+    }
+
+    /// Apply Smart Notch overrides intended for deterministic screenshot capture.
+    ///
+    /// Supported flags:
+    /// - `--debug-notch-layout=<left|split|off>`
+    /// - `--debug-notch-style=<compact|expanded>`
+    private func maybeApplyNotchDebugOverridesIfRequested() {
+        let args = ProcessInfo.processInfo.arguments
+
+        if let layoutArg = args.first(where: { $0.hasPrefix("--debug-notch-layout=") }) {
+            let raw = layoutArg.split(separator: "=", maxSplits: 1).last.map(String.init) ?? ""
+            let normalized = raw.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+
+            let mode: MicroverseNotchViewModel.NotchLayoutMode? = {
+                switch normalized {
+                case "left": return .left
+                case "split": return .split
+                case "off": return .off
+                default: return nil
+                }
+            }()
+
+            if let mode {
+                viewModel.notchLayoutMode = mode
+            }
+        }
+
+        if let styleArg = args.first(where: { $0.hasPrefix("--debug-notch-style=") }) {
+            let raw = styleArg.split(separator: "=", maxSplits: 1).last.map(String.init) ?? ""
+            let normalized = raw.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+
+            Task { @MainActor in
+                // Give notch show calls a moment to complete before changing style.
+                try? await Task.sleep(nanoseconds: 1_000_000_000)
+                switch normalized {
+                case "expanded":
+                    try? await NotchServiceLocator.current?.expandNotch()
+                case "compact":
+                    try? await NotchServiceLocator.current?.compactNotch()
+                default:
+                    break
+                }
+            }
+        }
+    }
+
+    /// Apply privacy-safe defaults for screenshots.
+    ///
+    /// This is used by the release/docs workflow to avoid capturing private values (like SSIDs) and to keep
+    /// Weather screenshots consistent.
+    private func maybeApplyScreenshotDefaultsIfRequested() {
+        let args = ProcessInfo.processInfo.arguments
+        guard args.contains("--debug-screenshot-mode") || isDebugScreenshotExportRun else { return }
+
+        // Avoid polluting notch screenshots with the startup glow animation (it can add a huge translucent
+        // halo that breaks “tight crop” screenshots).
+        viewModel.enableNotchStartupAnimation = false
+
+        // Enable Weather only when it's explicitly requested by the screenshot run.
+        // (We avoid enabling it for every widget/notch export because the DisplayOrchestrator will immediately
+        // show a “weather enabled” peek in compact surfaces, which can make non-weather screenshots inconsistent.)
+        let wantsWeather =
+          args.contains("--debug-open-weather")
+          || args.contains("--debug-preview-weather")
+          || args.contains("--debug-screenshot-weather")
+          || args.contains("--debug-weather-demo")
+          || args.contains("--debug-weather-fetch")
+
+        if wantsWeather {
+            // Screenshot runs should not leak a user's saved locations. Force a deterministic, single-location
+            // setup so the Weather tab shows the “Weather Now / Up Next / Hourly” cards (and not the multi-location list).
+            if let location = WeatherLocation(
+                displayName: "San Francisco, CA, USA",
+                latitude: 37.7749,
+                longitude: -122.4194,
+                timezoneIdentifier: "America/Los_Angeles"
+            ) {
+                weatherSettings.weatherUseCurrentLocation = false
+                weatherSettings.weatherLocations = [location]
+                weatherSettings.weatherSelectedLocationID = location.id
+            }
+
+            // Keep docs screenshots consistent regardless of the host machine locale.
+            weatherSettings.weatherUnits = .celsius
+
+            weatherSettings.weatherEnabled = true
+            weatherSettings.weatherShowInNotch = true
+            weatherSettings.weatherShowInWidget = true
+            weatherSettings.weatherSmartSwitchingEnabled = true
+            weatherSettings.weatherPinInNotch = false
+            weatherStore.triggerRefresh(reason: "screenshot")
+        }
+
+        // Explicitly open the Weather tab when requested so the popover screenshot is actually weather.
+        if wantsWeather, args.contains("--debug-screenshot-weather"), let button = statusItem.button {
+            Task { @MainActor [weak self] in
+                // Wait briefly to avoid racing popover creation.
+                try? await Task.sleep(nanoseconds: 650_000_000)
+                self?.togglePopover(button)
+            }
+        }
+
+        if wantsWeather, args.contains("--debug-preview-weather") {
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                // Give Weather a moment to mount, then force a compact-surface peek.
+                try? await Task.sleep(nanoseconds: 900_000_000)
+                self.displayOrchestrator.previewWeatherInNotch(duration: 20)
+            }
+        }
+    }
+
+    /// Export one or more window screenshots (popover/settings/widget/notch) and then quit.
+    ///
+    /// The intent is to support a repo-local "refresh all screenshots" workflow without relying on
+    /// `screencapture` (often blocked in automated environments).
+    private func maybeExportScreenshotsIfRequested() {
+        let args = ProcessInfo.processInfo.arguments
+
+        func urlArg(prefix: String) -> URL? {
+            guard let arg = args.first(where: { $0.hasPrefix(prefix) }) else { return nil }
+            let raw = arg.split(separator: "=", maxSplits: 1).last.map(String.init) ?? ""
+            let path = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !path.isEmpty else { return nil }
+            return URL(fileURLWithPath: path)
+        }
+
+        let popoverURL = urlArg(prefix: "--debug-export-popover=")
+        let settingsURL = urlArg(prefix: "--debug-export-settings=")
+        let widgetURL = urlArg(prefix: "--debug-export-widget=")
+        let notchURL = urlArg(prefix: "--debug-export-notch=")
+
+        guard popoverURL != nil || settingsURL != nil || widgetURL != nil || notchURL != nil else {
+            return
+        }
+
+        let waitSeconds: TimeInterval = {
+            guard let arg = args.first(where: { $0.hasPrefix("--debug-export-wait=") }) else { return 1.6 }
+            let raw = arg.split(separator: "=", maxSplits: 1).last.map(String.init) ?? ""
+            return TimeInterval(raw.trimmingCharacters(in: .whitespacesAndNewlines)) ?? 1.6
+        }()
+
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+
+            let previous = self.debugAutomationSnapshot
+                ?? DebugWeatherDemoSnapshot.capture(viewModel: self.viewModel, settings: self.weatherSettings)
+
+            // Give UI surfaces time to mount (popover/settings/widget/notch operations are async).
+            try? await Task.sleep(nanoseconds: UInt64(max(0.4, waitSeconds) * 1_000_000_000))
+
+            @MainActor
+            func waitFor<T>(_ label: String, timeout: TimeInterval = 2.0, poll: TimeInterval = 0.12, _ block: () -> T?) async -> T? {
+                let deadline = Date().addingTimeInterval(max(0, timeout))
+                while Date() < deadline {
+                    if let value = block() { return value }
+                    try? await Task.sleep(nanoseconds: UInt64(max(0.05, poll) * 1_000_000_000))
+                }
+                self.logger.error("Timed out waiting for \(label, privacy: .public)")
+                return nil
+            }
+
+            let background = NSColor(calibratedWhite: 0.10, alpha: 1.0)
+
+            var failures: [String] = []
+
+            if let url = popoverURL {
+                let popoverWindow = await waitFor("popover window") {
+                    self.popover.contentViewController?.view.window
+                }
+
+                if let window = popoverWindow {
+                    do {
+                        try DebugScreenshotExporter.exportPNG(window: window, to: url, scale: 2.0, backgroundColor: background)
+                    } catch {
+                        failures.append("popover export failed: \(error.localizedDescription)")
+                    }
+                } else if let view = self.popover.contentViewController?.view {
+                    do {
+                        try DebugScreenshotExporter.exportPNG(view: view, to: url, scale: 2.0, backgroundColor: background)
+                    } catch {
+                        failures.append("popover export failed (fallback view): \(error.localizedDescription)")
+                    }
+                } else {
+                    failures.append("popover export failed: no view/window")
+                }
+            }
+
+            if let url = settingsURL {
+                let settingsWindow = await waitFor("settings window") {
+                    self.findSettingsWindowForExport()
+                }
+
+                if let window = settingsWindow {
+                    do {
+                        try DebugScreenshotExporter.exportPNG(window: window, to: url, scale: 2.0, backgroundColor: background)
+                    } catch {
+                        failures.append("settings export failed: \(error.localizedDescription)")
+                    }
+                } else {
+                    failures.append("settings export failed: window not found")
+                }
+            }
+
+            if let url = widgetURL {
+                let widgetWindow = await waitFor("desktop widget window") {
+                    self.viewModel.debugDesktopWidgetWindow
+                }
+
+                if let window = widgetWindow {
+                    do {
+                        try DebugScreenshotExporter.exportPNG(window: window, to: url, scale: 2.0, backgroundColor: background)
+                    } catch {
+                        failures.append("widget export failed: \(error.localizedDescription)")
+                    }
+                } else {
+                    failures.append("widget export failed: window not found")
+                }
+            }
+
+            if let url = notchURL {
+                let notchVM = self.viewModel.notchViewModelInstance as MicroverseNotchViewModel
+                let notchWindow = await waitFor("notch window", timeout: 3.0) {
+                    notchVM.debugNotchWindow
+                }
+
+                if let window = notchWindow {
+                    do {
+                        try DebugScreenshotExporter.exportPNG(
+                            window: window,
+                            to: url,
+                            scale: 2.0,
+                            trimAlpha: .init(alphaThreshold: 8, padding: 22)
+                        )
+                    } catch {
+                        failures.append("notch export failed: \(error.localizedDescription)")
+                    }
+                } else {
+                    failures.append("notch export failed: window not found")
+                }
+            }
+
+            previous.restore(viewModel: self.viewModel, settings: self.weatherSettings)
+
+            if failures.isEmpty {
+                self.terminateAfterDebugAutomationRun(exitCode: 0)
+            } else {
+                for failure in failures {
+                    self.logger.error("Screenshot export: \(failure, privacy: .public)")
+                }
+                self.terminateAfterDebugAutomationRun(exitCode: 1)
+            }
+        }
+    }
+
+    private func terminateAfterDebugAutomationRun(exitCode: Int) {
+        // SwiftUI sheets (like Settings) run as modal sessions and can cancel a normal `terminate()`.
+        // For docs/screenshot automation we must guarantee we don't leave background Microverse processes running.
+        popover.performClose(nil)
+        for window in NSApp.windows {
+            window.orderOut(nil)
+            window.close()
+        }
+        exit(Int32(exitCode))
+    }
+
+    private func findSettingsWindowForExport() -> NSWindow? {
+        // The Settings sheet is presented as a separate window above the popover.
+        // Pick by size to avoid grabbing the notch/widget windows.
+        return NSApp.windows.first(where: { w in
+            guard w.isVisible, !w.isMiniaturized else { return false }
+            let s = w.frame.size
+            return (s.width >= 460 && s.width <= 720) && (s.height >= 460 && s.height <= 820)
+        })
     }
 
     private func maybeFetchWeatherDebugIfRequested() {
@@ -422,7 +771,7 @@ Click it to access system monitoring, settings, and desktop widgets.
 
             // Ensure widget is visible (System Glance is the v1 swap surface).
             self.viewModel.widgetStyle = .systemGlance
-            self.viewModel.showDesktopWidget = true
+            self.viewModel.debugSetDesktopWidgetVisible(true)
 
             // Open the popover so the Weather tab is visible during the demo.
             if let button = self.statusItem.button {
@@ -454,11 +803,15 @@ Click it to access system monitoring, settings, and desktop widgets.
         var showDesktopWidget: Bool
         var widgetStyle: WidgetStyle
         var notchLayoutMode: MicroverseNotchViewModel.NotchLayoutMode
+        var enableNotchStartupAnimation: Bool
 
         var weatherEnabled: Bool
+        var weatherUseCurrentLocation: Bool
+        var weatherUnits: WeatherUnits
         var weatherShowInNotch: Bool
         var weatherShowInWidget: Bool
         var weatherSmartSwitchingEnabled: Bool
+        var weatherPinInNotch: Bool
         var weatherLocations: [WeatherLocation]
         var weatherSelectedLocationID: String?
 
@@ -467,10 +820,14 @@ Click it to access system monitoring, settings, and desktop widgets.
                 showDesktopWidget: viewModel.showDesktopWidget,
                 widgetStyle: viewModel.widgetStyle,
                 notchLayoutMode: viewModel.notchLayoutMode,
+                enableNotchStartupAnimation: viewModel.enableNotchStartupAnimation,
                 weatherEnabled: settings.weatherEnabled,
+                weatherUseCurrentLocation: settings.weatherUseCurrentLocation,
+                weatherUnits: settings.weatherUnits,
                 weatherShowInNotch: settings.weatherShowInNotch,
                 weatherShowInWidget: settings.weatherShowInWidget,
                 weatherSmartSwitchingEnabled: settings.weatherSmartSwitchingEnabled,
+                weatherPinInNotch: settings.weatherPinInNotch,
                 weatherLocations: settings.weatherLocations,
                 weatherSelectedLocationID: settings.weatherSelectedLocationID
             )
@@ -479,16 +836,20 @@ Click it to access system monitoring, settings, and desktop widgets.
         func restore(viewModel: BatteryViewModel, settings: WeatherSettingsStore) {
             // Restore Weather settings first (so surfaces gate correctly).
             settings.weatherEnabled = weatherEnabled
+            settings.weatherUseCurrentLocation = weatherUseCurrentLocation
+            settings.weatherUnits = weatherUnits
             settings.weatherShowInNotch = weatherShowInNotch
             settings.weatherShowInWidget = weatherShowInWidget
             settings.weatherSmartSwitchingEnabled = weatherSmartSwitchingEnabled
+            settings.weatherPinInNotch = weatherPinInNotch
             settings.weatherLocations = weatherLocations
             settings.weatherSelectedLocationID = weatherSelectedLocationID
 
             // Restore UI surface settings.
             viewModel.widgetStyle = widgetStyle
-            viewModel.showDesktopWidget = showDesktopWidget
+            viewModel.debugSetDesktopWidgetVisible(showDesktopWidget)
             viewModel.notchLayoutMode = notchLayoutMode
+            viewModel.enableNotchStartupAnimation = enableNotchStartupAnimation
         }
     }
     #endif
