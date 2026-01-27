@@ -43,11 +43,14 @@ Perform a thorough, pedantic code review that catches UX regressions, energy/per
 - [ ] Privacy + security:
   - No location or network payloads are logged at info-level in production
   - No analytics/tracking
-  - App does not request device location permission for Weather (v0.7.0 uses manual location)
+  - Location permission is requested **only** when “Current location” Weather is enabled
+  - Bluetooth scanning is **opt-in** and only used for AirPods battery features (no connecting / no paired-device enumeration)
+  - Info.plist usage strings exist both locally (`Info.plist`) and in CI packaging (`.github/workflows/release.yml`)
 - [ ] Release robustness / entitlements:
   - Weather remains functional in ad-hoc and CI builds (fallback provider is not DEBUG-only)
   - Notch glow remains “in-tree” inside DynamicNotchKit (no overlay-window drift regressions)
   - Sparkle update feed URL and behaviors remain correct
+  - Release workflow ignores plans/checklists (avoid accidental “patch releases” from plan edits)
 - [ ] “Future maintainer” clarity:
   - Public APIs have obvious ownership boundaries (Store vs View vs Provider)
   - Naming communicates intent (e.g. `DisplayOrchestrator` isn’t doing unrelated work)
@@ -57,6 +60,8 @@ Perform a thorough, pedantic code review that catches UX regressions, energy/per
 
 - [ ] Run `swift build -c debug` and `swift build -c release`.
 - [ ] Manual QA: `make debug-app` and run through `003-feature-review-weather.md`.
+- [ ] Manual QA (debug): `open -n /tmp/Microverse.app --args --debug-weather-demo`
+- [ ] Manual QA (debug): `open -n /tmp/Microverse.app --args --debug-notch-glow=success`
 - [ ] Manual QA: toggle notch modes + Weather toggles repeatedly and ensure there’s no growth in CPU usage over ~2–3 minutes.
 
 ## Completion Criteria
@@ -81,4 +86,3 @@ Microverse competes (in UX expectations) with tools like iStat Menus / Stats / M
 - Energy efficiency / responsiveness: https://developer.apple.com/documentation/xcode/energy-efficiency
 - App Sandbox + entitlements: https://developer.apple.com/documentation/security/app_sandbox
 - Accessibility (SwiftUI): https://developer.apple.com/documentation/accessibility
-

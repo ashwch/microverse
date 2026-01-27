@@ -35,15 +35,34 @@ Reliably compile, install, and launch Microverse (debug and release-like) and ru
   - `open -n /tmp/Microverse.app`
 - [ ] (Optional but recommended) Install debug build into `/Applications` and launch:
   - `make install-debug`
-- [ ] Smoke test the UI:
+- [ ] Smoke test the UI (popover + Settings):
   - Microverse icon appears in the menu bar
   - Clicking the icon opens the popover
-  - Tabs render (including Weather)
-  - Settings render (including Weather settings section)
+  - Tabs render (System / Weather / Alerts)
+  - Settings renders (System + Weather + Alerts sections)
+- [ ] Smoke test the new System tabs (popover → System):
+  - System → Network:
+    - Wi‑Fi card shows “Wi‑Fi off” when Wi‑Fi is off
+    - Wi‑Fi card shows “Not connected” when disconnected
+    - Wi‑Fi card shows bars + percent when connected (SSID may be redacted; “Connected” is OK)
+    - Throughput card shows non-negative values and updates over time
+  - System → Audio:
+    - Output devices list renders and selecting a device switches the system default output
+    - Input devices list renders and selecting a device switches the system default input
+    - Volume slider is enabled only when the route supports volume control
+    - Mute toggle is enabled only when the route supports mute
+- [ ] Smoke test Custom widget modules (Settings → Desktop Widget → Custom):
+  - Add modules: Wi‑Fi, Audio Output, Audio Input
+  - Confirm the widget renders without clipping and values update
 - [x] Run a minimal Weather debug fetch (prints a single-line result and quits):
   - `open -n /tmp/Microverse.app --args --debug-weather-fetch`
   - If you need help / scenario names:
     - `open -n /tmp/Microverse.app --args --debug-weather-help`
+- [x] Run deterministic notch + widget Weather demo (debug build; auto-quits):
+  - `make debug-app`
+  - `open -n /tmp/Microverse.app --args --debug-weather-demo`
+- [x] (Optional) Trigger a notch glow preview (debug build; does not auto-quit):
+  - `open -n /tmp/Microverse.app --args --debug-notch-glow=success`
 - [x] Build a release-like bundle and launch it:
   - `make app`
   - `open -n /tmp/Microverse.app`
@@ -53,6 +72,7 @@ Reliably compile, install, and launch Microverse (debug and release-like) and ru
 - [x] Run `swift build -c debug` (fast build sanity).
 - [x] Run `swift build -c release` (release configuration build sanity).
 - [x] Run `make debug-app` (ensures app-bundle packaging + rpaths + Sparkle framework embedding work).
+- [x] Run `--debug-weather-demo` (exercises notch + widget surfaces deterministically; debug builds only).
 
 ## Completion Criteria
 

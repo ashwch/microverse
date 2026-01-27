@@ -12,10 +12,11 @@ Validate the Weather feature end-to-end (UX, correctness, polish, accessibility,
 ## Scope
 
 **In scope:**
-- Weather settings (enable/disable, units, refresh, location search).
+- Weather settings (enable/disable, units, refresh, location search, **optional current location**).
 - Weather UI surfaces: popover Weather tab, menu bar temperature, compact notch peeks/pinned, expanded notch detail, desktop widget swap.
 - Provider fallback behavior (WeatherKit → Open‑Meteo).
 - Error handling and stale-cache behavior.
+- Optional Weather Alerts (notch glow scheduling).
 
 **Out of scope:**
 - Refactoring and performance tuning beyond obvious UX-impacting problems (see `004-code-review-checklist.md` for deeper review).
@@ -30,6 +31,14 @@ Validate the Weather feature end-to-end (UX, correctness, polish, accessibility,
 - [ ] Set a location via search:
   - Search a city name in Settings → Weather → Location (uses geocoding, not device GPS)
   - Select a result and confirm the display name is reasonable and persists across relaunch
+- [ ] (Optional) Validate Current Location:
+  - Enable “Current location” in Settings → Weather
+  - Verify the macOS permission prompt (Allow / Don’t Allow)
+  - If allowed:
+    - Weather shows “Current Location” quickly (neutral name), then resolves a city/region name later
+    - Location updates are *coarse* (no jitter; doesn’t spam updates on tiny movement)
+  - If denied/restricted:
+    - UI shows a clear error state and a System Settings path to fix it
 - [ ] Verify popover Weather tab behavior:
   - Current temperature renders with a stable layout (monospaced digits, no jank while loading)
   - Manual refresh button updates state correctly
@@ -49,6 +58,11 @@ Validate the Weather feature end-to-end (UX, correctness, polish, accessibility,
 - [ ] Verify desktop widget Weather swap (when widget is enabled):
   - Toggle “Show in Desktop Widget”
   - Confirm the System Glance widget can display Weather (and returns to system metrics when disabled)
+- [ ] (Optional) Verify Weather Alerts (notch glow):
+  - Enable Settings → Alerts → Notch Glow Alerts
+  - Enable Settings → Alerts → Weather Alerts
+  - Choose rules + lead time + cooldown and confirm the “Next” event is shown
+  - Confirm alerts do not spam (cooldown respected; toggles disable immediately)
 - [ ] Validate offline / failure behavior:
   - Temporarily disable network or block the provider
   - Confirm the UI shows “stale cached” or a clear error and does not spin forever
@@ -60,6 +74,7 @@ Validate the Weather feature end-to-end (UX, correctness, polish, accessibility,
 ## Tests
 
 - [ ] Manual QA: run the Weather debug demo to exercise notch+widget surfaces:
+  - `make debug-app`
   - `open -n /tmp/Microverse.app --args --debug-weather-demo`
 - [ ] Manual QA: force-open the Weather tab on launch:
   - `open -n /tmp/Microverse.app --args --debug-open-weather`
@@ -72,9 +87,12 @@ Validate the Weather feature end-to-end (UX, correctness, polish, accessibility,
 
 ## Notes
 
-### What “location” means in v0.7.0
+### What “location” means in v0.8.0
 
-Weather uses a **manual** location chosen via Settings search (geocoding). It does not request device GPS permissions.
+Weather supports two location modes:
+
+- **Manual location** (default): chosen via Settings search (geocoding); no device GPS permission needed.
+- **Current location** (optional): uses CoreLocation **When In Use** with *coarse accuracy* (good enough for weather).
 
 ### Debug surfaces (intentional)
 
@@ -86,4 +104,3 @@ The Weather module includes deterministic debug tools (scenarios + a demo runner
 - Popover UI: `Sources/Microverse/Views/WeatherTab.swift`
 - Settings UI: `Sources/Microverse/Views/WeatherSettingsSection.swift`
 - Notch scheduling/switching: `Sources/Microverse/Weather/DisplayOrchestrator.swift`
-
