@@ -6,6 +6,8 @@ on:
     paths-ignore:
       # Prevent release recursion: this workflow commits to `docs/` on main.
       - 'docs/**'
+      # Plans/checklists should not cut releases.
+      - 'plans/**'
       # Allow workflow-only maintenance without cutting releases.
       - '.github/workflows/**'
       # Repo docs and agent instructions shouldn't cut releases.
