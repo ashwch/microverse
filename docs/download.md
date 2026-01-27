@@ -57,7 +57,7 @@ description: Download Microverse - elegant system monitoring for macOS
         </li>
         <li>
           <h3>Grant Permissions</h3>
-          <p>On first launch, macOS will ask you to grant security permissions. Click "Open" when prompted.</p>
+          <p>On first launch, macOS may ask you to confirm security prompts. If you enable optional features (Current location weather or AirPods battery alerts), you may also be prompted for Location or Bluetooth access.</p>
         </li>
         <li>
           <h3>Start Monitoring</h3>
@@ -71,7 +71,7 @@ description: Download Microverse - elegant system monitoring for macOS
       <div class="security-grid">
         <div class="security-item">
           <h3>macOS Permissions</h3>
-          <p>Microverse may request permission to access system information. This is required for monitoring functionality and is used only locally on your device.</p>
+          <p>Microverse uses local system APIs for monitoring. Optional features may request permission (Location for current-location weather, Bluetooth for AirPods battery). Microverse does not record audio or collect analytics.</p>
         </div>
         <div class="security-item">
           <h3>Gatekeeper</h3>

@@ -7,6 +7,11 @@
 Microverse is a sophisticated system monitoring application that combines modern Swift architecture with elegant UI design. Built for macOS developers who need real-time insights into their system's health without compromising performance, it features smart notch integration via DynamicNotchKit, secure auto-updates through Sparkle, and a comprehensive widget ecosystem.
 It also includes an optional Weather module for temperature glances across the popover, Smart Notch, desktop widget, and menu bar.
 
+Related deep-dives:
+- `docs/NOTCH_FEATURES.md`
+- `docs/WIFI_AUDIO_FEATURES.md`
+- `docs/WEATHER_LOCATIONS_AND_ALERTS.md`
+
 ### Key Metrics & Achievements
 - **Performance**: <1% CPU impact, <50MB memory footprint  
 - **Architecture**: Async/await with @MainActor isolation and concurrent system monitoring
@@ -14,7 +19,7 @@ It also includes an optional Weather module for temperature glances across the p
 - **Compatibility**: macOS 13.0+, Universal Binary (Intel + Apple Silicon)
 - **Security**: Sandboxed with minimal entitlements, secure auto-update system
 - **Integration**: Native notch integration using DynamicNotchKit framework
-- **Notch Glow Alerts**: In-notch glow animations triggered by battery events
+- **Notch Glow Alerts**: In-notch glow animations triggered by battery, weather, and device events (e.g. AirPods)
 
 ## System Architecture Overview
 
@@ -29,7 +34,10 @@ It also includes an optional Weather module for temperature glances across the p
 │  ├── UnifiedBatteryTab (Detailed Power Metrics)                         │
 │  ├── UnifiedCPUTab (Processor Performance Analysis)                     │
 │  ├── UnifiedMemoryTab (Memory Usage & Pressure)                         │
+│  ├── NetworkTab (Wi‑Fi + Throughput)                                    │
+│  ├── AudioTab (Input/Output Routing)                                    │
 │  ├── WeatherTab (Temperature + “Up Next” Highlights)                    │
+│  ├── AlertsTab (Quick Alert Summary)                                    │
 │  ├── DesktopWidget (Multi-style Widget System)                          │
 │  ├── MicroverseNotchSystem (DynamicNotchKit Views)                      │
 │  └── UpdateView (Sparkle Auto-Update UI)                                │
@@ -37,10 +45,17 @@ It also includes an optional Weather module for temperature glances across the p
 │  🧠 Business Logic Layer                                                │
 │  ├── BatteryViewModel (Settings & App State Management)                 │
 │  ├── SystemMonitoringService (Reactive System Metrics)                  │
+│  ├── WiFiStore (CoreWLAN Wi‑Fi State)                                   │
+│  ├── NetworkStore (Aggregate Throughput)                                │
+│  ├── AudioDevicesStore (CoreAudio Routing + Volume)                     │
+│  ├── AirPodsBatteryStore (BLE Battery Readings)                         │
 │  ├── WeatherSettingsStore (UserDefaults-backed Settings)                │
 │  ├── WeatherStore (Fetch + Cache + Published Weather State)             │
+│  ├── WeatherLocationsStore (Multi-location Summaries)                   │
+│  ├── WeatherCurrentLocationController (CoreLocation)                    │
 │  ├── DisplayOrchestrator (Compact Surface Switching)                    │
 │  ├── WeatherAnimationBudget (Power-safe Animation Policy)               │
+│  ├── WeatherAlertEngine (Notch Glow Scheduling)                         │
 │  ├── SecureUpdateService (Sparkle Integration)                          │
 │  ├── AdaptiveDisplayService (Smart Refresh Management)                  │
 │  ├── MicroverseNotchViewModel (DynamicNotchKit State)                   │

@@ -13,8 +13,11 @@ Microverse is a SwiftUI **menu bar** system monitor for macOS (Battery/CPU/Memor
 ## Key docs
 
 - Notch + glow behavior: `docs/NOTCH_FEATURES.md`
+- Wi‑Fi + Audio + AirPods battery: `docs/WIFI_AUDIO_FEATURES.md`
+- Weather locations + current location + alerts: `docs/WEATHER_LOCATIONS_AND_ALERTS.md`
 - Sparkle + appcast pipeline: `docs/SPARKLE_AUTO_UPDATE_SYSTEM.md`
 - Website (GitHub Pages from `main:/docs`): `docs/README.md`, `docs/DEPLOYMENT.md`
+- Review/release playbook (v0.7.0 example): `plans/v0-7-0-weather-review-release-roadmap/PLAN.md`
 - Contributing standards: `CONTRIBUTING.md`
 
 ## Build & run
@@ -51,6 +54,12 @@ If you touch notch/glow behavior:
 ## Where to look in code
 
 - Trigger rules: `Sources/Microverse/BatteryViewModel.swift` (`checkAndTriggerAlerts()`)
+- Wi‑Fi store: `Sources/Microverse/Network/WiFiStore.swift`
+- Network throughput store: `Sources/Microverse/Network/NetworkStore.swift`
+- Audio routing store: `Sources/Microverse/Audio/AudioDevicesStore.swift`
+- AirPods BLE battery store: `Sources/Microverse/Audio/AirPodsBatteryStore.swift`
+- Weather alert scheduling: `Sources/Microverse/Weather/WeatherAlertEngine.swift`
+- Weather current location: `Sources/Microverse/Weather/WeatherCurrentLocationController.swift`
 - Glow renderer: `Sources/Microverse/NotchGlowManager.swift` (`NotchGlowView`)
 - In-notch routing: `Sources/Microverse/NotchGlowInNotch.swift`
 - DynamicNotchKit patch points:

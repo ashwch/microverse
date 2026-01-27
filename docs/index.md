@@ -36,6 +36,16 @@ permalink: /
         <p>Track memory pressure, usage breakdown, and system performance indicators.</p>
       </div>
       <div class="feature-card">
+        <div class="feature-icon">📶</div>
+        <h3>Wi‑Fi & Network</h3>
+        <p>Glanceable Wi‑Fi strength, connection state, and live throughput.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🔊</div>
+        <h3>Audio Routing</h3>
+        <p>See and switch input/output devices, with volume and mute controls when supported.</p>
+      </div>
+      <div class="feature-card">
         <div class="feature-icon">🌤️</div>
         <h3>Weather Glances</h3>
         <p>Optional temperature and upcoming changes in the menu bar, Smart Notch, desktop widget, and a dedicated Weather tab.</p>
@@ -48,7 +58,7 @@ permalink: /
       <div class="feature-card">
         <div class="feature-icon">✨</div>
         <h3>Notch Glow Alerts</h3>
-        <p>Subtle animated glow around the notch on charging, fully charged, and low battery events.</p>
+        <p>Subtle glow cues for key battery events, upcoming weather changes, and device states (like AirPods low battery).</p>
       </div>
       <div class="feature-card">
         <div class="feature-icon">⚡</div>

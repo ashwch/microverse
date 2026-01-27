@@ -112,7 +112,8 @@ description: Explore the comprehensive features of Microverse - elegant system m
         <h3>Weather Tab</h3>
         <p>Current temperature, “up next”, and an hourly strip in the menu bar popover.</p>
         <ul>
-          <li>Manual location search (no automatic location in v1)</li>
+          <li>Manual location search + optional current location</li>
+          <li>Multiple saved locations</li>
           <li>°C/°F units + refresh interval</li>
           <li>Attribution links for data sources</li>
         </ul>
@@ -135,17 +136,19 @@ description: Explore the comprehensive features of Microverse - elegant system m
 <section class="features">
   <div class="wrapper">
     <h2>Notch Glow Alerts</h2>
-    <p>Subtle animated glow around the notch for key battery events.</p>
+    <p>Subtle animated glow around the notch for key battery, weather, and device events.</p>
 
     <div class="widget-showcase">
       <div class="widget-item">
         <img src="/assets/images/notch-glow-success.png" alt="Notch Glow Alert">
-        <h3>Battery Event Feedback</h3>
-        <p>Microverse can show a gentle glow + sweep + sparkles around the notch when important battery events occur.</p>
+        <h3>Event Feedback</h3>
+        <p>Microverse can show a gentle glow + sweep + sparkles around the notch when important changes occur.</p>
         <ul>
           <li>Charger connected / Fully charged</li>
           <li>Battery drops below 20%</li>
           <li>Battery critically low (≤10%)</li>
+          <li>AirPods low battery (optional)</li>
+          <li>Upcoming weather changes (optional)</li>
           <li>Optional RGB startup animation</li>
         </ul>
       </div>
@@ -157,6 +160,8 @@ description: Explore the comprehensive features of Microverse - elegant system m
         <ul>
           <li>Enable/disable glow alerts</li>
           <li>Enable/disable startup animation</li>
+          <li>Battery thresholds + device rules</li>
+          <li>Weather alert lead time + cooldown</li>
           <li>Test alerts on demand</li>
         </ul>
       </div>
@@ -241,6 +246,7 @@ description: Explore the comprehensive features of Microverse - elegant system m
           <li>No accounts</li>
           <li>No data collection by Microverse</li>
           <li>Optional network requests (updates + weather)</li>
+          <li>Optional permissions (Location + Bluetooth) for specific features</li>
           <li>Local-first processing for system metrics</li>
           <li>Open source transparency</li>
         </ul>
@@ -291,7 +297,7 @@ description: Explore the comprehensive features of Microverse - elegant system m
         <img src="/assets/images/app-weather-tab.png" alt="Weather Tab">
         <div class="app-feature-content">
           <h3>Weather</h3>
-          <p>See the current temperature, “up next” highlights, and an hourly strip — with attribution links built in.</p>
+          <p>See the current temperature, “up next” highlights, and an hourly strip — with optional current location, multiple saved locations, and attribution links built in.</p>
         </div>
       </div>
     </div>

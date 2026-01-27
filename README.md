@@ -22,15 +22,17 @@ Perfect for developers who need real-time system insights without compromising p
 - **Battery Intelligence**: Health metrics, cycle count, time estimates, charging optimization
 - **CPU Performance**: Real-time usage, core breakdown, thermal state monitoring  
 - **Memory Analysis**: Pressure detection, usage breakdown, swap monitoring
+- **Wi‑Fi & Network**: Wi‑Fi strength + connection state + live throughput
+- **Audio Routing**: Switch input/output devices, with volume/mute controls when supported
 - **Weather (Optional)**: Temperature and upcoming changes in the Weather tab, menu bar, Smart Notch, and desktop widget
 - **System Health**: Intelligent insights with actionable recommendations
 
 ### 🎨 **Adaptive User Interface**
 - **Desktop Widget Styles**: Multiple layout options from compact to comprehensive displays
 - **Smart Notch Integration**: Seamless integration with macOS notch area
-- **Notch Glow Alerts**: Animated glow around the notch on key battery events
+- **Notch Glow Alerts**: Animated glow around the notch for key battery, weather, and device events
 - **Menu Bar Integration**: Battery percentage and optional temperature display
-- **Tabbed Interface**: Overview, Battery, CPU, Memory, Weather with unified design system
+- **Tabbed Interface**: System, Weather, and Alerts with a unified design system
 
 ### ⚡ **Performance Excellence**
 - **Adaptive Refresh Rates**: 2s critical → 30s idle (up to 83% CPU reduction)
@@ -41,7 +43,7 @@ Perfect for developers who need real-time system insights without compromising p
 ### 🔒 **Enterprise-Grade Security**
 - **Secure Auto-Updates**: Sparkle 2.7.1 with code signature verification
 - **Sandboxed Architecture**: Minimal entitlements, maximum security
-- **Privacy First**: No analytics; system metrics are local; optional network requests for updates + weather
+- **Privacy First**: No analytics; system metrics are local; optional network requests for updates + weather; optional permissions for location (current-location weather) and bluetooth (AirPods battery)
 
 ## 📸 Screenshots
 
@@ -119,11 +121,11 @@ Package.swift
 ```
 
 ### Quick Usage
-**Menu Bar**: Click 👽 icon → Overview/Battery/CPU/Memory/Weather tabs  
+**Menu Bar**: Click 👽 icon → System (Overview/Battery/CPU/Memory/Network/Audio) + Weather + Alerts  
 **Desktop Widgets**: Settings → Desktop Widget (toggle + style)  
 **Smart Notch**: Settings → Smart Notch (Left / Split / Off)  
-**Weather**: Settings → Weather (manual location + surfaces + optional peeks/highlights)  
-**Notch Glow Alerts**: Settings → Notch Glow Alerts (toggle + test buttons)
+**Weather**: Settings → Weather (manual locations or current location + surfaces + optional peeks/highlights)  
+**Notch Glow Alerts**: Settings → Alerts → Notch Glow Alerts (toggle + rules + test buttons)
 
 ### Data Flow
 ```
@@ -211,6 +213,9 @@ We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guid
 - [**Design System**](docs/DESIGN.md) - UI components and guidelines  
 - [**Performance Guide**](docs/ADAPTIVE_REFRESH.md) - Optimization strategies
 - [**Auto-Update System**](docs/SPARKLE_AUTO_UPDATE_SYSTEM.md) - Security and implementation
+- [**Wi‑Fi + Audio**](docs/WIFI_AUDIO_FEATURES.md) - Stores, surfaces, permissions, and testing
+- [**Weather locations + alerts**](docs/WEATHER_LOCATIONS_AND_ALERTS.md) - Multi-location, current location, and glow alerts
+- [**Screenshots guide**](docs/SCREENSHOTS.md) - Capture checklist + filename conventions
 - [**API Reference**](docs/API.md) - Framework interfaces
 
 ## 🔒 Security

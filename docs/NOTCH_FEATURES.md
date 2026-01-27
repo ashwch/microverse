@@ -37,15 +37,41 @@ Notch Glow Alerts render a glow + sweep + sparkles around the notch pill when ke
 
 ### Rules (when it triggers)
 
-Implemented in `Sources/Microverse/BatteryViewModel.swift` (`checkAndTriggerAlerts()`):
-
+Rules are split by “signal source”, but they share the same gating:
 - `enableNotchAlerts` must be **ON**
 - A notched display must be available (`isNotchAvailable`)
+
+#### Battery rules
+
+Implemented in `Sources/Microverse/BatteryViewModel.swift` (`checkAndTriggerAlerts()`):
+
 - Triggers:
   - **Charger connected**: `isPluggedIn` flips `false -> true`
   - **Fully charged**: battery reaches `100%` while plugged in
   - **Low battery**: crossing below `20%` while on battery power (fires once until recovery > 20%)
   - **Critical battery**: `<= 10%` while on battery power (fires once until recovery > 10%)
+
+#### Device rules (AirPods)
+
+Implemented in `Sources/Microverse/BatteryViewModel.swift` (`checkAndTriggerAirPodsLowBatteryAlert(...)`):
+
+- Requires:
+  - AirPods rule enabled (Settings → **Alerts** → **Notch Glow Alerts** → Devices → “AirPods low battery”)
+  - Bluetooth permission (for best-effort BLE scanning)
+  - Default output is detected as AirPods
+- Trigger:
+  - **AirPods low battery**: crossing below the configured threshold (fires once until recovery above threshold)
+
+#### Weather rules
+
+Implemented in `Sources/Microverse/Weather/WeatherAlertEngine.swift`:
+
+- Requires:
+  - Weather enabled + a selected location
+  - Weather Alerts enabled (Settings → **Alerts** → Weather Alerts)
+  - Lead time + cooldown configuration
+- Trigger:
+  - A glow shortly before the next weather “upcoming change” event (based on lead time), with cooldown protection.
 
 ### Motion + timing
 
@@ -80,7 +106,11 @@ This avoids the classic “hardware notch vs software pill” mismatch that happ
 
 ### From Settings
 
-Settings → **Notch Glow Alerts** → **Test Alerts** (Success/Warning/Critical/Info).
+Settings → **Alerts** → **Notch Glow Alerts** → **Advanced** (Success/Warning/Critical/Info).
+
+For AirPods:
+- Settings → **Alerts** → **Notch Glow Alerts** → **Devices** → enable “AirPods low battery”
+- (Optional) Use the built-in debug override buttons to force a low-battery state for a few seconds.
 
 ### Via debug argument
 
@@ -93,3 +123,8 @@ Example:
 ```bash
 open -n /tmp/Microverse.app --args --debug-notch-glow=success
 ```
+
+## Related docs
+
+- `docs/WEATHER_LOCATIONS_AND_ALERTS.md` (how Weather alerts are scheduled)
+- `docs/WIFI_AUDIO_FEATURES.md` (AirPods battery scanning + audio tiles)
