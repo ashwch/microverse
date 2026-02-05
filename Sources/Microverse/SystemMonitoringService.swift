@@ -3,8 +3,22 @@ import Combine
 import SystemCore
 import os.log
 
-/// Shared system monitoring service to prevent multiple system calls
-/// Provides a single source of truth for system metrics across the app
+/// Single source of truth for CPU and memory metrics.
+///
+/// Polls `SystemMonitor` every 3 seconds (with 0.5s tolerance for timer
+/// coalescing). The 3s interval balances responsiveness against power:
+///
+///     Interval | Feel            | CPU overhead
+///     ---------+-----------------+-------------
+///      10s     | stale / laggy   | ~0%
+///       3s     | near real-time  | <1%   <-- chosen
+///       1s     | instant         | ~1-2%
+///
+/// Activity Monitor defaults to 5s; Stats app defaults to 1s.
+///
+/// On the CPU side, the first sample after launch returns 0% because
+/// tick-delta measurement needs two data points. Real values appear
+/// after the first 3-second sleep.
 @MainActor
 class SystemMonitoringService: ObservableObject {
     static let shared = SystemMonitoringService()
@@ -38,7 +52,9 @@ class SystemMonitoringService: ObservableObject {
             
             while !Task.isCancelled {
                 do {
-                    try await Task.sleep(nanoseconds: 10 * 1_000_000_000)
+                    // tolerance lets the OS coalesce this timer with nearby
+                    // work, saving wake-ups on battery.
+                    try await Task.sleep(for: .seconds(3), tolerance: .seconds(0.5))
                 } catch {
                     break
                 }
@@ -48,7 +64,7 @@ class SystemMonitoringService: ObservableObject {
             }
         }
         
-        logger.info("System monitoring service started with 10s interval")
+        logger.info("System monitoring service started with 3s interval")
     }
     
     private func stopMonitoring() {
