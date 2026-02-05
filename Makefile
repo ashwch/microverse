@@ -33,22 +33,54 @@ clean:
 # Create app bundle and install to /Applications (Release)
 install: build app
 	@echo "📦 Installing $(APP_NAME) to /Applications..."
-	@echo "⚠️  Note: This will require administrator privileges"
-	@sudo rm -rf "$(APP_PATH)"
-	@sudo cp -R /tmp/$(APP_NAME).app "$(APP_PATH)"
-	@echo "✅ Installed to $(APP_PATH)"
-	@echo "🚀 Launching $(APP_NAME)..."
-	@open "$(APP_PATH)"
+	@if sudo -n true 2>/dev/null; then \
+		set -e; \
+		sudo rm -rf "$(APP_PATH)"; \
+		sudo cp -R /tmp/$(APP_NAME).app "$(APP_PATH)"; \
+		echo "✅ Installed to $(APP_PATH)"; \
+		echo "🚀 Launching $(APP_NAME)..."; \
+		open "$(APP_PATH)" >/dev/null 2>&1 || echo "⚠️  Launch failed. Open $(APP_PATH) manually."; \
+	elif [ -t 0 ]; then \
+		set -e; \
+		echo "🔐 sudo required to install to /Applications..."; \
+		sudo rm -rf "$(APP_PATH)"; \
+		sudo cp -R /tmp/$(APP_NAME).app "$(APP_PATH)"; \
+		echo "✅ Installed to $(APP_PATH)"; \
+		echo "🚀 Launching $(APP_NAME)..."; \
+		open "$(APP_PATH)" >/dev/null 2>&1 || echo "⚠️  Launch failed. Open $(APP_PATH) manually."; \
+	else \
+		echo "⚠️  sudo not available (no cached credentials / no tty). Skipping /Applications copy."; \
+		echo "    Run 'sudo -v' first, or manually:"; \
+		echo "    sudo rm -rf \"$(APP_PATH)\" && sudo cp -R /tmp/$(APP_NAME).app \"$(APP_PATH)\""; \
+		echo "🚀 Launching from /tmp/$(APP_NAME).app..."; \
+		open -n /tmp/$(APP_NAME).app >/dev/null 2>&1 || echo "⚠️  Launch failed. Open /tmp/$(APP_NAME).app manually."; \
+	fi
 
 # Create app bundle and install to /Applications (Debug)
 install-debug: build-debug debug-app
 	@echo "📦 Installing $(APP_NAME) (Debug) to /Applications..."
-	@echo "⚠️  Note: This will require administrator privileges"
-	@sudo rm -rf "$(APP_PATH)"
-	@sudo cp -R /tmp/$(APP_NAME).app "$(APP_PATH)"
-	@echo "✅ Installed to $(APP_PATH)"
-	@echo "🚀 Launching $(APP_NAME)..."
-	@open "$(APP_PATH)"
+	@if sudo -n true 2>/dev/null; then \
+		set -e; \
+		sudo rm -rf "$(APP_PATH)"; \
+		sudo cp -R /tmp/$(APP_NAME).app "$(APP_PATH)"; \
+		echo "✅ Installed to $(APP_PATH)"; \
+		echo "🚀 Launching $(APP_NAME)..."; \
+		open "$(APP_PATH)" >/dev/null 2>&1 || echo "⚠️  Launch failed. Open $(APP_PATH) manually."; \
+	elif [ -t 0 ]; then \
+		set -e; \
+		echo "🔐 sudo required to install to /Applications..."; \
+		sudo rm -rf "$(APP_PATH)"; \
+		sudo cp -R /tmp/$(APP_NAME).app "$(APP_PATH)"; \
+		echo "✅ Installed to $(APP_PATH)"; \
+		echo "🚀 Launching $(APP_NAME)..."; \
+		open "$(APP_PATH)" >/dev/null 2>&1 || echo "⚠️  Launch failed. Open $(APP_PATH) manually."; \
+	else \
+		echo "⚠️  sudo not available (no cached credentials / no tty). Skipping /Applications copy."; \
+		echo "    Run 'sudo -v' first, or manually:"; \
+		echo "    sudo rm -rf \"$(APP_PATH)\" && sudo cp -R /tmp/$(APP_NAME).app \"$(APP_PATH)\""; \
+		echo "🚀 Launching from /tmp/$(APP_NAME).app..."; \
+		open -n /tmp/$(APP_NAME).app >/dev/null 2>&1 || echo "⚠️  Launch failed. Open /tmp/$(APP_NAME).app manually."; \
+	fi
 
 # Create app bundle structure (Release)
 app: build
