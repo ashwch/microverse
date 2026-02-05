@@ -951,7 +951,15 @@ private struct CustomModularWidget: View {
       case .wifi:
         var parts: [String] = []
         if let rssi = wifi.rssi { parts.append("RSSI \(rssi)dBm") }
+        if let snr = wifi.snr { parts.append("SNR \(snr)dB") }
         if let rate = wifi.transmitRateMbps { parts.append(String(format: "Tx %.0f Mbps", rate)) }
+        if case .connected = wifi.status {
+          let down = network.wifiDownloadBytesPerSecond
+          let up = network.wifiUploadBytesPerSecond
+          let minToShow: Double = 1_024  // 1 KB/s
+          if down >= minToShow { parts.append("↓ \(network.formattedRate(down))") }
+          if up >= minToShow { parts.append("↑ \(network.formattedRate(up))") }
+        }
         if parts.isEmpty { return nil }
         return parts.joined(separator: " • ")
       case .audioOutput:

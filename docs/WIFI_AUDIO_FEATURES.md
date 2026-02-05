@@ -32,7 +32,7 @@ This document explains **why** these features exist, **where** they show up, and
   - Wi‑Fi status (off / disconnected / connected)
   - Strength bars + percent
   - Optional “details” line (RSSI / noise / Tx rate)
-  - Aggregate throughput + totals
+  - Aggregate throughput + totals (smoothed EMA); Wi‑Fi-only throughput is also sampled separately when available
 
 - **System → Audio**
   - Output devices list (switch default output)

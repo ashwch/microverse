@@ -211,6 +211,9 @@ struct NetworkTab: View {
         if let noise = wifi.noise {
             parts.append("Noise \(noise)dBm")
         }
+        if let snr = wifi.snr {
+            parts.append("SNR \(snr)dB")
+        }
         if let rate = wifi.transmitRateMbps {
             parts.append(String(format: "Tx %.0f Mbps", rate))
         }
