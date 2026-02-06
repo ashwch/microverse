@@ -40,6 +40,24 @@ final class NetworkStore: ObservableObject {
     private var emaWiFiDown: Double?
     private var emaWiFiUp: Double?
     private let emaAlpha: Double = 0.3
+    // Cached formatters: `ByteCountFormatter` allocates internal locale data
+    // on init. Caching as `static let` avoids ~2 allocations per format call.
+    private static let rateFormatter: ByteCountFormatter = {
+        let formatter = ByteCountFormatter()
+        formatter.allowedUnits = [.useBytes, .useKB, .useMB, .useGB]
+        formatter.countStyle = .decimal
+        formatter.includesUnit = true
+        formatter.isAdaptive = true
+        return formatter
+    }()
+    private static let bytesFormatter: ByteCountFormatter = {
+        let formatter = ByteCountFormatter()
+        formatter.allowedUnits = [.useKB, .useMB, .useGB, .useTB]
+        formatter.countStyle = .decimal
+        formatter.includesUnit = true
+        formatter.isAdaptive = true
+        return formatter
+    }()
 
     func start(interval: TimeInterval = 1.0) {
         guard monitorTask == nil else { return }
@@ -94,7 +112,8 @@ final class NetworkStore: ObservableObject {
 
             while !Task.isCancelled {
                 do {
-                    try await Task.sleep(nanoseconds: UInt64(max(0.25, interval) * 1_000_000_000))
+                    // tolerance lets macOS coalesce this 1s timer with nearby work.
+                    try await Task.sleep(for: .seconds(max(0.25, interval)), tolerance: .seconds(0.25))
                 } catch {
                     break
                 }
@@ -103,9 +122,11 @@ final class NetworkStore: ObservableObject {
                 let now = Date()
                 let uptime = ProcessInfo.processInfo.systemUptime
 
-                self.tickAggregate(uptime: uptime, interval: interval)
-                self.tickWiFi(uptime: uptime, interval: interval)
-                self.lastUpdated = now
+                let aggregateChanged = self.tickAggregate(uptime: uptime, interval: interval)
+                let wifiChanged = self.tickWiFi(uptime: uptime, interval: interval)
+                if aggregateChanged || wifiChanged {
+                    self.lastUpdated = now
+                }
             }
         }
 
@@ -120,22 +141,12 @@ final class NetworkStore: ObservableObject {
     }
 
     func formattedRate(_ bytesPerSecond: Double) -> String {
-        let formatter = ByteCountFormatter()
-        formatter.allowedUnits = [.useBytes, .useKB, .useMB, .useGB]
-        formatter.countStyle = .decimal
-        formatter.includesUnit = true
-        formatter.isAdaptive = true
-        let base = formatter.string(fromByteCount: Int64(bytesPerSecond))
+        let base = Self.rateFormatter.string(fromByteCount: Int64(bytesPerSecond))
         return "\(base)/s"
     }
 
     func formattedBytes(_ bytes: UInt64) -> String {
-        let formatter = ByteCountFormatter()
-        formatter.allowedUnits = [.useKB, .useMB, .useGB, .useTB]
-        formatter.countStyle = .decimal
-        formatter.includesUnit = true
-        formatter.isAdaptive = true
-        return formatter.string(fromByteCount: Int64(bytes))
+        Self.bytesFormatter.string(fromByteCount: Int64(bytes))
     }
 
     private func resetSamplerState() {
@@ -152,27 +163,31 @@ final class NetworkStore: ObservableObject {
         wifiUploadBytesPerSecond = 0
     }
 
-    private func tickAggregate(uptime: TimeInterval, interval: TimeInterval) {
+    /// Compute aggregate (all-interface) throughput delta. Returns `true` when
+    /// at least one `@Published` property changed, so the caller only bumps
+    /// `lastUpdated` when necessary.
+    private func tickAggregate(uptime: TimeInterval, interval: TimeInterval) -> Bool {
+        var didChange = false
         let current = snapshot(interfaceFilter: nil)
 
         guard let last = lastSample else {
-            totalDownloadedBytes = current.inBytes
-            totalUploadedBytes = current.outBytes
+            didChange = setIfChanged(\.totalDownloadedBytes, to: current.inBytes) || didChange
+            didChange = setIfChanged(\.totalUploadedBytes, to: current.outBytes) || didChange
             lastSample = (uptime: uptime, inBytes: current.inBytes, outBytes: current.outBytes)
-            return
+            return didChange
         }
 
         let dt = max(0.001, uptime - last.uptime)
         if dt > max(5.0, interval * 6.0) {
             // Large gaps (sleep/wake): reset baseline to avoid bogus spikes.
-            totalDownloadedBytes = current.inBytes
-            totalUploadedBytes = current.outBytes
-            downloadBytesPerSecond = 0
-            uploadBytesPerSecond = 0
+            didChange = setIfChanged(\.totalDownloadedBytes, to: current.inBytes) || didChange
+            didChange = setIfChanged(\.totalUploadedBytes, to: current.outBytes) || didChange
+            didChange = setIfChanged(\.downloadBytesPerSecond, to: 0) || didChange
+            didChange = setIfChanged(\.uploadBytesPerSecond, to: 0) || didChange
             emaDown = nil
             emaUp = nil
             lastSample = (uptime: uptime, inBytes: current.inBytes, outBytes: current.outBytes)
-            return
+            return didChange
         }
 
         let downDelta = current.inBytes >= last.inBytes ? (current.inBytes - last.inBytes) : 0
@@ -183,32 +198,36 @@ final class NetworkStore: ObservableObject {
         emaDown = ema(previous: emaDown, sample: downSample)
         emaUp = ema(previous: emaUp, sample: upSample)
 
-        totalDownloadedBytes = current.inBytes
-        totalUploadedBytes = current.outBytes
-        downloadBytesPerSecond = emaDown ?? downSample
-        uploadBytesPerSecond = emaUp ?? upSample
+        didChange = setIfChanged(\.totalDownloadedBytes, to: current.inBytes) || didChange
+        didChange = setIfChanged(\.totalUploadedBytes, to: current.outBytes) || didChange
+        didChange = setIfChanged(\.downloadBytesPerSecond, to: emaDown ?? downSample) || didChange
+        didChange = setIfChanged(\.uploadBytesPerSecond, to: emaUp ?? upSample) || didChange
         lastSample = (uptime: uptime, inBytes: current.inBytes, outBytes: current.outBytes)
+        return didChange
     }
 
-    private func tickWiFi(uptime: TimeInterval, interval: TimeInterval) {
+    /// Compute Wi-Fi-only throughput delta. Returns `true` when at least one
+    /// `@Published` property changed.
+    private func tickWiFi(uptime: TimeInterval, interval: TimeInterval) -> Bool {
+        var didChange = false
         guard let wifiName = wifiInterfaceName() else {
-            wifiDownloadBytesPerSecond = 0
-            wifiUploadBytesPerSecond = 0
-            wifiTotalDownloadedBytes = 0
-            wifiTotalUploadedBytes = 0
+            didChange = setIfChanged(\.wifiDownloadBytesPerSecond, to: 0) || didChange
+            didChange = setIfChanged(\.wifiUploadBytesPerSecond, to: 0) || didChange
+            didChange = setIfChanged(\.wifiTotalDownloadedBytes, to: 0) || didChange
+            didChange = setIfChanged(\.wifiTotalUploadedBytes, to: 0) || didChange
             lastWifiSample = nil
             emaWiFiDown = nil
             emaWiFiUp = nil
-            return
+            return didChange
         }
 
         let current = snapshot(interfaceFilter: wifiName)
 
         guard let last = lastWifiSample, last.interfaceName == wifiName else {
-            wifiTotalDownloadedBytes = current.inBytes
-            wifiTotalUploadedBytes = current.outBytes
-            wifiDownloadBytesPerSecond = 0
-            wifiUploadBytesPerSecond = 0
+            didChange = setIfChanged(\.wifiTotalDownloadedBytes, to: current.inBytes) || didChange
+            didChange = setIfChanged(\.wifiTotalUploadedBytes, to: current.outBytes) || didChange
+            didChange = setIfChanged(\.wifiDownloadBytesPerSecond, to: 0) || didChange
+            didChange = setIfChanged(\.wifiUploadBytesPerSecond, to: 0) || didChange
             emaWiFiDown = nil
             emaWiFiUp = nil
             lastWifiSample = (
@@ -217,16 +236,16 @@ final class NetworkStore: ObservableObject {
                 inBytes: current.inBytes,
                 outBytes: current.outBytes
             )
-            return
+            return didChange
         }
 
         let dt = max(0.001, uptime - last.uptime)
         if dt > max(5.0, interval * 6.0) {
             // Large gaps (sleep/wake): reset baseline to avoid bogus spikes.
-            wifiTotalDownloadedBytes = current.inBytes
-            wifiTotalUploadedBytes = current.outBytes
-            wifiDownloadBytesPerSecond = 0
-            wifiUploadBytesPerSecond = 0
+            didChange = setIfChanged(\.wifiTotalDownloadedBytes, to: current.inBytes) || didChange
+            didChange = setIfChanged(\.wifiTotalUploadedBytes, to: current.outBytes) || didChange
+            didChange = setIfChanged(\.wifiDownloadBytesPerSecond, to: 0) || didChange
+            didChange = setIfChanged(\.wifiUploadBytesPerSecond, to: 0) || didChange
             emaWiFiDown = nil
             emaWiFiUp = nil
             lastWifiSample = (
@@ -235,7 +254,7 @@ final class NetworkStore: ObservableObject {
                 inBytes: current.inBytes,
                 outBytes: current.outBytes
             )
-            return
+            return didChange
         }
 
         let downDelta = current.inBytes >= last.inBytes ? (current.inBytes - last.inBytes) : 0
@@ -246,16 +265,17 @@ final class NetworkStore: ObservableObject {
         emaWiFiDown = ema(previous: emaWiFiDown, sample: downSample)
         emaWiFiUp = ema(previous: emaWiFiUp, sample: upSample)
 
-        wifiTotalDownloadedBytes = current.inBytes
-        wifiTotalUploadedBytes = current.outBytes
-        wifiDownloadBytesPerSecond = emaWiFiDown ?? downSample
-        wifiUploadBytesPerSecond = emaWiFiUp ?? upSample
+        didChange = setIfChanged(\.wifiTotalDownloadedBytes, to: current.inBytes) || didChange
+        didChange = setIfChanged(\.wifiTotalUploadedBytes, to: current.outBytes) || didChange
+        didChange = setIfChanged(\.wifiDownloadBytesPerSecond, to: emaWiFiDown ?? downSample) || didChange
+        didChange = setIfChanged(\.wifiUploadBytesPerSecond, to: emaWiFiUp ?? upSample) || didChange
         lastWifiSample = (
             uptime: uptime,
             interfaceName: wifiName,
             inBytes: current.inBytes,
             outBytes: current.outBytes
         )
+        return didChange
     }
 
     private func ema(previous: Double?, sample: Double) -> Double {
@@ -321,5 +341,18 @@ final class NetworkStore: ObservableObject {
             return (UInt64(data.ifi_ibytes), UInt64(data.ifi_obytes))
         }
         return nil
+    }
+
+    /// Write `value` only when it differs from the current value; return whether a write occurred.
+    ///
+    /// Same pattern as `WiFiStore.setIfChanged`: suppresses redundant
+    /// `objectWillChange` notifications to avoid needless SwiftUI diffs.
+    @discardableResult
+    private func setIfChanged<T: Equatable>(_ keyPath: ReferenceWritableKeyPath<NetworkStore, T>, to value: T) -> Bool {
+        if self[keyPath: keyPath] == value {
+            return false
+        }
+        self[keyPath: keyPath] = value
+        return true
     }
 }

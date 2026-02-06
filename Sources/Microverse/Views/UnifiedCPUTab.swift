@@ -75,6 +75,7 @@ struct UnifiedCPUTab: View {
             
         }
         .padding(8)
+        .systemMonitoringActive()
     }
     
     // MARK: - Computed Properties
@@ -113,4 +114,3 @@ struct UnifiedCPUTab: View {
         #endif
     }
 }
-

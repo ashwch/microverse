@@ -169,7 +169,8 @@ final class AudioDevicesStore: ObservableObject {
 
       while !Task.isCancelled {
         do {
-          try await Task.sleep(nanoseconds: UInt64(max(0.75, interval) * 1_000_000_000))
+          // tolerance lets macOS coalesce this 2s timer with nearby work.
+          try await Task.sleep(for: .seconds(max(0.75, interval)), tolerance: .seconds(0.5))
         } catch {
           break
         }
@@ -191,8 +192,14 @@ final class AudioDevicesStore: ObservableObject {
     logger.debug("AudioDevicesStore stopped")
   }
 
+  /// Re-enumerate audio devices and refresh output controls.
+  ///
+  /// `didChange` tracks whether *any* `@Published` property was mutated.
+  /// We only bump `lastUpdated` when something changed, so downstream
+  /// `.onChange(of: lastUpdated)` handlers skip no-op refreshes.
   func refresh(reason: String) {
     let now = Date()
+    var didChange = false
 
     #if DEBUG
     if isScreenshotMode {
@@ -229,16 +236,18 @@ final class AudioDevicesStore: ObservableObject {
         transportType: kAudioDeviceTransportTypeBluetooth
       )
 
-      outputDevices = [builtInOut, airPodsOut, hdmiOut]
-      inputDevices = [builtInIn, airPodsIn]
-      defaultOutputDeviceID = builtInOut.id
-      defaultInputDeviceID = builtInIn.id
+      didChange = setIfChanged(\.outputDevices, to: [builtInOut, airPodsOut, hdmiOut]) || didChange
+      didChange = setIfChanged(\.inputDevices, to: [builtInIn, airPodsIn]) || didChange
+      didChange = setIfChanged(\.defaultOutputDeviceID, to: builtInOut.id) || didChange
+      didChange = setIfChanged(\.defaultInputDeviceID, to: builtInIn.id) || didChange
 
-      outputVolume = 0.42
-      canSetOutputVolume = true
-      outputMuted = false
-      canSetOutputMute = true
-      lastUpdated = now
+      didChange = setIfChanged(\.outputVolume, to: 0.42) || didChange
+      didChange = setIfChanged(\.canSetOutputVolume, to: true) || didChange
+      didChange = setIfChanged(\.outputMuted, to: false) || didChange
+      didChange = setIfChanged(\.canSetOutputMute, to: true) || didChange
+      if didChange || lastUpdated == nil {
+        lastUpdated = now
+      }
       return
     }
     #endif
@@ -277,13 +286,15 @@ final class AudioDevicesStore: ObservableObject {
       return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
     }
 
-    outputDevices = outputs
-    inputDevices = inputs
-    defaultOutputDeviceID = defaultOutput
-    defaultInputDeviceID = defaultInput
+    didChange = setIfChanged(\.outputDevices, to: outputs) || didChange
+    didChange = setIfChanged(\.inputDevices, to: inputs) || didChange
+    didChange = setIfChanged(\.defaultOutputDeviceID, to: defaultOutput) || didChange
+    didChange = setIfChanged(\.defaultInputDeviceID, to: defaultInput) || didChange
 
-    refreshOutputControls(for: defaultOutput)
-    lastUpdated = now
+    didChange = refreshOutputControls(for: defaultOutput) || didChange
+    if didChange || lastUpdated == nil {
+      lastUpdated = now
+    }
 
     updateOutputDeviceListenersIfNeeded()
 
@@ -309,16 +320,18 @@ final class AudioDevicesStore: ObservableObject {
     let clamped = max(0, min(1, value))
     guard Self.setVolume(deviceID: deviceID, scope: kAudioDevicePropertyScopeOutput, value: clamped)
     else { return }
-    refreshOutputControls(for: deviceID)
-    lastUpdated = Date()
+    if refreshOutputControls(for: deviceID) {
+      lastUpdated = Date()
+    }
   }
 
   func setOutputMuted(_ muted: Bool) {
     guard let deviceID = defaultOutputDeviceID else { return }
     guard Self.setMute(deviceID: deviceID, scope: kAudioDevicePropertyScopeOutput, muted: muted)
     else { return }
-    refreshOutputControls(for: deviceID)
-    lastUpdated = Date()
+    if refreshOutputControls(for: deviceID) {
+      lastUpdated = Date()
+    }
   }
 
   func formattedPercent(_ volume: Float) -> String {
@@ -352,13 +365,18 @@ final class AudioDevicesStore: ObservableObject {
 
     // MARK: - Output Controls
 
-  private func refreshOutputControls(for deviceID: AudioDeviceID?) {
+  /// Read volume/mute state for the given output device. Returns `true` when
+  /// at least one `@Published` property changed, so callers only bump
+  /// `lastUpdated` when necessary.
+  @discardableResult
+  private func refreshOutputControls(for deviceID: AudioDeviceID?) -> Bool {
+    var didChange = false
     guard let deviceID else {
-      outputVolume = nil
-      canSetOutputVolume = false
-      outputMuted = nil
-      canSetOutputMute = false
-      return
+      didChange = setIfChanged(\.outputVolume, to: nil) || didChange
+      didChange = setIfChanged(\.canSetOutputVolume, to: false) || didChange
+      didChange = setIfChanged(\.outputMuted, to: nil) || didChange
+      didChange = setIfChanged(\.canSetOutputMute, to: false) || didChange
+      return didChange
     }
 
     var volumeAddress = AudioObjectPropertyAddress(
@@ -370,17 +388,17 @@ final class AudioDevicesStore: ObservableObject {
     if Self.hasProperty(deviceID, volumeAddress),
       let value = Self.getPropertyFloat32(deviceID, volumeAddress)
     {
-      outputVolume = value
+      didChange = setIfChanged(\.outputVolume, to: value) || didChange
 
       var settable: DarwinBoolean = false
       if AudioObjectIsPropertySettable(deviceID, &volumeAddress, &settable) == noErr {
-        canSetOutputVolume = settable.boolValue
+        didChange = setIfChanged(\.canSetOutputVolume, to: settable.boolValue) || didChange
       } else {
-        canSetOutputVolume = false
+        didChange = setIfChanged(\.canSetOutputVolume, to: false) || didChange
       }
     } else {
-      outputVolume = nil
-      canSetOutputVolume = false
+      didChange = setIfChanged(\.outputVolume, to: nil) || didChange
+      didChange = setIfChanged(\.canSetOutputVolume, to: false) || didChange
     }
 
     var muteAddress = AudioObjectPropertyAddress(
@@ -392,18 +410,19 @@ final class AudioDevicesStore: ObservableObject {
     if Self.hasProperty(deviceID, muteAddress),
       let raw = Self.getPropertyUInt32(deviceID, muteAddress)
     {
-      outputMuted = raw != 0
+      didChange = setIfChanged(\.outputMuted, to: raw != 0) || didChange
 
       var settable: DarwinBoolean = false
       if AudioObjectIsPropertySettable(deviceID, &muteAddress, &settable) == noErr {
-        canSetOutputMute = settable.boolValue
+        didChange = setIfChanged(\.canSetOutputMute, to: settable.boolValue) || didChange
       } else {
-        canSetOutputMute = false
+        didChange = setIfChanged(\.canSetOutputMute, to: false) || didChange
       }
     } else {
-      outputMuted = nil
-      canSetOutputMute = false
+      didChange = setIfChanged(\.outputMuted, to: nil) || didChange
+      didChange = setIfChanged(\.canSetOutputMute, to: false) || didChange
     }
+    return didChange
   }
 
   // MARK: - CoreAudio Property Listeners
@@ -478,8 +497,9 @@ final class AudioDevicesStore: ObservableObject {
     let volumeBlock: AudioObjectPropertyListenerBlock = { [weak self] _, _ in
       Task { @MainActor [weak self] in
         guard let self else { return }
-        self.refreshOutputControls(for: deviceID)
-        self.lastUpdated = Date()
+        if self.refreshOutputControls(for: deviceID) {
+          self.lastUpdated = Date()
+        }
       }
     }
 
@@ -505,8 +525,9 @@ final class AudioDevicesStore: ObservableObject {
     let muteBlock: AudioObjectPropertyListenerBlock = { [weak self] _, _ in
       Task { @MainActor [weak self] in
         guard let self else { return }
-        self.refreshOutputControls(for: deviceID)
-        self.lastUpdated = Date()
+        if self.refreshOutputControls(for: deviceID) {
+          self.lastUpdated = Date()
+        }
       }
     }
 
@@ -758,5 +779,21 @@ final class AudioDevicesStore: ObservableObject {
     var next: UInt32 = muted ? 1 : 0
     let size = UInt32(MemoryLayout<UInt32>.size)
     return AudioObjectSetPropertyData(deviceID, &address, 0, nil, size, &next) == noErr
+  }
+
+  /// Write `value` only when it differs from the current value; return whether a write occurred.
+  ///
+  /// Same pattern as `WiFiStore.setIfChanged`: suppresses redundant
+  /// `objectWillChange` notifications to avoid needless SwiftUI diffs.
+  @discardableResult
+  private func setIfChanged<T: Equatable>(
+    _ keyPath: ReferenceWritableKeyPath<AudioDevicesStore, T>,
+    to value: T
+  ) -> Bool {
+    if self[keyPath: keyPath] == value {
+      return false
+    }
+    self[keyPath: keyPath] = value
+    return true
   }
 }

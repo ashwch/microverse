@@ -770,6 +770,7 @@ struct MicroverseCompactUnifiedView: View {
       audio.stop()
     }
     .animation(MicroverseDesign.Animation.notchPeek, value: compactPresentation)
+    .systemMonitoringActive()
     .microverseNotchTapToToggleExpanded(enabled: viewModel.notchClickToToggleExpanded)
   }
 
@@ -1264,6 +1265,7 @@ struct MicroverseCompactTrailingView: View {
       audio.stop()
     }
     .animation(MicroverseDesign.Animation.notchPeek, value: compactPresentation)
+    .systemMonitoringActive()
     .microverseNotchTapToToggleExpanded(enabled: viewModel.notchClickToToggleExpanded)
   }
 
@@ -1634,6 +1636,7 @@ private struct MicroverseAdaptivePinnedSystemMetricView: View {
   @State private var lastCpu: Double = 0
   @State private var lastMemory: Double = 0
   @State private var lastSwitchAt = Date.distantPast
+  @State private var dwellRetryTask: Task<Void, Never>?
 
   var body: some View {
     ZStack {
@@ -1652,21 +1655,20 @@ private struct MicroverseAdaptivePinnedSystemMetricView: View {
       if newValue == .auto {
         resetAutoState()
         updateAutoMetricIfNeeded(force: true)
+      } else {
+        dwellRetryTask?.cancel()
+        dwellRetryTask = nil
       }
     }
-    .onChange(of: systemService.lastUpdated) { _ in
+    // sampleID-driven auto-metric: fires only when display-visible CPU/memory
+    // values actually changed (not every 3s unconditionally). Replaces the old
+    // 2.2s forceUpdate loop that doubled system-call frequency.
+    .onChange(of: systemService.sampleID) { _ in
       updateAutoMetricIfNeeded()
     }
-    .task(id: weatherSettings.weatherPinnedNotchReplaces == .auto) {
-      guard weatherSettings.weatherPinnedNotchReplaces == .auto else { return }
-      while !Task.isCancelled {
-        await systemService.forceUpdate()
-        do {
-          try await Task.sleep(nanoseconds: 2_200_000_000)
-        } catch {
-          break
-        }
-      }
+    .onDisappear {
+      dwellRetryTask?.cancel()
+      dwellRetryTask = nil
     }
   }
 
@@ -1716,6 +1718,22 @@ private struct MicroverseAdaptivePinnedSystemMetricView: View {
     lastCpu = 0
     lastMemory = 0
     lastSwitchAt = .distantPast
+    dwellRetryTask?.cancel()
+    dwellRetryTask = nil
+  }
+
+  /// Schedule a one-shot retry of `updateAutoMetricIfNeeded` after the dwell
+  /// window expires. This ensures deferred switches are picked up even when
+  /// sampleID stops changing (metrics stabilize at quantized values).
+  private func scheduleDwellRetry(remaining: TimeInterval) {
+    dwellRetryTask?.cancel()
+    dwellRetryTask = Task { @MainActor [weak systemService] in
+      do {
+        try await Task.sleep(for: .seconds(max(0.1, remaining) + 0.05))
+      } catch { return }
+      guard !Task.isCancelled, systemService != nil else { return }
+      updateAutoMetricIfNeeded()
+    }
   }
 
   private func updateAutoMetricIfNeeded(force: Bool = false) {
@@ -1757,12 +1775,24 @@ private struct MicroverseAdaptivePinnedSystemMetricView: View {
       memoryDelta: memoryDelta
     )
 
-    guard desired != autoMetric else { return }
+    guard desired != autoMetric else {
+      dwellRetryTask?.cancel()
+      dwellRetryTask = nil
+      return
+    }
 
     let minDwell: TimeInterval = 8
     let timeSinceSwitch = now.timeIntervalSince(lastSwitchAt)
     let canSwitch = force || shouldOverride || timeSinceSwitch >= minDwell
-    guard canSwitch else { return }
+    guard canSwitch else {
+      // Dwell-blocked: schedule a one-shot retry after the remaining dwell
+      // window. Without this, if sampleID stops changing (metrics stabilize),
+      // the deferred switch would never be retried.
+      scheduleDwellRetry(remaining: minDwell - timeSinceSwitch)
+      return
+    }
+    dwellRetryTask?.cancel()
+    dwellRetryTask = nil
 
     let requiresConfidence: Double = 0.12
     guard force || shouldOverride || difference >= requiresConfidence else { return }
@@ -1885,7 +1915,6 @@ private struct MicroverseNotchMultiLocationWeatherView: View {
   let renderMode: WeatherRenderMode
 
   private static let cycleInterval: TimeInterval = 8
-  private let timer = Timer.publish(every: Self.cycleInterval, on: .main, in: .common).autoconnect()
   @State private var index = 0
 
   var body: some View {
@@ -1925,19 +1954,28 @@ private struct MicroverseNotchMultiLocationWeatherView: View {
       }
       .animation(reduceMotion ? nil : .easeInOut(duration: 0.25), value: summaries[safe: index]?.id)
       .onAppear { weatherLocationsStore.triggerRefresh(reason: "notch_multi_location") }
-      .onReceive(timer) { _ in
+      // Weather cycling: `Task.sleep(for:tolerance:)` replaces `Timer.publish`
+      // on `.main` RunLoop. Timer.publish is a hard wake-up; Task.sleep with
+      // tolerance is coalesceable, saving battery.
+      .task(id: summaries.map(\.id)) {
+        index = 0
         let count = summaries.count
-        guard count > 1 else {
-          index = 0
-          return
-        }
+        guard count > 1 else { return }
 
-        let next = (index + 1) % count
-        if reduceMotion {
-          index = next
-        } else {
-          withAnimation(.easeInOut(duration: 0.25)) {
+        while !Task.isCancelled {
+          do {
+            try await Task.sleep(for: .seconds(Self.cycleInterval), tolerance: .seconds(2))
+          } catch {
+            break
+          }
+
+          let next = (index + 1) % count
+          if reduceMotion {
             index = next
+          } else {
+            withAnimation(.easeInOut(duration: 0.25)) {
+              index = next
+            }
           }
         }
       }
@@ -2110,6 +2148,7 @@ struct MicroverseExpandedNotchView: View {
       wifi.stop()
       audio.stop()
     }
+    .systemMonitoringActive()
   }
 
   private var expandedBackground: some View {

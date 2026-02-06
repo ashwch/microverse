@@ -80,7 +80,8 @@ final class WiFiStore: ObservableObject {
 
             while !Task.isCancelled {
                 do {
-                    try await Task.sleep(nanoseconds: UInt64(max(0.75, interval) * 1_000_000_000))
+                    // tolerance lets macOS coalesce this 2s timer with nearby work.
+                    try await Task.sleep(for: .seconds(max(0.75, interval)), tolerance: .seconds(0.5))
                 } catch {
                     break
                 }
@@ -104,43 +105,56 @@ final class WiFiStore: ObservableObject {
         logger.debug("WiFiStore stopped")
     }
 
+    /// Re-read Wi-Fi interface state and publish only changed properties.
+    ///
+    /// `didChange` tracks whether *any* `@Published` property was actually
+    /// mutated. We only bump `lastUpdated` when something changed, so
+    /// downstream `.onChange(of: lastUpdated)` handlers skip no-op refreshes.
     func refresh(reason: String) {
         let now = Date()
         let uptime = ProcessInfo.processInfo.systemUptime
+        var didChange = false
 
         #if DEBUG
         if isScreenshotMode {
             // Privacy-safe, deterministic values for website/docs screenshots.
-            status = .connected(networkName: nil)  // Avoid leaking SSID in captures.
-            rssi = -55
-            noise = -92
-            transmitRateMbps = 866
-            lastUpdated = now
+            didChange = setIfChanged(\.status, to: .connected(networkName: nil)) || didChange  // Avoid leaking SSID in captures.
+            didChange = setIfChanged(\.rssi, to: -55) || didChange
+            didChange = setIfChanged(\.noise, to: -92) || didChange
+            didChange = setIfChanged(\.transmitRateMbps, to: 866) || didChange
+            if didChange || lastUpdated == nil {
+                lastUpdated = now
+            }
             return
         }
         #endif
 
+        let previousStatus = status
         let wasConnected: Bool = {
-            if case .connected = status { return true }
+            if case .connected = previousStatus { return true }
             return false
         }()
 
         guard let iface = CWWiFiClient.shared().interface() else {
-            status = .unavailable
-            rssi = nil
-            noise = nil
-            transmitRateMbps = nil
-            lastUpdated = now
+            didChange = setIfChanged(\.status, to: .unavailable) || didChange
+            didChange = setIfChanged(\.rssi, to: nil) || didChange
+            didChange = setIfChanged(\.noise, to: nil) || didChange
+            didChange = setIfChanged(\.transmitRateMbps, to: nil) || didChange
+            if didChange || lastUpdated == nil {
+                lastUpdated = now
+            }
             resetFilters()
             return
         }
 
         guard iface.powerOn() else {
-            status = .poweredOff
-            rssi = nil
-            noise = nil
-            transmitRateMbps = nil
-            lastUpdated = now
+            didChange = setIfChanged(\.status, to: .poweredOff) || didChange
+            didChange = setIfChanged(\.rssi, to: nil) || didChange
+            didChange = setIfChanged(\.noise, to: nil) || didChange
+            didChange = setIfChanged(\.transmitRateMbps, to: nil) || didChange
+            if didChange || lastUpdated == nil {
+                lastUpdated = now
+            }
             resetFilters()
             return
         }
@@ -156,14 +170,18 @@ final class WiFiStore: ObservableObject {
         let noiseValue = nextNoise == 0 || nextNoise == Int.min ? nil : nextNoise
         let looksConnected = name != nil || rssiValue != nil || nextRate > 0
 
-        status = looksConnected ? .connected(networkName: name) : .disconnected
-        rssi = rssiValue
-        noise = noiseValue
-        transmitRateMbps = nextRate > 0 ? nextRate : nil
-        lastUpdated = now
+        let newStatus: Status = looksConnected ? .connected(networkName: name) : .disconnected
+        let newRate = nextRate > 0 ? nextRate : nil
+        didChange = setIfChanged(\.status, to: newStatus) || didChange
+        didChange = setIfChanged(\.rssi, to: rssiValue) || didChange
+        didChange = setIfChanged(\.noise, to: noiseValue) || didChange
+        didChange = setIfChanged(\.transmitRateMbps, to: newRate) || didChange
+        if didChange || lastUpdated == nil {
+            lastUpdated = now
+        }
 
         let isConnected: Bool = {
-            if case .connected = status { return true }
+            if case .connected = newStatus { return true }
             return false
         }()
 
@@ -279,5 +297,20 @@ final class WiFiStore: ObservableObject {
         let clamped = max(low, min(high, value))
         let t = (clamped - low) / max(0.000_001, (high - low))
         return Int((t * 100.0).rounded())
+    }
+
+    /// Write `value` only when it differs from the current value; return whether a write occurred.
+    ///
+    /// Every `@Published` write triggers `objectWillChange.send()`, which causes
+    /// SwiftUI to re-evaluate *all* views observing this store. When RSSI is
+    /// steady at -55 dBm, writing -55 every 2s is pure waste. This helper
+    /// suppresses the publish and returns `false` when the value hasn't changed.
+    @discardableResult
+    private func setIfChanged<T: Equatable>(_ keyPath: ReferenceWritableKeyPath<WiFiStore, T>, to value: T) -> Bool {
+        if self[keyPath: keyPath] == value {
+            return false
+        }
+        self[keyPath: keyPath] = value
+        return true
     }
 }

@@ -85,6 +85,7 @@ struct UnifiedOverviewTab: View {
             .background(MicroverseDesign.cardBackground())
         }
         .padding(8)
+        .systemMonitoringActive()
     }
     
     // MARK: - Computed Properties

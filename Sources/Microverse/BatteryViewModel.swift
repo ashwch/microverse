@@ -757,7 +757,14 @@ class BatteryViewModel: ObservableObject {
         )
 
         do {
-          try await Task.sleep(nanoseconds: UInt64(adaptiveInterval * 1_000_000_000))
+          // Battery poll tolerance: `max(1.0, adaptiveInterval * 0.3)`.
+          // A 5s poll gets 1.5s tolerance; a 30s poll gets 9s tolerance.
+          // Wider tolerance at longer intervals lets macOS coalesce wake-ups
+          // more aggressively when the battery is stable.
+          try await Task.sleep(
+            for: .seconds(adaptiveInterval),
+            tolerance: .seconds(max(1.0, adaptiveInterval * 0.3))
+          )
         } catch {
           break
         }
@@ -968,7 +975,9 @@ class BatteryViewModel: ObservableObject {
     clamshellPollTask = Task { @MainActor [weak self] in
       while !Task.isCancelled {
         do {
-          try await Task.sleep(nanoseconds: 15_000_000_000)
+          // Clamshell poll tolerance: 5s on a 15s interval. Lid state
+          // rarely changes, so generous tolerance saves wake-ups.
+          try await Task.sleep(for: .seconds(15), tolerance: .seconds(5))
         } catch {
           break
         }
