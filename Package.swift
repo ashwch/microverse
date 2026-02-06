@@ -35,6 +35,14 @@ let package = Package(
             name: "SystemCore",
             dependencies: [],
             path: "Sources/SystemCore"
+        ),
+        // CLI benchmark tool for validating performance optimization patterns.
+        // Run with: `make benchmark` (builds in release mode for accurate timings).
+        // Depends on SystemCore only — no SwiftUI/AppKit, runs as a pure CLI tool.
+        .executableTarget(
+            name: "MicroverseBenchmark",
+            dependencies: ["SystemCore"],
+            path: "Sources/MicroverseBenchmark"
         )
     ]
 )
