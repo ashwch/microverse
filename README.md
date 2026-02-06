@@ -8,7 +8,7 @@
 [![Architecture](https://img.shields.io/badge/Architecture-Universal%20Binary-success.svg)](https://developer.apple.com/documentation/apple-silicon)
 [![Performance](https://img.shields.io/badge/Performance-%3C1%25%20CPU-brightgreen.svg)](docs/PERFORMANCE.md)
 
-[**Download**](https://github.com/ashwch/microverse/releases/latest) • [Architecture](docs/CURRENT_ARCHITECTURE.md) • [Design System](docs/DESIGN.md) • [Contributing](CONTRIBUTING.md)
+[**Download**](https://github.com/ashwch/microverse/releases/latest) • [Architecture](docs/CURRENT_ARCHITECTURE.md) • [Design System](docs/DESIGN.md) • [Performance](docs/PERFORMANCE.md) • [Contributing](CONTRIBUTING.md)
 
 ## 🎯 Mission
 
@@ -37,6 +37,7 @@ Perfect for developers who need real-time system insights without compromising p
 ### ⚡ **Performance Excellence**
 - **Adaptive Refresh Rates**: 2s critical → 30s idle (up to 83% CPU reduction)
 - **Direct System Access**: IOKit + mach APIs (no subprocess overhead)
+- **Demand-Driven Polling**: CPU/memory sampling only while visible surfaces are active
 - **Universal Binary**: Native Intel + Apple Silicon optimization
 - **Memory Efficient**: Smart caching with minimal footprint
 
@@ -117,7 +118,8 @@ Package.swift
 │   ├── depends: Sparkle (auto-updates)
 │   └── depends: DynamicNotchKit (notch integration)
 ├── BatteryCore (framework) - IOKit battery monitoring
-└── SystemCore (framework) - mach CPU/memory monitoring
+├── SystemCore (framework) - mach CPU/memory monitoring
+└── MicroverseBenchmark (executable) - release-mode performance harness
 ```
 
 ### Quick Usage
@@ -184,8 +186,11 @@ make clean
 # Run unit tests (when available)
 swift test
 
-# Performance testing
-# Monitor with Activity Monitor during development
+# Performance benchmark harness
+make benchmark
+
+# Process-level validation
+# Monitor with Activity Monitor during development/release checks
 ```
 
 ### Code Quality Standards
@@ -202,7 +207,7 @@ We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guid
 ### Development Setup
 1. Fork the repository
 2. Create a feature branch: `git checkout -b feature/amazing-feature`
-3. Follow our [Code Style Guide](docs/CODE_STYLE.md)
+3. Follow our [Contributing Guide](CONTRIBUTING.md)
 4. Ensure all changes use the design system tokens
 5. Test performance impact (CPU <1%, Memory <50MB)
 6. Submit a pull request with detailed description
@@ -211,12 +216,12 @@ We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guid
 
 - [**Technical Architecture**](docs/CURRENT_ARCHITECTURE.md) - System design and data flow
 - [**Design System**](docs/DESIGN.md) - UI components and guidelines  
-- [**Performance Guide**](docs/ADAPTIVE_REFRESH.md) - Optimization strategies
+- [**Performance Guide**](docs/PERFORMANCE.md) - Optimization architecture and benchmark workflow
 - [**Auto-Update System**](docs/SPARKLE_AUTO_UPDATE_SYSTEM.md) - Security and implementation
 - [**Wi‑Fi + Audio**](docs/WIFI_AUDIO_FEATURES.md) - Stores, surfaces, permissions, and testing
 - [**Weather locations + alerts**](docs/WEATHER_LOCATIONS_AND_ALERTS.md) - Multi-location, current location, and glow alerts
 - [**Screenshots guide**](docs/SCREENSHOTS.md) - Capture checklist + filename conventions
-- [**API Reference**](docs/API.md) - Framework interfaces
+- [**SystemCore Reference**](Sources/SystemCore/SystemMonitor.swift) - CPU and memory monitor implementation
 
 ## 🔒 Security
 
@@ -227,13 +232,13 @@ We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guid
 
 ## 📊 Performance Metrics
 
-| Metric | Target | Actual |
+| Metric | Target | Typical (machine-dependent) |
 |--------|--------|--------|
-| CPU Usage (Active) | <1% | ~0.3% |
-| CPU Usage (Idle) | <0.1% | ~0.05% |
-| Memory Footprint | <50MB | ~35MB |
-| Battery Impact | Minimal | Negligible |
-| Launch Time | <2s | ~1.2s |
+| CPU Usage (Active) | <1% | varies by active modules and surfaces |
+| CPU Usage (Idle) | <0.1% | near zero when monitoring clients are inactive |
+| Memory Footprint | <50MB | framework-dependent baseline + active features |
+| Battery Impact | Minimal | lower with coalesced timers and demand-driven polling |
+| Launch Time | <2s | hardware dependent |
 
 ## 🙏 Acknowledgments
 
