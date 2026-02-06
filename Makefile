@@ -1,6 +1,6 @@
 # Makefile for Microverse - Battery Monitor for macOS
 
-.PHONY: all build build-debug clean install install-debug uninstall run app debug-app
+.PHONY: all build build-debug clean install install-debug uninstall run app debug-app benchmark
 
 # Configuration
 APP_NAME = Microverse
@@ -139,6 +139,14 @@ run: build
 	@echo "🚀 Running $(APP_NAME)..."
 	.build/release/$(APP_NAME)
 
+# Run CLI performance benchmarks.
+# Must use -c release to get accurate timings (debug mode disables
+# optimizations and adds runtime checks that skew all measurements).
+# See Sources/MicroverseBenchmark/main.swift for what's measured and why.
+benchmark:
+	@echo "⏱  Running benchmarks (release)..."
+	$(SWIFT) run -c release MicroverseBenchmark
+
 # Show help
 help:
 	@echo "Microverse Makefile"
@@ -152,5 +160,6 @@ help:
 	@echo "  make clean        - Clean all build artifacts"
 	@echo "  make uninstall    - Remove app and preferences"
 	@echo "  make run          - Build and run directly (development)"
+	@echo "  make benchmark    - Run release CLI benchmarks"
 	@echo ""
 	@echo "Note: Installation requires administrator privileges"

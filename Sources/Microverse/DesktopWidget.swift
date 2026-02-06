@@ -180,7 +180,6 @@ class DesktopWidgetWindow: NSWindow {
 // Widget view
 struct DesktopWidgetView: View {
   @EnvironmentObject var viewModel: BatteryViewModel
-  @EnvironmentObject private var audio: AudioDevicesStore
 
   var body: some View {
     Group {
@@ -201,11 +200,18 @@ struct DesktopWidgetView: View {
         SystemDashboardWidget(batteryInfo: viewModel.batteryInfo)
       }
     }
-    .onAppear {
-      audio.start()
-    }
-    .onDisappear {
-      audio.stop()
+    .systemMonitoringActive(requiresSystemMonitoring)
+  }
+
+  private var requiresSystemMonitoring: Bool {
+    switch viewModel.widgetStyle {
+    case .custom:
+      let modules = Set(viewModel.widgetCustomModules)
+      return modules.contains(.cpu) || modules.contains(.memory) || modules.contains(.systemHealth)
+    case .batterySimple:
+      return false
+    case .cpuMonitor, .memoryMonitor, .systemGlance, .systemStatus, .systemDashboard:
+      return true
     }
   }
 }
@@ -501,6 +507,10 @@ private struct CustomModularWidget: View {
 
   @State private var primary: WidgetModule = WidgetModule.defaultSelection.first ?? .battery
   @State private var lastSwitchAt = Date.distantPast
+  @State private var dwellRetryTask: Task<Void, Never>?
+  @State private var isNetworkMonitoring = false
+  @State private var isWiFiMonitoring = false
+  @State private var isAudioMonitoring = false
 
   var body: some View {
     let modules = viewModel.widgetCustomModules
@@ -524,9 +534,7 @@ private struct CustomModularWidget: View {
     .frame(width: 240, height: 120)
     .widgetBackground()
     .onAppear {
-      network.start()
-      wifi.start()
-      audio.start()
+      reconcileModuleStores(using: modules)
       // Ensure we have a sensible starting primary.
       if let first = modules.first {
         primary = first
@@ -534,11 +542,12 @@ private struct CustomModularWidget: View {
       updatePrimaryIfNeeded(force: true)
     }
     .onDisappear {
-      network.stop()
-      wifi.stop()
-      audio.stop()
+      stopModuleStores()
+      dwellRetryTask?.cancel()
+      dwellRetryTask = nil
     }
     .onChange(of: viewModel.widgetCustomModules) { _ in
+      reconcileModuleStores(using: viewModel.widgetCustomModules)
       updatePrimaryIfNeeded(force: true)
     }
     .onChange(of: viewModel.widgetCustomAdaptiveEmphasis) { _ in
@@ -547,7 +556,7 @@ private struct CustomModularWidget: View {
     .onChange(of: viewModel.batteryInfo) { _ in
       updatePrimaryIfNeeded()
     }
-    .onChange(of: systemService.lastUpdated) { _ in
+    .onChange(of: systemService.sampleID) { _ in
       updatePrimaryIfNeeded()
     }
     .onChange(of: weatherStore.lastUpdated) { _ in
@@ -555,6 +564,51 @@ private struct CustomModularWidget: View {
     }
     .onChange(of: network.lastUpdated) { _ in
       updatePrimaryIfNeeded()
+    }
+  }
+
+  private func reconcileModuleStores(using modules: [WidgetModule]) {
+    let needsAudio = modules.contains(.audioOutput) || modules.contains(.audioInput)
+    let needsWiFi = modules.contains(.wifi)
+    let needsNetwork = modules.contains(.network) || needsWiFi
+
+    if needsNetwork, !isNetworkMonitoring {
+      network.start()
+      isNetworkMonitoring = true
+    } else if !needsNetwork, isNetworkMonitoring {
+      network.stop()
+      isNetworkMonitoring = false
+    }
+
+    if needsWiFi, !isWiFiMonitoring {
+      wifi.start()
+      isWiFiMonitoring = true
+    } else if !needsWiFi, isWiFiMonitoring {
+      wifi.stop()
+      isWiFiMonitoring = false
+    }
+
+    if needsAudio, !isAudioMonitoring {
+      audio.start()
+      isAudioMonitoring = true
+    } else if !needsAudio, isAudioMonitoring {
+      audio.stop()
+      isAudioMonitoring = false
+    }
+  }
+
+  private func stopModuleStores() {
+    if isNetworkMonitoring {
+      network.stop()
+      isNetworkMonitoring = false
+    }
+    if isWiFiMonitoring {
+      wifi.stop()
+      isWiFiMonitoring = false
+    }
+    if isAudioMonitoring {
+      audio.stop()
+      isAudioMonitoring = false
     }
   }
 
@@ -582,13 +636,24 @@ private struct CustomModularWidget: View {
       candidate = modules.first ?? .battery
     }
 
-    guard candidate != primary else { return }
+    guard candidate != primary else {
+      dwellRetryTask?.cancel()
+      dwellRetryTask = nil
+      return
+    }
 
     let now = Date()
     let dwell: TimeInterval = 8
-    if !force, now.timeIntervalSince(lastSwitchAt) < dwell {
+    let timeSinceSwitch = now.timeIntervalSince(lastSwitchAt)
+    if !force, timeSinceSwitch < dwell {
+      // Dwell-blocked: schedule a one-shot retry after the remaining dwell
+      // window. Without this, if sampleID stops changing (metrics stabilize),
+      // the deferred switch would never be retried.
+      schedulePrimaryDwellRetry(remaining: dwell - timeSinceSwitch)
       return
     }
+    dwellRetryTask?.cancel()
+    dwellRetryTask = nil
 
     if reduceMotion {
       var t = Transaction()
@@ -602,6 +667,20 @@ private struct CustomModularWidget: View {
       }
     }
     lastSwitchAt = now
+  }
+
+  /// Schedule a one-shot retry of `updatePrimaryIfNeeded` after the dwell
+  /// window expires. This ensures deferred switches are picked up even when
+  /// sampleID stops changing (metrics stabilize at quantized values).
+  private func schedulePrimaryDwellRetry(remaining: TimeInterval) {
+    dwellRetryTask?.cancel()
+    dwellRetryTask = Task { @MainActor in
+      do {
+        try await Task.sleep(for: .seconds(max(0.1, remaining) + 0.05))
+      } catch { return }
+      guard !Task.isCancelled else { return }
+      updatePrimaryIfNeeded()
+    }
   }
 
   private func recommendedPrimary(in modules: [WidgetModule]) -> WidgetModule {

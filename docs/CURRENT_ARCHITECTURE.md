@@ -14,7 +14,7 @@ Related deep-dives:
 
 ### Key Metrics & Achievements
 - **Performance**: <1% CPU impact, <50MB memory footprint  
-- **Architecture**: Async/await with @MainActor isolation and concurrent system monitoring
+- **Architecture**: Async/await with @MainActor isolation and demand-driven system monitoring
 - **UI Framework**: SwiftUI with sophisticated design system and reactive state management
 - **Compatibility**: macOS 13.0+, Universal Binary (Intel + Apple Silicon)
 - **Security**: Sandboxed with minimal entitlements, secure auto-update system
@@ -285,28 +285,37 @@ struct UnifiedMemoryTab: View {
 ```swift
 @MainActor
 class SystemMonitoringService: ObservableObject {
-    // Reactive system metrics with @Published properties
-    @Published var cpuUsage: Double = 0
-    @Published var memoryInfo: MemoryInfo = MemoryInfo()
-    @Published var systemHealth: SystemHealth = .optimal
-    @Published var lastUpdateTime: Date = Date()
-    
-    // Concurrent monitoring system
-    private let monitoringTask: Task<Void, Never>
-    
-    // Adaptive refresh system
-    private var refreshInterval: TimeInterval {
-        calculateAdaptiveRefreshRate()
-    }
-    
-    // Core monitoring functions
-    func startMonitoring() async
-    func updateMetrics() async
-    func calculateSystemHealth() -> SystemHealth
-    
-    // Performance optimization
-    private func shouldUpdateMetrics(_ newMetrics: SystemMetrics) -> Bool {
-        // Only update @Published when visual change needed
+    // Reactive system metrics with quantized publish suppression
+    @Published private(set) var cpuUsage: Double = 0
+    @Published private(set) var memoryInfo: MemoryInfo = MemoryInfo()
+    @Published private(set) var sampleID: UInt64 = 0
+
+    // Demand-driven lifecycle (shared across notch/widget/tabs)
+    private var activeClients: Int = 0
+    private var monitoringTask: Task<Void, Never>?
+
+    // 0→1 starts polling, 1→0 stops polling
+    func acquireClient()
+    func releaseClient()
+
+    // 3s polling with 1.5s tolerance for timer coalescing
+    private func startMonitoring()
+    private func stopMonitoring()
+
+    private func updateMetrics() async {
+        // Fetch off-main without TaskGroup overhead
+        let (cpu, memory) = await Task.detached(priority: .utility) { ... }.value
+
+        // Quantize before compare to suppress no-op publishes
+        let quantizedCPU = Double(Int(cpu))
+        let quantizedMemory = quantize(memory: memory)
+
+        // Publish only when display-visible values changed
+        if quantizedCPU != cpuUsage || quantizedMemory != memoryInfo {
+            cpuUsage = quantizedCPU
+            memoryInfo = quantizedMemory
+            sampleID &+= 1
+        }
     }
 }
 ```
@@ -500,19 +509,21 @@ struct HealthStatusCard: View {
 // @MainActor isolation for UI safety
 @MainActor
 class SystemMonitoringService: ObservableObject {
-    // All UI updates on main thread
-    @Published var cpuUsage: Double = 0
-    
-    // Background monitoring with Task
-    private let monitoringTask: Task<Void, Never>
-    
-    func startMonitoring() async {
-        // Concurrent system monitoring without blocking UI
-        await withTaskGroup(of: Void.self) { group in
-            group.addTask { await self.monitorCPU() }
-            group.addTask { await self.monitorMemory() }
-            group.addTask { await self.monitorBattery() }
-        }
+    // All UI updates happen on the main actor.
+    // Kernel syscalls run off-main in one detached task.
+    @Published private(set) var cpuUsage: Double = 0
+    @Published private(set) var memoryInfo: MemoryInfo = MemoryInfo()
+    @Published private(set) var sampleID: UInt64 = 0
+
+    // Ref-counted demand activation from SwiftUI surfaces:
+    // .systemMonitoringActive() -> acquireClient()/releaseClient()
+    func acquireClient()
+    func releaseClient()
+
+    private func updateMetrics() async {
+        let (cpu, memory) = await Task.detached(priority: .utility) { ... }.value
+        // Quantize + compare before publishing to reduce SwiftUI diff churn.
+        // sampleID increments only on visible metric changes.
     }
 }
 ```
@@ -644,7 +655,11 @@ targets: [
     .executableTarget(
         name: "Microverse",
         dependencies: ["BatteryCore", "SystemCore", "Sparkle", "DynamicNotchKit"]
-    )
+    ),
+    .executableTarget(
+        name: "MicroverseBenchmark",
+        dependencies: ["SystemCore"]
+    ),
 ]
 ```
 
@@ -664,6 +679,7 @@ targets: [
 build:     # Swift Package Manager release build
 install:   # Create app bundle + install to /Applications
 app:       # Bundle creation with Sparkle framework embedding
+benchmark: # Release-mode performance benchmark harness
 clean:     # Artifact cleanup
 uninstall: # Complete removal including preferences
 ```
@@ -736,6 +752,7 @@ class UpdateSystemIntegration {
 
 ### Documentation Cross-References
 - **[Design System](DESIGN.md)**: Complete UI/UX specifications and component library
+- **[Performance Guide](PERFORMANCE.md)**: Monitoring accuracy + benchmark workflow
 - **[Technical Debt](TECHNICAL_DEBT.md)**: Current optimization opportunities
 - **[Auto-Update System](SPARKLE_AUTO_UPDATE_SYSTEM.md)**: Detailed Sparkle implementation
 - **[Notch Features](NOTCH_FEATURES.md)**: Smart Notch + Notch Glow feature overview

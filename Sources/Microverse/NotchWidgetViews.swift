@@ -79,10 +79,10 @@ struct NotchBatteryWidget: View {
     private var batteryColor: Color {
         if viewModel.batteryInfo.isCharging {
             return MicroverseDesign.Colors.battery
-        } else if viewModel.batteryInfo.currentCharge <= 20 {
-            return MicroverseDesign.Colors.warning
         } else if viewModel.batteryInfo.currentCharge <= 10 {
             return MicroverseDesign.Colors.critical
+        } else if viewModel.batteryInfo.currentCharge <= 20 {
+            return MicroverseDesign.Colors.warning
         } else {
             return MicroverseDesign.Colors.accentMuted
         }
@@ -132,6 +132,7 @@ struct NotchSystemWidget: View {
                 )
         )
         .frame(height: 22)
+        .systemMonitoringActive()
     }
     
     private var cpuColor: Color {

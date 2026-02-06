@@ -38,6 +38,7 @@ The site is automatically deployed to GitHub Pages when changes are pushed to th
 - `index.md` - Homepage
 - `features.md` - Features showcase
 - `download.md` - Download and installation instructions
+- `PERFORMANCE.md` - Performance architecture and benchmark workflow
 - `_layouts/` - Page templates
 - `assets/` - CSS and images
 - `_config.yml` - Jekyll configuration

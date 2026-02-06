@@ -65,7 +65,7 @@ import Darwin
 /// # Thread Safety
 ///
 /// `SystemMonitor` is `@unchecked Sendable`. `getCPUUsage()` mutates
-/// `previousCPUTicks` from a TaskGroup, so the read-write is guarded
+/// `previousCPUTicks` from a background task, so the read-write is guarded
 /// by `cpuLock`. `getMemoryInfo()` is stateless and needs no lock.
 public final class SystemMonitor: @unchecked Sendable {
     private let logger = Logger(subsystem: "com.microverse.app", category: "SystemMonitor")
@@ -81,10 +81,17 @@ public final class SystemMonitor: @unchecked Sendable {
     }
     /// Previous tick snapshot for delta computation. `nil` until first call.
     private var previousCPUTicks: CPUTickSample?
-    /// Guards `previousCPUTicks` — getCPUUsage() runs off the main actor in a TaskGroup.
+    /// Guards `previousCPUTicks` — getCPUUsage() runs off the main actor.
     private let cpuLock = NSLock()
 
     public init() {}
+
+    /// Clears the CPU baseline so the next `getCPUUsage()` call primes a fresh sample.
+    public func resetCPUUsageSampling() {
+        cpuLock.lock()
+        previousCPUTicks = nil
+        cpuLock.unlock()
+    }
     
     /// Instantaneous CPU usage (0--100%) via tick deltas.
     ///
@@ -323,7 +330,7 @@ public enum MemoryPressure: String, CaseIterable, Sendable {
 }
 
 /// System memory information
-public struct MemoryInfo: Sendable {
+public struct MemoryInfo: Sendable, Equatable {
     public let totalMemory: Double // GB
     public let usedMemory: Double  // GB
     public let cachedMemory: Double // GB

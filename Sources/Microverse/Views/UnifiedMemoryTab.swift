@@ -97,6 +97,7 @@ struct UnifiedMemoryTab: View {
             
         }
         .padding(8)
+        .systemMonitoringActive()
     }
     
     // MARK: - Computed Properties
