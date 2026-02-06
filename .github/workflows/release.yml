@@ -160,8 +160,10 @@ jobs:
       run: |
         echo "Building Microverse v${{ steps.version.outputs.new_version }}"
         
-        # Build using Swift Package Manager
-        swift build -c release --arch arm64 --arch x86_64
+        # Build only the shipping app product.
+        # The package also contains a benchmark executable target that is not
+        # required for release artifacts.
+        swift build -c release --arch arm64 --arch x86_64 --product "$PRODUCT_NAME"
         
         # Create app bundle structure
         APP_PATH="$PRODUCT_NAME.app"
