@@ -29,7 +29,7 @@ jobs:
         run: |
           docker build -t microverse-docs docs
           docker run --rm \
-            -v "$GITHUB_WORKSPACE/docs:/srv/jekyll" \
+            --user root \
             -v "$GITHUB_WORKSPACE/_site:/site" \
             microverse-docs \
             bundle exec jekyll build --source /srv/jekyll --destination /site
