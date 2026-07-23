@@ -26,13 +26,10 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Build Jekyll site
-        run: |
-          docker build -t microverse-docs docs
-          docker run --rm \
-            --user root \
-            -v "$GITHUB_WORKSPACE/_site:/site" \
-            microverse-docs \
-            bundle exec jekyll build --source /srv/jekyll --destination /site
+        uses: actions/jekyll-build-pages@v1
+        with:
+          source: ./docs
+          destination: ./_site
 
       - name: Deploy to Cloudflare Pages
         run: npx --yes wrangler@4 pages deploy _site --project-name microverse --branch main
