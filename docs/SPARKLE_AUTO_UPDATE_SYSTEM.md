@@ -26,7 +26,7 @@
 
 ### Architecture
 ```
-User's Mac                    GitHub/CI                     GitHub Pages
+User's Mac                    GitHub/CI                  Cloudflare Pages
 ┌─────────────────┐          ┌─────────────────┐           ┌─────────────────┐
 │ Microverse.app  │          │ GitHub Actions  │           │ Static Hosting  │
 │ ├─ Sparkle.framework ──────┤ ├─ Build         │ ─────────▶│ ├─ appcast.xml   │
@@ -44,7 +44,7 @@ User's Mac                    GitHub/CI                     GitHub Pages
 2. **Appcast Fetch**: Sparkle downloads `https://microverse.ashwch.com/appcast.xml`
 3. **Version Compare**: Compare current vs available version
 4. **Show Dialog**: Display update available with release notes
-5. **Download**: Download signed ZIP file from GitHub Pages
+5. **Download**: Download the signed ZIP file from the GitHub Release
 6. **Verify**: EdDSA signature verification  
 7. **Install**: Replace app bundle and restart
 
@@ -691,12 +691,12 @@ struct ElegantUpdateSection: View {
 </plist>
 ```
 
-### 8.2 GitHub Pages Cleanup Workflow
+### 8.2 Website Release Notes Cleanup Workflow
 
 **File:** `.github/workflows/cleanup-pages.yml`
 
 ```yaml
-name: Cleanup GitHub Pages
+name: Cleanup Website Release Notes
 
 on:
   schedule:
@@ -716,7 +716,7 @@ jobs:
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        # Clone main branch (GitHub Pages source is main:/docs)
+        # Clone main; the Cloudflare Pages workflow deploys changes under /docs.
         git clone https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git pages-repo
         cd pages-repo
         
@@ -846,7 +846,7 @@ otool -L /Applications/Microverse.app/Contents/MacOS/Microverse
 2. ✅ HTML sidecar file created  
 3. ✅ `generate_appcast` detects HTML file
 4. ✅ Appcast contains `<sparkle:releaseNotesLink>`
-5. ✅ Files published to GitHub Pages
+5. ✅ Files published to Cloudflare Pages
 
 ### 10.3 Validation Checklist
 
@@ -871,7 +871,7 @@ otool -L /Applications/Microverse.app/Contents/MacOS/Microverse
 | **EdDSA Signing** | ✅ Complete | Private key in GitHub Secrets, public key in Info.plist |
 | **CI/CD Pipeline** | ✅ Complete | Automated build, sign, and publish |
 | **Release Notes** | ✅ Complete | HTML sidecar auto-linking working |
-| **GitHub Pages** | ✅ Complete | Appcast and HTML files hosted with cleanup |
+| **Cloudflare Pages** | ✅ Complete | Appcast and HTML files hosted with cleanup |
 | **User Interface** | ✅ Complete | Update section with manual/auto checking |
 | **Error Handling** | ✅ Complete | Comprehensive logging and fallbacks |
 | **Documentation** | ✅ Complete | This comprehensive guide |
@@ -918,7 +918,7 @@ otool -L /Applications/Microverse.app/Contents/MacOS/Microverse
    - [ ] Generate HTML sidecar file from release notes
    - [ ] Sign ZIP file with EdDSA private key
    - [ ] Generate appcast.xml with release notes link
-   - [ ] Publish appcast and HTML to GitHub Pages
+   - [ ] Publish appcast and HTML to Cloudflare Pages
 
 3. **Post-Deployment Verification**
    - [ ] Appcast accessible: `curl https://microverse.ashwch.com/appcast.xml`
@@ -954,7 +954,7 @@ curl -s https://microverse.ashwch.com/appcast.xml | xmllint --format - > /dev/nu
 - ✅ **Fixed download 404 errors** - Corrected appcast URLs to point to GitHub releases
 - ✅ **Improved HTML formatting** - Proper document structure and CSS styling  
 - ✅ **Resolved YAML syntax issues** - Simplified workflow to avoid heredoc conflicts
-- ✅ **Streamlined hosting** - GitHub releases for ZIP files, GitHub Pages for HTML
+- ✅ **Streamlined hosting** - GitHub Releases for ZIP files, Cloudflare Pages for appcast and HTML files
 - ✅ **Enhanced release notes** - Better typography and list formatting in Sparkle dialogs
 
 ### **v0.6.0 - Documentation and UI Improvements**

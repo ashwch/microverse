@@ -2,7 +2,7 @@
 
 Microverse ships with a small set of screenshots used in two places:
 
-1. **Website (GitHub Pages)**: `docs/assets/images/`
+1. **Website (Cloudflare Pages)**: `docs/assets/images/`
 2. **Repo README**: `docs/screenshots/`
 
 Keeping filenames stable avoids churn in docs pages and prevents broken links.

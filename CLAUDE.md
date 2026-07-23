@@ -8,7 +8,7 @@ Microverse is a SwiftUI **menu bar** system monitor for macOS (Battery/CPU/Memor
 
 - Smart Notch UI (DynamicNotchKit)
 - Notch Glow Alerts (battery event animations around the notch pill)
-- Sparkle-based auto-updates driven by GitHub Releases + a signed appcast on GitHub Pages
+- Sparkle-based auto-updates driven by GitHub Releases + a signed appcast on Cloudflare Pages
 
 ## Key docs
 
@@ -16,7 +16,7 @@ Microverse is a SwiftUI **menu bar** system monitor for macOS (Battery/CPU/Memor
 - Wi‑Fi + Audio + AirPods battery: `docs/WIFI_AUDIO_FEATURES.md`
 - Weather locations + current location + alerts: `docs/WEATHER_LOCATIONS_AND_ALERTS.md`
 - Sparkle + appcast pipeline: `docs/SPARKLE_AUTO_UPDATE_SYSTEM.md`
-- Website (GitHub Pages from `main:/docs`): `docs/README.md`, `docs/DEPLOYMENT.md`
+- Website (Cloudflare Pages, deployed from `main:/docs`): `docs/README.md`, `docs/DEPLOYMENT.md`
 - Review/release playbook (v0.7.0 example): `plans/v0-7-0-weather-review-release-roadmap/PLAN.md`
 - Contributing standards: `CONTRIBUTING.md`
 

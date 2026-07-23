@@ -1,4 +1,4 @@
-name: Cleanup GitHub Pages
+name: Cleanup Website Release Notes
 
 on:
   schedule:
@@ -8,6 +8,7 @@ on:
     # Allow manual triggering
 
 permissions:
+  actions: write
   contents: write
 
 jobs:
@@ -19,9 +20,9 @@ jobs:
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        echo "Cleaning up old release notes from GitHub Pages (/docs on main)..."
+        echo "Cleaning up old release notes from the Cloudflare Pages source (/docs on main)..."
         
-        # Clone the main branch (GitHub Pages source is main:/docs)
+        # Clone the main branch; the Cloudflare Pages workflow deploys changes under /docs.
         git clone --branch main --single-branch https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git pages-repo
         cd pages-repo
         
@@ -43,7 +44,8 @@ jobs:
           else
             git commit -m "chore: cleanup old release notes (keep latest 5 versions)"
             git push origin HEAD:main
-            echo "✅ Old release notes cleaned up"
+            gh workflow run cloudflare-pages.yml --repo "${{ github.repository }}" --ref main
+            echo "✅ Old release notes cleaned up and Cloudflare Pages deployment dispatched"
           fi
         else
           echo "No release notes files found to clean up"

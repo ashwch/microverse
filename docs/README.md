@@ -31,7 +31,7 @@ gem install bundler
 
 ## Deployment
 
-The site is automatically deployed to GitHub Pages when changes are pushed to the repository. The CNAME file configures the custom domain `microverse.ashwch.com`.
+Changes under `docs/` on `main` are built by GitHub Actions and deployed to the `microverse` Cloudflare Pages project. Cloudflare manages the custom domain `microverse.ashwch.com`.
 
 ## Structure
 

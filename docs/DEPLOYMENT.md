@@ -1,77 +1,48 @@
 # Website Deployment Guide
 
-## Current Setup (Updated 2025)
+## Current Setup
 
-### GitHub Pages Configuration
-- **Source**: Main branch `/docs` folder
-- **Custom Domain**: microverse.ashwch.com
-- **Build**: Jekyll (automatic)
-- **No separate gh-pages branch** - everything is in main/dev branches
+- **Host**: Cloudflare Pages
+- **Project**: `microverse`
+- **Production branch**: `main`
+- **Source**: `/docs`
+- **Custom domain**: `microverse.ashwch.com`
+- **Build**: Jekyll
 
-## Branch Strategy
+GitHub Actions builds and directly uploads the site to Cloudflare Pages. Cloudflare's Git provider integration is not used.
 
-- **main branch**: Contains app code AND website files in `/docs` folder
-  - Pushes to main always update the website (GitHub Pages serves from `main:/docs`)
-  - App releases are cut by `.github/workflows/release.yml` on pushes to `main`, but **docs-only** pushes are ignored (see `paths-ignore`)
-- Website files are in `/docs/` directory
-- **dev branch**: For development work (app + docs)
-  - No automatic deployment - changes must be merged to main
+## How to Update the Website
 
-## Website Structure
+Make changes under `/docs` and merge them to `main`:
 
-```
-/docs/                     # Website root (GitHub Pages source)
-├── _config.yml           # Jekyll configuration
-├── _layouts/default.html # Site layout template
-├── index.md              # Homepage content
-├── features.md           # Features page
-├── download.md           # Download page
-├── CNAME                 # Custom domain config
-└── assets/               # CSS, images, etc.
-    ├── css/main.css
-    └── images/
-```
-
-## How to Update Website
-
-### Method 1: Direct updates to main
 ```bash
 git checkout main
-# Edit files in docs/ folder
+# Edit files in docs/
 git add docs/
 git commit -m "docs: update website content"
 git push origin main
-# → Updates website (docs-only pushes do NOT trigger an app release)
 ```
 
-### Method 2: Update via dev branch (recommended)
-```bash
-git checkout dev
-# Edit files in docs/ folder
-git add docs/
-git commit -m "docs: update website content"
-git push origin dev
+The `.github/workflows/cloudflare-pages.yml` workflow builds and deploys every `/docs` change on `main`.
 
-# Then create PR: dev → main
-# Merge when ready to deploy docs (and/or app changes)
-```
+App releases also update `docs/appcast.xml` and the release notes on `main`, then dispatch the same Cloudflare deployment workflow.
 
-## DNS Configuration (microverse.ashwch.com)
+## Cloudflare Configuration
 
-DNS is already configured:
-- CNAME record: `microverse.ashwch.com` → `ashwch.github.io`
-- CNAME file in `/docs/CNAME` contains: `microverse.ashwch.com`
+The `ashwch.com` zone and `microverse.ashwch.com` custom domain are managed in Cloudflare. The Pages custom-domain attachment owns the proxied DNS record, so this repository does not need a `CNAME` file.
+
+GitHub repository settings used by the deployment workflow:
+
+- Variable: `ASHWCH_COM_CLOUDFLARE_ACCOUNT_ID`
+- Secret: `ASHWCH_COM_CLOUDFLARE_API_TOKEN`
+
+The API token needs Cloudflare Pages edit access for the account.
 
 ## Deployment Process
 
-1. Changes pushed to main branch `/docs` folder
-2. GitHub Pages automatically builds Jekyll site
-3. Site deployed to https://microverse.ashwch.com
-4. Usually takes 1-3 minutes to update
+1. A `/docs` change reaches `main`.
+2. GitHub Actions builds the Jekyll site.
+3. Wrangler uploads the generated site to the `microverse` Pages project.
+4. Cloudflare serves it at <https://microverse.ashwch.com>.
 
-## Key Points
-
-⚠️ **Important**: Pushing to main only triggers app releases when changes include non-ignored paths (not `docs/**`, workflows, etc.)
-✅ Website files are versioned with the app in the same repository  
-✅ Jekyll automatically processes markdown files in `/docs`
-✅ No manual build steps required - GitHub handles everything
+Use the workflow's manual dispatch when a redeploy is needed without a content change.

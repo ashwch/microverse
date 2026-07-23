@@ -8,7 +8,7 @@ This repo is a SwiftUI **menu bar** app with optional **notch UI** and **Sparkle
 - Smart Notch UI: `Sources/Microverse/MicroverseNotchSystem.swift`
 - Notch Glow Alerts: `Sources/Microverse/NotchGlowManager.swift`, `Sources/Microverse/NotchGlowInNotch.swift`
 - Vendored DynamicNotchKit (patched): `Packages/DynamicNotchKit/`
-- Website + Sparkle feed (GitHub Pages): `docs/` (served from `main:/docs`)
+- Website + Sparkle feed: `docs/` (deployed from `main` to the `microverse` Cloudflare Pages project)
 
 ## Build & run (local)
 
@@ -28,7 +28,7 @@ See `docs/NOTCH_FEATURES.md` for trigger rules + motion details.
 
 ## Releases / Sparkle
 
-- GitHub Actions `release.yml` builds app assets, creates a GitHub Release, generates a **signed** `appcast.xml`, and updates:
+- GitHub Actions `release.yml` builds app assets, creates a GitHub Release, generates a **signed** `appcast.xml`, and updates the Cloudflare Pages source files:
   - `docs/appcast.xml`
   - `docs/Microverse-vX.Y.Z.html`
 - The Sparkle feed URL is `https://microverse.ashwch.com/appcast.xml`.

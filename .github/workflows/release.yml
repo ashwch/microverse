@@ -6,6 +6,7 @@ on:
     paths-ignore:
       # Prevent release recursion: this workflow commits to `docs/` on main.
       - 'docs/**'
+      - 'CNAME'
       # Plans/checklists should not cut releases.
       - 'plans/**'
       # Allow workflow-only maintenance without cutting releases.
@@ -25,6 +26,7 @@ env:
   CONFIGURATION: Release
 
 permissions:
+  actions: write
   contents: write
 
 jobs:
@@ -472,14 +474,14 @@ jobs:
           exit 1
         fi
         
-    - name: Update GitHub Pages Appcast and Release Notes
+    - name: Update Website Appcast and Release Notes
       if: steps.check_proceed.outputs.should_proceed == 'true'
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        echo "Updating appcast and release notes on GitHub Pages..."
+        echo "Updating appcast and release notes in the website source..."
         
-        # Clone the main branch and update docs folder (where GitHub Pages serves from)
+        # Clone the main branch and update the docs folder deployed by the Cloudflare Pages workflow.
         git clone --branch main --single-branch https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git pages-repo
         cd pages-repo
         
@@ -489,7 +491,7 @@ jobs:
         # Copy the HTML release notes file to docs folder
         if [ -f "../releases/${PRODUCT_NAME}-v${{ steps.version.outputs.new_version }}.html" ]; then
           cp "../releases/${PRODUCT_NAME}-v${{ steps.version.outputs.new_version }}.html" "docs/"
-          echo "✅ Copied HTML release notes to GitHub Pages"
+          echo "✅ Copied HTML release notes to the website source"
         else
           echo "⚠️ Warning: HTML release notes file not found"
         fi
@@ -500,8 +502,9 @@ jobs:
         git add docs/appcast.xml "docs/${PRODUCT_NAME}-v${{ steps.version.outputs.new_version }}.html" || true
         git commit -m "Update appcast and release notes for v${{ steps.version.outputs.new_version }}" || true
         git push origin HEAD:main
+        gh workflow run cloudflare-pages.yml --repo "${{ github.repository }}" --ref main
         
-        echo "✅ Appcast and release notes updated on GitHub Pages"
+        echo "✅ Appcast and release notes committed; Cloudflare Pages deployment dispatched"
         echo "📡 Release notes will be available at: https://microverse.ashwch.com/${PRODUCT_NAME}-v${{ steps.version.outputs.new_version }}.html"
         
 
@@ -515,7 +518,7 @@ jobs:
         echo "🔗 Release URL: ${{ steps.create_release.outputs.html_url }}"
         echo ""
         echo "📡 Update system:"
-        echo "  ✅ Signed appcast.xml automatically updated on GitHub Pages"
+        echo "  ✅ Signed appcast.xml automatically updated on Cloudflare Pages"
         echo "  🔐 EdDSA signature verification enabled"
         echo "  📡 Sparkle will detect updates at https://microverse.ashwch.com/appcast.xml"
         echo "✅ Release is ready for download!"
