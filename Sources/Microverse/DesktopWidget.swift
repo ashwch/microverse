@@ -36,6 +36,7 @@ enum WidgetStyle: String, CaseIterable {
 }
 
 // Desktop widget manager
+@MainActor
 class DesktopWidgetManager: ObservableObject {
   private var window: DesktopWidgetWindow?
   private var hostingView: NSHostingView<AnyView>?
@@ -44,10 +45,11 @@ class DesktopWidgetManager: ObservableObject {
   private weak var weatherStore: WeatherStore?
   private weak var displayOrchestrator: DisplayOrchestrator?
   private weak var weatherAnimationBudget: WeatherAnimationBudget?
+  private var screenChangeObserver: NSObjectProtocol?
 
   #if DEBUG
   /// DEBUG-only window access used by the screenshot exporter.
-  @MainActor var debugWindow: NSWindow? { window }
+  var debugWindow: NSWindow? { window }
   #endif
 
   init(viewModel: BatteryViewModel) {
@@ -66,53 +68,66 @@ class DesktopWidgetManager: ObservableObject {
     weatherAnimationBudget = animationBudget
   }
 
-  @MainActor
   func showWidget() {
-    guard window == nil else { return }
+    guard window == nil, let viewModel else { return }
 
-    guard let viewModel = viewModel else { return }
+    // Every widget style reads these stores through @EnvironmentObject, so rendering without them
+    // is a fatal error. The clamshell auto-show rule can fire from the view model's init, before the
+    // app delegate has wired weather; `BatteryViewModel.setWeatherEnvironment` re-shows the widget
+    // once the stores exist, so bailing out here loses nothing.
+    guard let weatherSettings, let weatherStore, let displayOrchestrator, let weatherAnimationBudget
+    else { return }
 
-    // Get the appropriate size for the widget style
     let size = getWidgetSize(for: viewModel.widgetStyle)
-    window = DesktopWidgetWindow(size: size)
+    let widgetView = AnyView(
+      DesktopWidgetView()
+        .environmentObject(viewModel)
+        .environmentObject(viewModel.wifiStore)
+        .environmentObject(viewModel.audioDevicesStore)
+        .environmentObject(weatherSettings)
+        .environmentObject(weatherStore)
+        .environmentObject(displayOrchestrator)
+        .environmentObject(weatherAnimationBudget)
+    )
 
-    let base = DesktopWidgetView()
-      .environmentObject(viewModel)
-      .environmentObject(viewModel.wifiStore)
-      .environmentObject(viewModel.audioDevicesStore)
-
-    let widgetView: AnyView
-    if let weatherSettings, let weatherStore, let displayOrchestrator, let weatherAnimationBudget {
-      widgetView = AnyView(
-        base
-          .environmentObject(weatherSettings)
-          .environmentObject(weatherStore)
-          .environmentObject(displayOrchestrator)
-          .environmentObject(weatherAnimationBudget)
-      )
-    } else {
-      widgetView = AnyView(base)
-    }
-
-    // Create hosting view with exact window size
+    // The hosting view must match the window size exactly or the content gets clipped.
     hostingView = NSHostingView(rootView: widgetView)
     hostingView?.frame = NSRect(origin: .zero, size: size)
 
-    // Configure window for transparency
-    window?.contentView = hostingView
-    window?.backgroundColor = .clear
-    window?.isOpaque = false
-    window?.makeKeyAndOrderFront(nil)
+    let window = DesktopWidgetWindow(size: size)
+    window.contentView = hostingView
+    window.onDragEnded = { frame in DesktopWidgetPlacement.save(frame) }
+    window.setFrameOrigin(DesktopWidgetPlacement.origin(for: size))
+    window.makeKeyAndOrderFront(nil)
+    self.window = window
 
-    // Position in top-right corner
-    positionWindow()
+    observeScreenChanges()
   }
 
-  @MainActor
   func hideWidget() {
+    if let screenChangeObserver {
+      NotificationCenter.default.removeObserver(screenChangeObserver)
+      self.screenChangeObserver = nil
+    }
     window?.close()
     window = nil
     hostingView = nil
+  }
+
+  /// Closing the lid or unplugging a monitor can leave the widget in space no display covers anymore.
+  /// When that happens, fall back to the default corner; otherwise leave it where the user put it.
+  private func observeScreenChanges() {
+    guard screenChangeObserver == nil else { return }
+    screenChangeObserver = NotificationCenter.default.addObserver(
+      forName: NSApplication.didChangeScreenParametersNotification,
+      object: nil,
+      queue: .main
+    ) { [weak self] _ in
+      Task { @MainActor [weak self] in
+        guard let window = self?.window, !DesktopWidgetPlacement.isOnScreen(window.frame) else { return }
+        window.setFrameOrigin(DesktopWidgetPlacement.origin(for: window.frame.size))
+      }
+    }
   }
 
   // CRITICAL: These sizes MUST match the frame sizes in the widget views
@@ -133,47 +148,120 @@ class DesktopWidgetManager: ObservableObject {
       return NSSize(width: 240, height: 120)
     }
   }
+}
 
-  @MainActor
-  private func positionWindow() {
-    guard let window = window,
-      let screen = NSScreen.main
-    else { return }
+/// Where the desktop widget goes on screen: the user's last dragged position when it is still visible,
+/// otherwise the top-right corner of the main display.
+enum DesktopWidgetPlacement {
+  private static let defaultsKey = "desktopWidgetOrigin"
+  private static let cornerInset: CGFloat = 20
 
-    let screenFrame = screen.visibleFrame
-    let windowFrame = window.frame
+  /// Remembers the widget's top-left corner. Anchoring on the top edge (rather than AppKit's
+  /// bottom-left origin) keeps the widget in place when the user switches to a style with a
+  /// different height.
+  static func save(_ frame: NSRect) {
+    UserDefaults.standard.set(["x": frame.minX, "top": frame.maxY], forKey: defaultsKey)
+  }
 
-    let x = screenFrame.maxX - windowFrame.width - 20
-    let y = screenFrame.maxY - windowFrame.height - 20
+  static func origin(for size: NSSize) -> NSPoint {
+    if let saved = savedOrigin(for: size), isOnScreen(NSRect(origin: saved, size: size)) {
+      return saved
+    }
+    return defaultOrigin(for: size)
+  }
 
-    window.setFrameOrigin(NSPoint(x: x, y: y))
+  /// True when at least half the frame lies on a connected display's usable area.
+  static func isOnScreen(_ frame: NSRect) -> Bool {
+    let minVisibleArea = frame.width * frame.height / 2
+    return NSScreen.screens.contains { screen in
+      let visible = screen.visibleFrame.intersection(frame)
+      return visible.width * visible.height >= minVisibleArea
+    }
+  }
+
+  private static func savedOrigin(for size: NSSize) -> NSPoint? {
+    guard let saved = UserDefaults.standard.dictionary(forKey: defaultsKey),
+      let x = saved["x"] as? CGFloat, let top = saved["top"] as? CGFloat
+    else { return nil }
+    return NSPoint(x: x, y: top - size.height)
+  }
+
+  private static func defaultOrigin(for size: NSSize) -> NSPoint {
+    guard let screen = NSScreen.main ?? NSScreen.screens.first else { return .zero }
+    let area = screen.visibleFrame
+    return NSPoint(x: area.maxX - size.width - cornerInset, y: area.maxY - size.height - cornerInset)
   }
 }
 
 // Custom window for widget
 class DesktopWidgetWindow: NSWindow {
+  /// Called with the window's frame once the user finishes dragging it.
+  var onDragEnded: ((NSRect) -> Void)?
+
+  private var dragMonitor: Any?
+  /// Cursor position relative to the window origin while a drag is in progress; nil otherwise.
+  private var dragOffset: NSPoint?
+
   init(size: NSSize = NSSize(width: 180, height: 100)) {
     super.init(
-      contentRect: NSRect(x: 0, y: 0, width: size.width, height: size.height),
+      contentRect: NSRect(origin: .zero, size: size),
       styleMask: [.borderless, .nonactivatingPanel],
       backing: .buffered,
       defer: false
     )
 
-    self.level = .floating
-    self.collectionBehavior = [.canJoinAllSpaces, .stationary]
-    self.backgroundColor = .clear
-    self.isOpaque = false
-    self.hasShadow = true
-    self.isMovableByWindowBackground = true
-    self.titleVisibility = .hidden
-    self.titlebarAppearsTransparent = true
+    level = .floating
+    collectionBehavior = [.canJoinAllSpaces, .stationary]
+    backgroundColor = .clear
+    isOpaque = false
+    hasShadow = true
+    titleVisibility = .hidden
+    titlebarAppearsTransparent = true
+
+    // Dragging is done by hand below. On macOS 26+ a window whose content is an NSHostingView
+    // never completes AppKit's background-move session, and SwiftUI swallows mouse events before
+    // they reach the responder chain, so `mouseDown`/`mouseDragged` overrides never fire either.
+    // A local event monitor runs ahead of that interception and sees the whole drag.
+    isMovableByWindowBackground = false
 
     // Disable release when closed to prevent crashes
     isReleasedWhenClosed = false
 
     // Disable animations
     animationBehavior = .none
+
+    dragMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .leftMouseDragged, .leftMouseUp]) {
+      [weak self] event in
+      self?.handleDrag(event)
+      return event
+    }
+  }
+
+  private func handleDrag(_ event: NSEvent) {
+    guard event.window === self else { return }
+    let mouse = NSEvent.mouseLocation
+
+    switch event.type {
+    case .leftMouseDown:
+      dragOffset = NSPoint(x: mouse.x - frame.minX, y: mouse.y - frame.minY)
+    case .leftMouseDragged:
+      guard let dragOffset else { return }
+      setFrameOrigin(NSPoint(x: mouse.x - dragOffset.x, y: mouse.y - dragOffset.y))
+    case .leftMouseUp:
+      guard dragOffset != nil else { return }
+      dragOffset = nil
+      onDragEnded?(frame)
+    default:
+      break
+    }
+  }
+
+  override func close() {
+    if let dragMonitor {
+      NSEvent.removeMonitor(dragMonitor)
+      self.dragMonitor = nil
+    }
+    super.close()
   }
 }
 
