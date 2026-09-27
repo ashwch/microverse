@@ -118,8 +118,10 @@ struct NotchShape: Shape {
     }
 }
 
-#Preview {
-    NotchShape(topCornerRadius: 6, bottomCornerRadius: 14)
-        .frame(width: 200, height: 32)
-        .padding(10)
+struct NotchShape_Previews: PreviewProvider {
+    static var previews: some View {
+        NotchShape(topCornerRadius: 6, bottomCornerRadius: 14)
+            .frame(width: 200, height: 32)
+            .padding(10)
+    }
 }
