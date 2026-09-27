@@ -15,6 +15,7 @@ enum MicroverseDesign {
         
         // System status colors
         static let success = Color.green
+        static let caution = Color.yellow   // average / keep an eye on it
         static let warning = Color.orange  
         static let critical = Color.red
         static let neutral = Color.blue

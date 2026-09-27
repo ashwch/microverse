@@ -892,7 +892,18 @@ private struct CustomModularWidget: View {
 
     let module: WidgetModule
 
+    /// Shared good/poor/critical resolution so this tile and the secondary grid agree.
+    private var resolver: WidgetModuleStatusResolver {
+      WidgetModuleStatusResolver(
+        viewModel: viewModel, systemService: systemService, wifi: wifi, audio: audio,
+        weatherSettings: weatherSettings, weatherStore: weatherStore)
+    }
+
+    private var status: WidgetModuleStatus { resolver.status(for: module) }
+
     var body: some View {
+      let status = status
+
       VStack(alignment: .leading, spacing: 3) {
         HStack(spacing: 8) {
           iconView
@@ -906,18 +917,17 @@ private struct CustomModularWidget: View {
 
           Spacer(minLength: 0)
 
-          if module == .systemHealth {
-            Circle()
-              .fill(systemHealthColor)
-              .frame(width: 7, height: 7)
-              .accessibilityHidden(true)
-          }
+          // Status dot on every module, not just System Health.
+          Circle()
+            .fill(status.color)
+            .frame(width: 7, height: 7)
+            .accessibilityHidden(true)
         }
 
         HStack(alignment: .firstTextBaseline, spacing: 8) {
           Text(primaryValue)
             .font(.system(size: 18, weight: .bold, design: .rounded))
-            .foregroundColor(.white)
+            .foregroundColor(status.tintsValue ? status.color : .white)
             .monospacedDigit()
             .lineLimit(1)
             .minimumScaleFactor(0.85)
@@ -938,16 +948,17 @@ private struct CustomModularWidget: View {
       .frame(maxWidth: .infinity)
       .frame(height: 50)
       .background(
+        // Critical states (battery, AirPods, storm, no signal) also tint the card itself.
         RoundedRectangle(cornerRadius: 14)
           .fill(Color.white.opacity(0.06))
           .overlay(
             RoundedRectangle(cornerRadius: 14)
-              .fill(isAirPodsBatteryLow ? MicroverseDesign.Colors.critical.opacity(0.05) : .clear)
+              .fill(status == .critical ? MicroverseDesign.Colors.critical.opacity(0.05) : .clear)
           )
           .overlay(
             RoundedRectangle(cornerRadius: 14)
               .stroke(
-                isAirPodsBatteryLow
+                status == .critical
                   ? MicroverseDesign.Colors.critical.opacity(0.35) : Color.white.opacity(0.12),
                 lineWidth: 1
               )
@@ -966,7 +977,7 @@ private struct CustomModularWidget: View {
             for: .desktopWidget, isVisible: true, reduceMotion: reduceMotion)
         )
         .font(.system(size: 16, weight: .semibold))
-        .foregroundColor(.white.opacity(0.9))
+        .foregroundColor(weatherGlyphColor(size: 0.9))
         .symbolRenderingMode(.hierarchical)
       case .audioOutput:
         if let model = audio.defaultOutputAirPodsModel {
@@ -988,6 +999,10 @@ private struct CustomModularWidget: View {
             .font(.system(size: 14, weight: .semibold))
             .foregroundColor(iconTint.opacity(0.95))
         }
+      case .battery:
+        Image(systemName: resolver.batteryIconName)
+          .font(.system(size: 14, weight: .semibold))
+          .foregroundColor(iconTint.opacity(0.95))
       default:
         Image(systemName: module.systemIcon)
           .font(.system(size: 14, weight: .semibold))
@@ -995,54 +1010,16 @@ private struct CustomModularWidget: View {
       }
     }
 
-    private var iconTint: Color {
-      switch module {
-      case .battery, .batteryTime:
-        if viewModel.batteryInfo.isCharging { return MicroverseDesign.Colors.success }
-        if viewModel.batteryInfo.currentCharge <= 20 { return MicroverseDesign.Colors.warning }
-        return .white.opacity(0.9)
-      case .batteryHealth:
-        return .white.opacity(0.9)
-      case .cpu:
-        return cpuColor
-      case .memory:
-        return memoryColor
-      case .network:
-        return MicroverseDesign.Colors.neutral
-      case .wifi:
-        switch wifi.status {
-        case .connected:
-          return wifi.signalBars <= 1
-            ? MicroverseDesign.Colors.warning : MicroverseDesign.Colors.success
-        case .disconnected:
-          return MicroverseDesign.Colors.warning
-        case .poweredOff, .unavailable:
-          return .white.opacity(0.7)
-        }
-      case .audioOutput:
-        if audio.defaultOutputAirPodsModel != nil,
-          viewModel.notchAlertAirPodsLowBatteryEnabled,
-          let percent = viewModel.airPodsBatteryPercent,
-          percent <= viewModel.notchAlertAirPodsLowBatteryThreshold
-        {
-          return MicroverseDesign.Colors.critical
-        }
-        return audio.outputMuted == true ? MicroverseDesign.Colors.warning : .white.opacity(0.9)
-      case .audioInput:
-        return .white.opacity(0.9)
-      case .weather:
-        return .white
-      case .systemHealth:
-        return systemHealthColor
-      }
-    }
+    /// Icons carry the status colour; only "fair" falls back to plain white.
+    private var iconTint: Color { status.color }
 
-    private var isAirPodsBatteryLow: Bool {
-      module == .audioOutput
-        && audio.defaultOutputAirPodsModel != nil
-        && viewModel.notchAlertAirPodsLowBatteryEnabled
-        && (viewModel.airPodsBatteryPercent ?? 101)
-          <= viewModel.notchAlertAirPodsLowBatteryThreshold
+    /// The weather glyph is already a picture of the conditions, so it only takes a status colour
+    /// when there is something to flag (rain, storm, disabled).
+    private func weatherGlyphColor(size opacity: Double) -> Color {
+      switch status {
+      case .good, .fair: return .white.opacity(opacity)
+      default: return status.color
+      }
     }
 
     private var primaryValue: String {
@@ -1154,23 +1131,6 @@ private struct CustomModularWidget: View {
       }
     }
 
-    private var cpuColor: Color {
-      if systemService.cpuUsage > 80 { return MicroverseDesign.Colors.critical }
-      if systemService.cpuUsage > 60 { return MicroverseDesign.Colors.warning }
-      return MicroverseDesign.Colors.processor
-    }
-
-    private var memoryColor: Color {
-      switch systemService.memoryInfo.pressure {
-      case .critical:
-        return MicroverseDesign.Colors.critical
-      case .warning:
-        return MicroverseDesign.Colors.warning
-      case .normal:
-        return MicroverseDesign.Colors.memory
-      }
-    }
-
     private var memoryPressureText: String {
       switch systemService.memoryInfo.pressure {
       case .critical:
@@ -1186,21 +1146,6 @@ private struct CustomModularWidget: View {
       if systemService.cpuUsage > 80 { return "High load" }
       if systemService.cpuUsage > 60 { return "Moderate load" }
       return "Normal"
-    }
-
-    private var systemHealthColor: Color {
-      let battery = viewModel.batteryInfo
-      if systemService.cpuUsage > 80 || systemService.memoryInfo.pressure == .critical
-        || (!battery.isPluggedIn && battery.currentCharge < 15)
-      {
-        return MicroverseDesign.Colors.critical
-      }
-      if systemService.cpuUsage > 60 || systemService.memoryInfo.pressure == .warning
-        || (!battery.isPluggedIn && battery.currentCharge < 25)
-      {
-        return MicroverseDesign.Colors.warning
-      }
-      return MicroverseDesign.Colors.success
     }
 
     private var systemHealthText: String {
@@ -1279,22 +1224,24 @@ private struct CustomModularWidget: View {
       }
     }
 
+    private var resolver: WidgetModuleStatusResolver {
+      WidgetModuleStatusResolver(
+        viewModel: viewModel, systemService: systemService, wifi: wifi, audio: audio,
+        weatherSettings: weatherSettings, weatherStore: weatherStore)
+    }
+
     @ViewBuilder
     private func tile(_ module: WidgetModule) -> some View {
-      let isAirPodsLow =
-        module == .audioOutput
-        && audio.defaultOutputAirPodsModel != nil
-        && viewModel.notchAlertAirPodsLowBatteryEnabled
-        && (viewModel.airPodsBatteryPercent ?? 101)
-          <= viewModel.notchAlertAirPodsLowBatteryThreshold
+      let status = resolver.status(for: module)
+      let isCritical = status == .critical
 
       HStack(spacing: 8) {
-        secondaryIcon(module)
+        secondaryIcon(module, status: status)
           .frame(width: 12, height: 12)
 
         Text(secondaryValue(module))
           .font(.system(size: 12, weight: .bold, design: .rounded))
-          .foregroundColor(.white.opacity(0.9))
+          .foregroundColor(status.tintsValue ? status.color : .white.opacity(0.9))
           .monospacedDigit()
           .lineLimit(1)
           .minimumScaleFactor(0.75)
@@ -1310,12 +1257,12 @@ private struct CustomModularWidget: View {
           .fill(Color.white.opacity(0.04))
           .overlay(
             RoundedRectangle(cornerRadius: 12)
-              .fill(isAirPodsLow ? MicroverseDesign.Colors.critical.opacity(0.05) : .clear)
+              .fill(isCritical ? MicroverseDesign.Colors.critical.opacity(0.05) : .clear)
           )
           .overlay(
             RoundedRectangle(cornerRadius: 12)
               .stroke(
-                isAirPodsLow
+                isCritical
                   ? MicroverseDesign.Colors.critical.opacity(0.35) : Color.white.opacity(0.10),
                 lineWidth: 1
               )
@@ -1327,9 +1274,13 @@ private struct CustomModularWidget: View {
     }
 
     @ViewBuilder
-    private func secondaryIcon(_ module: WidgetModule) -> some View {
+    private func secondaryIcon(_ module: WidgetModule, status: WidgetModuleStatus) -> some View {
+      let tint = status.color.opacity(0.9)
+
       switch module {
       case .weather:
+        // The glyph already depicts the conditions; colour it only when there is something to flag.
+        let glyphColor: Color = (status == .good || status == .fair) ? .white.opacity(0.85) : tint
         MicroverseWeatherGlyph(
           bucket: weatherStore.current?.bucket ?? .unknown,
           isDaylight: weatherStore.current?.isDaylight ?? true,
@@ -1337,32 +1288,31 @@ private struct CustomModularWidget: View {
             for: .desktopWidget, isVisible: true, reduceMotion: reduceMotion)
         )
         .font(.system(size: 12, weight: .semibold))
-        .foregroundColor(.white.opacity(0.85))
+        .foregroundColor(glyphColor)
         .symbolRenderingMode(.hierarchical)
       case .audioOutput:
         if let model = audio.defaultOutputAirPodsModel {
-          let isLow =
-            viewModel.notchAlertAirPodsLowBatteryEnabled
-            && (viewModel.airPodsBatteryPercent ?? 101)
-              <= viewModel.notchAlertAirPodsLowBatteryThreshold
-
           MicroverseAirPodsIcon(
             model: model,
             size: 11,
             weight: .semibold,
-            color: isLow ? MicroverseDesign.Colors.critical.opacity(0.9) : .white.opacity(0.75),
+            color: tint,
             renderingMode: .hierarchical,
             isAnimating: true
           )
         } else {
           Image(systemName: module.systemIcon)
             .font(.system(size: 11, weight: .semibold))
-            .foregroundColor(.white.opacity(0.7))
+            .foregroundColor(tint)
         }
+      case .battery:
+        Image(systemName: resolver.batteryIconName)
+          .font(.system(size: 11, weight: .semibold))
+          .foregroundColor(tint)
       default:
         Image(systemName: module.systemIcon)
           .font(.system(size: 11, weight: .semibold))
-          .foregroundColor(.white.opacity(0.7))
+          .foregroundColor(tint)
       }
     }
 
