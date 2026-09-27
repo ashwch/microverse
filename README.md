@@ -42,7 +42,7 @@ Perfect for developers who need real-time system insights without compromising p
 - **Memory Efficient**: Smart caching with minimal footprint
 
 ### 🔒 **Enterprise-Grade Security**
-- **Secure Auto-Updates**: Sparkle 2.7.1 with code signature verification
+- **Secure Auto-Updates**: Sparkle 2.10 with code signature verification
 - **Sandboxed Architecture**: Minimal entitlements, maximum security
 - **Privacy First**: No analytics; system metrics are local; optional network requests for updates + weather; optional permissions for location (current-location weather) and bluetooth (AirPods battery)
 

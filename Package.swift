@@ -11,7 +11,7 @@ let package = Package(
         .executable(name: "Microverse", targets: ["Microverse"])
     ],
     dependencies: [
-        .package(url: "https://github.com/sparkle-project/Sparkle", from: "2.0.0"),
+        .package(url: "https://github.com/sparkle-project/Sparkle", from: "2.10.0"),
         // Vendored DynamicNotchKit so we can add a notch decoration hook for the glow.
         .package(path: "Packages/DynamicNotchKit")
     ],
