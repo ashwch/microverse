@@ -274,8 +274,16 @@ jobs:
         
         # Make executable
         chmod +x "$APP_PATH/Contents/MacOS/$PRODUCT_NAME"
-        
-        echo "App bundle created successfully"
+
+        # Ad-hoc sign the bundle (no Developer ID is available in CI).
+        # Sparkle refuses to update a code-signed install with an unsigned bundle, and local
+        # `make install` builds are ad-hoc signed, so an unsigned release breaks updates for
+        # anyone who ever installed a local build. Ad-hoc signed updates are accepted in every
+        # direction because the EdDSA key stays the same.
+        codesign --force --deep --sign - "$APP_PATH"
+        codesign --verify --deep --strict --verbose=2 "$APP_PATH"
+
+        echo "App bundle created and ad-hoc signed"
         ls -la "$APP_PATH/Contents/MacOS/"
         
     - name: Create DMG

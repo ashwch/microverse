@@ -878,6 +878,7 @@ otool -L /Applications/Microverse.app/Contents/MacOS/Microverse
 
 **Key Files Status:**
 - ✅ `Package.swift` - Sparkle 2.10.0+ dependency configured
+- ✅ `release.yml` - release bundle is ad-hoc code signed. Sparkle rejects an unsigned update when the installed app is code signed (local `make install` builds are ad-hoc signed), so every shipped bundle must carry at least an ad-hoc signature.
 - ✅ `SecureUpdateService.swift` - Complete SPUUpdater implementation  
 - ✅ `ElegantUpdateSection.swift` - UI component with proper state management
 - ✅ `Info.plist` - All Sparkle configuration keys present
