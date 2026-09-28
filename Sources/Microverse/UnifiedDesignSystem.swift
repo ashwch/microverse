@@ -183,12 +183,9 @@ enum MicroverseDesign {
         
         // Performance and behavior constants
         enum Performance {
-            static let batteryThresholdLow: Int = 20
-            static let batteryThresholdMedium: Int = 50
+            // Battery bands come from the user's alert thresholds; see WidgetModuleStatusResolver.
             static let cpuThresholdWarning: Double = 60
             static let cpuThresholdCritical: Double = 80
-            static let systemHealthThresholdLow: Int = 15
-            static let systemHealthThresholdMedium: Int = 25
         }
     }
 }

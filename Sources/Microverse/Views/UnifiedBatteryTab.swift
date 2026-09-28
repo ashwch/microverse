@@ -91,11 +91,11 @@ struct UnifiedBatteryTab: View {
     // MARK: - Computed Properties
     
     private var batteryIconName: String {
-        WidgetModuleStatusResolver(viewModel: viewModel).batteryIconName
+        viewModel.status.batteryIconName
     }
     
     private var batteryColor: Color {
-        WidgetModuleStatusResolver(viewModel: viewModel).color(for: .battery)
+        viewModel.status.color(for: .battery)
     }
     
     private var statusColor: Color {

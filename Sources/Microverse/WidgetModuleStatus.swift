@@ -72,7 +72,8 @@ struct WidgetModuleStatusResolver {
   /// the bolt variant while charging so the power state is visible without reading any text.
   /// SF Symbols only ships a bolt for the 100% glyph, hence the single charging icon.
   var batteryIconName: String {
-    Self.batteryIconName(charge: viewModel.batteryInfo.currentCharge, isCharging: viewModel.batteryInfo.isCharging)
+    let battery = viewModel.batteryInfo
+    return Self.batteryIconName(charge: battery.currentCharge, isCharging: battery.isCharging)
   }
 
   static func batteryIconName(charge: Int, isCharging: Bool) -> String {
@@ -158,10 +159,10 @@ struct WidgetModuleStatusResolver {
   /// The worst of CPU, memory, and battery. A low battery on the charger is not a health problem.
   private var systemHealthStatus: WidgetModuleStatus {
     let batteryConcern: WidgetModuleStatus = viewModel.batteryInfo.isPluggedIn ? .good : batteryStatus
-    let all = [cpuStatus, memoryStatus, batteryConcern]
-    for level in [WidgetModuleStatus.critical, .poor, .fair] where all.contains(level) {
-      return level
-    }
+    let worst = [cpuStatus, memoryStatus, batteryConcern]
+    if worst.contains(.critical) { return .critical }
+    if worst.contains(.poor) { return .poor }
+    if worst.contains(.fair) { return .fair }
     return .good
   }
 
@@ -241,5 +242,13 @@ struct WidgetModuleStatusResolver {
     guard let event = weatherStore?.nextEvent, event.kind == .precipStart else { return false }
     let lead = event.startTime.timeIntervalSinceNow
     return lead > 0 && lead <= 30 * 60
+  }
+}
+
+extension BatteryViewModel {
+  /// Status resolver for surfaces that do not show weather. Views with weather stores build
+  /// `WidgetModuleStatusResolver` themselves and pass them in.
+  var status: WidgetModuleStatusResolver {
+    WidgetModuleStatusResolver(viewModel: self)
   }
 }

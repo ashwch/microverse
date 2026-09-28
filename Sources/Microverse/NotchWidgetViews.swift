@@ -65,11 +65,11 @@ struct NotchBatteryWidget: View {
     }
     
     private var batteryIcon: String {
-        WidgetModuleStatusResolver(viewModel: viewModel).batteryIconName
+        viewModel.status.batteryIconName
     }
     
     private var batteryColor: Color {
-        WidgetModuleStatusResolver(viewModel: viewModel).color(for: .battery)
+        viewModel.status.color(for: .battery)
     }
 }
 
