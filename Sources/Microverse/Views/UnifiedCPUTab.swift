@@ -81,13 +81,7 @@ struct UnifiedCPUTab: View {
     // MARK: - Computed Properties
     
     private var cpuColor: Color {
-        if systemService.cpuUsage > 80 {
-            return MicroverseDesign.Colors.critical
-        } else if systemService.cpuUsage > 60 {
-            return MicroverseDesign.Colors.warning
-        } else {
-            return MicroverseDesign.Colors.processor
-        }
+        WidgetModuleStatusResolver.cpuStatus(usage: systemService.cpuUsage).color
     }
     
     private var cpuStatusText: String {

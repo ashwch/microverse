@@ -92,7 +92,7 @@ enum MicroverseDesign {
         let title: String
     }
     
-    static let batteryMetric = MetricStyle(icon: "bolt.fill", color: Colors.battery, title: "BATTERY")
+    static let batteryMetric = MetricStyle(icon: "battery.100percent", color: Colors.battery, title: "BATTERY")
     static let cpuMetric = MetricStyle(icon: "cpu", color: Colors.processor, title: "PROCESSOR") 
     static let memoryMetric = MetricStyle(icon: "memorychip", color: Colors.memory, title: "MEMORY")
     static let systemMetric = MetricStyle(icon: "circle.grid.2x2", color: Colors.system, title: "SYSTEM")

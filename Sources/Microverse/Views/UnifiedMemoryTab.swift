@@ -103,18 +103,7 @@ struct UnifiedMemoryTab: View {
     // MARK: - Computed Properties
     
     private var memoryColor: Color {
-        switch systemService.memoryInfo.pressure {
-        case .critical:
-            return MicroverseDesign.Colors.critical
-        case .warning:
-            return MicroverseDesign.Colors.warning
-        case .normal:
-            if systemService.memoryInfo.usagePercentage > 80 {
-                return MicroverseDesign.Colors.warning
-            } else {
-                return MicroverseDesign.Colors.memory
-            }
-        }
+        WidgetModuleStatusResolver.memoryStatus(systemService.memoryInfo).color
     }
     
     private var pressureColor: Color {

@@ -225,7 +225,7 @@ private struct SystemTab: View {
     var icon: String {
       switch self {
       case .overview: return "square.grid.2x2"
-      case .battery: return "battery.100"
+      case .battery: return "battery.100percent"
       case .cpu: return "cpu"
       case .memory: return "memorychip"
       case .network: return "network"
@@ -818,7 +818,7 @@ struct SettingsView: View {
     case .custom:
       return "slider.horizontal.3"
     case .batterySimple:
-      return "battery.100"
+      return "battery.100percent"
     case .cpuMonitor:
       return "cpu"
     case .memoryMonitor:
@@ -1142,11 +1142,11 @@ struct NotchAlertsSection: View {
               icon: "bolt.fill", color: MicroverseDesign.Colors.success, title: "Charger connected",
               isOn: $viewModel.notchAlertChargerConnected)
             alertToggleRow(
-              icon: "battery.100", color: MicroverseDesign.Colors.success, title: "Fully charged",
+              icon: "battery.100percent", color: MicroverseDesign.Colors.success, title: "Fully charged",
               isOn: $viewModel.notchAlertFullyCharged)
 
             alertToggleRow(
-              icon: "battery.25", color: MicroverseDesign.Colors.warning, title: "Low battery",
+              icon: "battery.25percent", color: MicroverseDesign.Colors.warning, title: "Low battery",
               isOn: $viewModel.notchAlertLowBatteryEnabled)
             if viewModel.notchAlertLowBatteryEnabled {
               thresholdStepperRow(
@@ -1159,7 +1159,7 @@ struct NotchAlertsSection: View {
             }
 
             alertToggleRow(
-              icon: "battery.0", color: MicroverseDesign.Colors.critical, title: "Critical battery",
+              icon: "battery.0percent", color: MicroverseDesign.Colors.critical, title: "Critical battery",
               isOn: $viewModel.notchAlertCriticalBatteryEnabled)
             if viewModel.notchAlertCriticalBatteryEnabled {
               thresholdStepperRow(
@@ -1174,7 +1174,7 @@ struct NotchAlertsSection: View {
           .padding(.top, 8)
         } label: {
           HStack(spacing: 8) {
-            Image(systemName: "battery.100")
+            Image(systemName: "battery.100percent")
               .font(.system(size: 12, weight: .semibold))
               .foregroundColor(.white.opacity(0.6))
               .frame(width: 16)

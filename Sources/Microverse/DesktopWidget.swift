@@ -344,9 +344,12 @@ struct SystemGlanceWidget: View {
     HStack(spacing: 0) {
       // Battery
       VStack(spacing: 1) {
-        Image(systemName: batteryInfo.isCharging ? "bolt.fill" : "battery.100percent")
-          .font(.system(size: 12, weight: .medium))
-          .foregroundColor(batteryInfo.isCharging ? MicroverseDesign.Colors.success : .white)
+        Image(
+          systemName: WidgetModuleStatusResolver.batteryIconName(
+            charge: batteryInfo.currentCharge, isCharging: batteryInfo.isCharging)
+        )
+        .font(.system(size: 12, weight: .medium))
+        .foregroundColor(batteryInfo.isCharging ? MicroverseDesign.Colors.success : .white)
         Text("\(batteryInfo.currentCharge)")
           .font(.system(size: 15, weight: .bold, design: .rounded))
           .foregroundColor(.white)
@@ -448,9 +451,12 @@ struct SystemStatusWidget: View {
     HStack(spacing: MicroverseDesign.Layout.space4) {
       // Battery Column
       VStack(spacing: MicroverseDesign.Layout.space1) {
-        Image(systemName: batteryInfo.isCharging ? "bolt.fill" : "battery.100percent")
-          .font(MicroverseDesign.Typography.body)
-          .foregroundColor(batteryColor)
+        Image(
+          systemName: WidgetModuleStatusResolver.batteryIconName(
+            charge: batteryInfo.currentCharge, isCharging: batteryInfo.isCharging)
+        )
+        .font(MicroverseDesign.Typography.body)
+        .foregroundColor(batteryColor)
         Text("\(batteryInfo.currentCharge)%")
           .font(MicroverseDesign.Typography.title)
           .foregroundColor(.white)

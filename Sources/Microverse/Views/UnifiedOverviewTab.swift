@@ -6,6 +6,11 @@ import SystemCore
 struct UnifiedOverviewTab: View {
     @EnvironmentObject var viewModel: BatteryViewModel
     @StateObject private var systemService = SystemMonitoringService.shared
+
+    /// Shared status scale so this tab agrees with the notch and the desktop widget.
+    private var resolver: WidgetModuleStatusResolver {
+        WidgetModuleStatusResolver(viewModel: viewModel, systemService: systemService)
+    }
     
     var body: some View {
         VStack(spacing: 8) {
@@ -20,9 +25,9 @@ struct UnifiedOverviewTab: View {
                 // Compact metrics row
                 HStack(spacing: 12) {
                     VStack(spacing: 2) {
-                        Image(systemName: "bolt.fill")
+                        Image(systemName: resolver.batteryIconName)
                             .font(.system(size: 12))
-                            .foregroundColor(.green)
+                            .foregroundColor(resolver.color(for: .battery))
                         Text("\(viewModel.batteryInfo.currentCharge)%")
                             .font(.system(size: 12, weight: .medium))
                             .foregroundColor(.white)
@@ -34,7 +39,7 @@ struct UnifiedOverviewTab: View {
                     VStack(spacing: 2) {
                         Image(systemName: "cpu")
                             .font(.system(size: 12))
-                            .foregroundColor(.blue)
+                            .foregroundColor(resolver.color(for: .cpu))
                         Text("\(Int(systemService.cpuUsage))%")
                             .font(.system(size: 12, weight: .medium))
                             .foregroundColor(.white)
@@ -46,7 +51,7 @@ struct UnifiedOverviewTab: View {
                     VStack(spacing: 2) {
                         Image(systemName: "memorychip")
                             .font(.system(size: 12))
-                            .foregroundColor(.purple)
+                            .foregroundColor(resolver.color(for: .memory))
                         Text("\(Int(systemService.memoryInfo.usagePercentage))%")
                             .font(.system(size: 12, weight: .medium))
                             .foregroundColor(.white)
@@ -90,25 +95,9 @@ struct UnifiedOverviewTab: View {
     
     // MARK: - Computed Properties
     
-    private var overallHealth: String {
-        if systemService.cpuUsage > 80 || systemService.memoryInfo.pressure == .critical {
-            return "Stressed"
-        } else if systemService.cpuUsage > 50 || systemService.memoryInfo.pressure == .warning {
-            return "Moderate"
-        } else {
-            return "Excellent"
-        }
-    }
-    
-    private var healthColor: Color {
-        if systemService.cpuUsage > 80 || systemService.memoryInfo.pressure == .critical {
-            return MicroverseDesign.Colors.critical
-        } else if systemService.cpuUsage > 50 || systemService.memoryInfo.pressure == .warning {
-            return MicroverseDesign.Colors.warning
-        } else {
-            return MicroverseDesign.Colors.success
-        }
-    }
+    private var overallHealth: String { resolver.systemHealthHeadline }
+
+    private var healthColor: Color { resolver.color(for: .systemHealth) }
     
     private var memoryPressureText: String {
         switch systemService.memoryInfo.pressure {
@@ -137,9 +126,9 @@ struct UnifiedOverviewTab: View {
         
         // Battery insights
         if viewModel.batteryInfo.currentCharge < 15 && !viewModel.batteryInfo.isPluggedIn {
-            results.append(("battery.25", "Battery level is low", .warning))
+            results.append(("battery.25percent", "Battery level is low", .warning))
         } else if viewModel.batteryInfo.isCharging && viewModel.batteryInfo.currentCharge > 95 {
-            results.append(("bolt.fill", "Battery nearly full", .normal))
+            results.append(("battery.100percent.bolt", "Battery nearly full", .normal))
         }
         
         // Health insights

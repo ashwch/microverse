@@ -9,7 +9,7 @@ struct UnifiedBatteryTab: View {
         VStack(spacing: 8) {
             // Battery Status Section
             VStack(spacing: 8) {
-                SectionHeader("BATTERY STATUS", systemIcon: "bolt")
+                SectionHeader("BATTERY STATUS", systemIcon: "battery.100percent")
                 
                 // Compact battery display
                 VStack(spacing: 6) {
@@ -91,33 +91,11 @@ struct UnifiedBatteryTab: View {
     // MARK: - Computed Properties
     
     private var batteryIconName: String {
-        let baseIcon: String
-        
-        if viewModel.batteryInfo.currentCharge >= 100 {
-            baseIcon = "battery.100"
-        } else if viewModel.batteryInfo.currentCharge >= 75 {
-            baseIcon = "battery.75"
-        } else if viewModel.batteryInfo.currentCharge >= 50 {
-            baseIcon = "battery.50"
-        } else if viewModel.batteryInfo.currentCharge >= 25 {
-            baseIcon = "battery.25"
-        } else {
-            baseIcon = "battery.0"
-        }
-        
-        return viewModel.batteryInfo.isCharging ? "\(baseIcon).bolt" : baseIcon
+        WidgetModuleStatusResolver(viewModel: viewModel).batteryIconName
     }
     
     private var batteryColor: Color {
-        if viewModel.batteryInfo.currentCharge <= 10 {
-            return MicroverseDesign.Colors.critical
-        } else if viewModel.batteryInfo.currentCharge <= 20 {
-            return MicroverseDesign.Colors.warning
-        } else if viewModel.batteryInfo.isCharging {
-            return MicroverseDesign.Colors.success
-        } else {
-            return MicroverseDesign.Colors.battery
-        }
+        WidgetModuleStatusResolver(viewModel: viewModel).color(for: .battery)
     }
     
     private var statusColor: Color {

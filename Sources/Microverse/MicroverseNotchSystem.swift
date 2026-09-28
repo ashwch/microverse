@@ -672,15 +672,7 @@ struct MicroverseCompactLeadingView: View {
   }
 
   private var batteryIcon: String {
-    if viewModel.batteryInfo.isCharging {
-      return "bolt.fill"
-    } else if viewModel.batteryInfo.currentCharge
-      <= MicroverseDesign.Notch.Performance.batteryThresholdLow
-    {
-      return "battery.25percent"
-    } else {
-      return "battery.100percent"
-    }
+    WidgetModuleStatusResolver(viewModel: viewModel).batteryIconName
   }
 
   /// Same green/yellow/orange/red scale as the desktop widget.
@@ -1123,15 +1115,7 @@ struct MicroverseCompactUnifiedView: View {
   }
 
   private var batteryIcon: String {
-    if viewModel.batteryInfo.isCharging {
-      return "bolt.fill"
-    } else if viewModel.batteryInfo.currentCharge
-      <= MicroverseDesign.Notch.Performance.batteryThresholdLow
-    {
-      return "battery.25percent"
-    } else {
-      return "battery.100percent"
-    }
+    WidgetModuleStatusResolver(viewModel: viewModel).batteryIconName
   }
 
   /// Same green/yellow/orange/red scale as the desktop widget.
@@ -2508,15 +2492,7 @@ struct MicroverseExpandedNotchView: View {
 
   // MARK: - Computed Properties
   private var batteryIcon: String {
-    if viewModel.batteryInfo.isCharging {
-      return "bolt.fill"
-    } else if viewModel.batteryInfo.currentCharge
-      <= MicroverseDesign.Notch.Performance.batteryThresholdLow
-    {
-      return "battery.25percent"
-    } else {
-      return "battery.100percent"
-    }
+    WidgetModuleStatusResolver(viewModel: viewModel).batteryIconName
   }
 
   /// Same green/yellow/orange/red scale as the desktop widget.

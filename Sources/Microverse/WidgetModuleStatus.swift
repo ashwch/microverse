@@ -68,10 +68,22 @@ struct WidgetModuleStatusResolver {
     }
   }
 
-  /// SF Symbol for the battery module: a bolt variant while charging so the power state is
-  /// visible without reading the detail text.
+  /// SF Symbol for the battery on every surface: a level-aware outline while discharging, and
+  /// the bolt variant while charging so the power state is visible without reading any text.
+  /// SF Symbols only ships a bolt for the 100% glyph, hence the single charging icon.
   var batteryIconName: String {
-    viewModel.batteryInfo.isCharging ? "battery.100percent.bolt" : WidgetModule.battery.systemIcon
+    Self.batteryIconName(charge: viewModel.batteryInfo.currentCharge, isCharging: viewModel.batteryInfo.isCharging)
+  }
+
+  static func batteryIconName(charge: Int, isCharging: Bool) -> String {
+    if isCharging { return "battery.100percent.bolt" }
+    switch charge {
+    case 90...: return "battery.100percent"
+    case 65..<90: return "battery.75percent"
+    case 40..<65: return "battery.50percent"
+    case 15..<40: return "battery.25percent"
+    default: return "battery.0percent"
+    }
   }
 
   /// True when the module is in a state the user has an alert configured for (AirPods low battery).

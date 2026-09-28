@@ -65,15 +65,7 @@ struct NotchBatteryWidget: View {
     }
     
     private var batteryIcon: String {
-        if viewModel.batteryInfo.isCharging {
-            return "bolt.fill"
-        } else if viewModel.batteryInfo.currentCharge <= 20 {
-            return "battery.25percent"
-        } else if viewModel.batteryInfo.currentCharge <= 50 {
-            return "battery.50percent"
-        } else {
-            return "battery.100percent"
-        }
+        WidgetModuleStatusResolver(viewModel: viewModel).batteryIconName
     }
     
     private var batteryColor: Color {
