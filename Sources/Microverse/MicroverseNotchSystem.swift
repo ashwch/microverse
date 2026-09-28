@@ -683,20 +683,9 @@ struct MicroverseCompactLeadingView: View {
     }
   }
 
+  /// Same green/yellow/orange/red scale as the desktop widget, driven by charge level.
   private var batteryColor: Color {
-    if viewModel.batteryInfo.isCharging {
-      return MicroverseDesign.Colors.battery
-    } else if viewModel.batteryInfo.currentCharge
-      <= MicroverseDesign.Notch.Performance.batteryThresholdLow
-    {
-      return MicroverseDesign.Colors.critical
-    } else if viewModel.batteryInfo.currentCharge
-      <= MicroverseDesign.Notch.Performance.batteryThresholdMedium
-    {
-      return MicroverseDesign.Colors.warning
-    } else {
-      return MicroverseDesign.Colors.accent
-    }
+    WidgetModuleStatusResolver(viewModel: viewModel).status(for: .battery).color
   }
 }
 
@@ -1104,18 +1093,8 @@ struct MicroverseCompactUnifiedView: View {
   }
 
   private var airPodsTint: Color {
-    if viewModel.notchAlertAirPodsLowBatteryEnabled,
-      let percent = viewModel.airPodsBatteryPercent,
-      percent <= viewModel.notchAlertAirPodsLowBatteryThreshold
-    {
-      return MicroverseDesign.Colors.critical.opacity(0.85)
-    }
-
-    if audio.outputMuted == true {
-      return MicroverseDesign.Colors.warning.opacity(0.85)
-    }
-
-    return .white.opacity(0.8)
+    WidgetModuleStatusResolver(viewModel: viewModel, audio: audio)
+      .status(for: .audioOutput).color.opacity(0.85)
   }
 
   private func growNonPinnedWidth(_ width: CGFloat) {
@@ -1156,41 +1135,17 @@ struct MicroverseCompactUnifiedView: View {
     }
   }
 
+  /// Same green/yellow/orange/red scale as the desktop widget, driven by charge level.
   private var batteryColor: Color {
-    if viewModel.batteryInfo.isCharging {
-      return MicroverseDesign.Colors.battery
-    } else if viewModel.batteryInfo.currentCharge
-      <= MicroverseDesign.Notch.Performance.batteryThresholdLow
-    {
-      return MicroverseDesign.Colors.critical
-    } else if viewModel.batteryInfo.currentCharge
-      <= MicroverseDesign.Notch.Performance.batteryThresholdMedium
-    {
-      return MicroverseDesign.Colors.warning
-    } else {
-      return MicroverseDesign.Colors.accent
-    }
+    WidgetModuleStatusResolver(viewModel: viewModel).status(for: .battery).color
   }
 
   private var cpuColor: Color {
-    if systemService.cpuUsage > 80 {
-      return MicroverseDesign.Colors.critical
-    } else if systemService.cpuUsage > 60 {
-      return MicroverseDesign.Colors.warning
-    } else {
-      return MicroverseDesign.Colors.processor
-    }
+    WidgetModuleStatusResolver.cpuStatus(usage: systemService.cpuUsage).color
   }
 
   private var memoryColor: Color {
-    switch systemService.memoryInfo.pressure {
-    case .critical:
-      return MicroverseDesign.Colors.critical
-    case .warning:
-      return MicroverseDesign.Colors.warning
-    case .normal:
-      return MicroverseDesign.Colors.memory
-    }
+    WidgetModuleStatusResolver.memoryStatus(systemService.memoryInfo).color
   }
 }
 
@@ -1556,18 +1511,8 @@ struct MicroverseCompactTrailingView: View {
   }
 
   private var airPodsTint: Color {
-    if viewModel.notchAlertAirPodsLowBatteryEnabled,
-      let percent = viewModel.airPodsBatteryPercent,
-      percent <= viewModel.notchAlertAirPodsLowBatteryThreshold
-    {
-      return MicroverseDesign.Colors.critical.opacity(0.85)
-    }
-
-    if audio.outputMuted == true {
-      return MicroverseDesign.Colors.warning.opacity(0.85)
-    }
-
-    return .white.opacity(0.8)
+    WidgetModuleStatusResolver(viewModel: viewModel, audio: audio)
+      .status(for: .audioOutput).color.opacity(0.85)
   }
 
   private func growNonPinnedWidth(_ width: CGFloat) {
@@ -1597,24 +1542,11 @@ struct MicroverseCompactTrailingView: View {
   }
 
   private var cpuColor: Color {
-    if systemService.cpuUsage > 80 {
-      return MicroverseDesign.Colors.critical
-    } else if systemService.cpuUsage > 60 {
-      return MicroverseDesign.Colors.warning
-    } else {
-      return MicroverseDesign.Colors.processor
-    }
+    WidgetModuleStatusResolver.cpuStatus(usage: systemService.cpuUsage).color
   }
 
   private var memoryColor: Color {
-    switch systemService.memoryInfo.pressure {
-    case .critical:
-      return MicroverseDesign.Colors.critical
-    case .warning:
-      return MicroverseDesign.Colors.warning
-    case .normal:
-      return MicroverseDesign.Colors.memory
-    }
+    WidgetModuleStatusResolver.memoryStatus(systemService.memoryInfo).color
   }
 }
 
@@ -1885,24 +1817,11 @@ private struct MicroverseAdaptivePinnedSystemMetricView: View {
   }
 
   private var cpuColor: Color {
-    if systemService.cpuUsage > 80 {
-      return MicroverseDesign.Colors.critical
-    } else if systemService.cpuUsage > 60 {
-      return MicroverseDesign.Colors.warning
-    } else {
-      return MicroverseDesign.Colors.processor
-    }
+    WidgetModuleStatusResolver.cpuStatus(usage: systemService.cpuUsage).color
   }
 
   private var memoryColor: Color {
-    switch systemService.memoryInfo.pressure {
-    case .critical:
-      return MicroverseDesign.Colors.critical
-    case .warning:
-      return MicroverseDesign.Colors.warning
-    case .normal:
-      return MicroverseDesign.Colors.memory
-    }
+    WidgetModuleStatusResolver.memoryStatus(systemService.memoryInfo).color
   }
 }
 
@@ -2424,15 +2343,15 @@ struct MicroverseExpandedNotchView: View {
     }
   }
 
+  /// One resolver for the whole expanded view so every card uses the same status scale.
+  private var statusResolver: WidgetModuleStatusResolver {
+    WidgetModuleStatusResolver(
+      viewModel: viewModel, systemService: systemService, wifi: wifi, audio: audio,
+      weatherSettings: weatherSettings, weatherStore: weatherStore)
+  }
+
   private var wifiColor: Color {
-    switch wifi.status {
-    case .connected:
-      return MicroverseDesign.Colors.success.opacity(0.85)
-    case .disconnected:
-      return .white.opacity(0.65)
-    case .poweredOff, .unavailable:
-      return .white.opacity(0.55)
-    }
+    statusResolver.status(for: .wifi).color.opacity(0.85)
   }
 
   private var wifiValueText: String {
@@ -2490,16 +2409,7 @@ struct MicroverseExpandedNotchView: View {
   }
 
   private var audioColor: Color {
-    if audio.defaultOutputAirPodsModel != nil,
-      viewModel.notchAlertAirPodsLowBatteryEnabled,
-      let percent = viewModel.airPodsBatteryPercent,
-      percent <= viewModel.notchAlertAirPodsLowBatteryThreshold
-    {
-      return MicroverseDesign.Colors.critical.opacity(0.85)
-    }
-
-    if audio.outputMuted == true { return MicroverseDesign.Colors.warning.opacity(0.85) }
-    return MicroverseDesign.Colors.accent.opacity(0.85)
+    statusResolver.status(for: .audioOutput).color.opacity(0.85)
   }
 
   private var audioValueText: String {
@@ -2582,20 +2492,9 @@ struct MicroverseExpandedNotchView: View {
     }
   }
 
+  /// Same green/yellow/orange/red scale as the desktop widget, driven by charge level.
   private var batteryColor: Color {
-    if viewModel.batteryInfo.isCharging {
-      return MicroverseDesign.Colors.battery
-    } else if viewModel.batteryInfo.currentCharge
-      <= MicroverseDesign.Notch.Performance.batteryThresholdLow
-    {
-      return MicroverseDesign.Colors.critical
-    } else if viewModel.batteryInfo.currentCharge
-      <= MicroverseDesign.Notch.Performance.batteryThresholdMedium
-    {
-      return MicroverseDesign.Colors.warning
-    } else {
-      return MicroverseDesign.Colors.accent
-    }
+    WidgetModuleStatusResolver(viewModel: viewModel).status(for: .battery).color
   }
 
   private var batteryDetail: String {
@@ -2609,21 +2508,11 @@ struct MicroverseExpandedNotchView: View {
   }
 
   private var cpuColor: Color {
-    if systemService.cpuUsage > 80 {
-      return MicroverseDesign.Colors.critical
-    } else if systemService.cpuUsage > 60 {
-      return MicroverseDesign.Colors.warning
-    } else {
-      return MicroverseDesign.Colors.processor
-    }
+    WidgetModuleStatusResolver.cpuStatus(usage: systemService.cpuUsage).color
   }
 
   private var memoryColor: Color {
-    switch systemService.memoryInfo.pressure {
-    case .critical: return MicroverseDesign.Colors.critical
-    case .warning: return MicroverseDesign.Colors.warning
-    case .normal: return MicroverseDesign.Colors.memory
-    }
+    WidgetModuleStatusResolver.memoryStatus(systemService.memoryInfo).color
   }
 
   private var cpuStatusText: String {
@@ -2637,21 +2526,7 @@ struct MicroverseExpandedNotchView: View {
   }
 
   private var systemHealthColor: Color {
-    if systemService.cpuUsage > MicroverseDesign.Notch.Performance.cpuThresholdCritical
-      || systemService.memoryInfo.pressure == .critical
-      || viewModel.batteryInfo.currentCharge
-        < MicroverseDesign.Notch.Performance.systemHealthThresholdLow
-    {
-      return MicroverseDesign.Colors.critical
-    } else if systemService.cpuUsage > MicroverseDesign.Notch.Performance.cpuThresholdWarning
-      || systemService.memoryInfo.pressure == .warning
-      || viewModel.batteryInfo.currentCharge
-        < MicroverseDesign.Notch.Performance.systemHealthThresholdMedium
-    {
-      return MicroverseDesign.Colors.warning
-    } else {
-      return MicroverseDesign.Colors.success
-    }
+    statusResolver.status(for: .systemHealth).color
   }
 }
 

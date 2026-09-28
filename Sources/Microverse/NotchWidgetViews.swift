@@ -77,15 +77,7 @@ struct NotchBatteryWidget: View {
     }
     
     private var batteryColor: Color {
-        if viewModel.batteryInfo.isCharging {
-            return MicroverseDesign.Colors.battery
-        } else if viewModel.batteryInfo.currentCharge <= 10 {
-            return MicroverseDesign.Colors.critical
-        } else if viewModel.batteryInfo.currentCharge <= 20 {
-            return MicroverseDesign.Colors.warning
-        } else {
-            return MicroverseDesign.Colors.accentMuted
-        }
+        WidgetModuleStatusResolver(viewModel: viewModel).status(for: .battery).color
     }
 }
 
@@ -136,24 +128,11 @@ struct NotchSystemWidget: View {
     }
     
     private var cpuColor: Color {
-        if systemService.cpuUsage > 80 {
-            return MicroverseDesign.Colors.critical
-        } else if systemService.cpuUsage > 60 {
-            return MicroverseDesign.Colors.warning
-        } else {
-            return MicroverseDesign.Colors.processor
-        }
+        WidgetModuleStatusResolver.cpuStatus(usage: systemService.cpuUsage).color
     }
     
     private var memoryColor: Color {
-        switch systemService.memoryInfo.pressure {
-        case .critical:
-            return MicroverseDesign.Colors.critical
-        case .warning:
-            return MicroverseDesign.Colors.warning
-        case .normal:
-            return MicroverseDesign.Colors.memory
-        }
+        WidgetModuleStatusResolver.memoryStatus(systemService.memoryInfo).color
     }
 }
 

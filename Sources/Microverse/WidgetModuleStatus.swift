@@ -1,4 +1,5 @@
 import SwiftUI
+import SystemCore
 
 /// Health of a Custom-widget module, expressed with the same palette the alerts use so the widget
 /// gives the same cues as the Alerts tab and the notch glow: green is good, yellow is average,
@@ -32,16 +33,33 @@ enum WidgetModuleStatus: Equatable {
   }
 }
 
-/// Resolves a `WidgetModuleStatus` for each module from the live stores. Both the primary tile and
-/// the secondary grid go through this so the thresholds live in exactly one place.
+/// Resolves a `WidgetModuleStatus` for each module from the live stores. The desktop widget tiles
+/// and every notch surface go through this so the thresholds live in exactly one place.
 @MainActor
 struct WidgetModuleStatusResolver {
   let viewModel: BatteryViewModel
   let systemService: SystemMonitoringService
   let wifi: WiFiStore
   let audio: AudioDevicesStore
-  let weatherSettings: WeatherSettingsStore
-  let weatherStore: WeatherStore
+  /// Weather stores are optional because some notch views never show weather.
+  let weatherSettings: WeatherSettingsStore?
+  let weatherStore: WeatherStore?
+
+  init(
+    viewModel: BatteryViewModel,
+    systemService: SystemMonitoringService = .shared,
+    wifi: WiFiStore? = nil,
+    audio: AudioDevicesStore? = nil,
+    weatherSettings: WeatherSettingsStore? = nil,
+    weatherStore: WeatherStore? = nil
+  ) {
+    self.viewModel = viewModel
+    self.systemService = systemService
+    self.wifi = wifi ?? viewModel.wifiStore
+    self.audio = audio ?? viewModel.audioDevicesStore
+    self.weatherSettings = weatherSettings
+    self.weatherStore = weatherStore
+  }
 
   func status(for module: WidgetModule) -> WidgetModuleStatus {
     switch module {
@@ -107,15 +125,17 @@ struct WidgetModuleStatusResolver {
 
   // MARK: - System
 
-  private var cpuStatus: WidgetModuleStatus {
-    let usage = systemService.cpuUsage
+  private var cpuStatus: WidgetModuleStatus { Self.cpuStatus(usage: systemService.cpuUsage) }
+  private var memoryStatus: WidgetModuleStatus { Self.memoryStatus(systemService.memoryInfo) }
+
+  /// Static so views that only observe `SystemMonitoringService` can share the thresholds.
+  static func cpuStatus(usage: Double) -> WidgetModuleStatus {
     if usage > MicroverseDesign.Notch.Performance.cpuThresholdCritical { return .critical }
     if usage > MicroverseDesign.Notch.Performance.cpuThresholdWarning { return .poor }
     return .good
   }
 
-  private var memoryStatus: WidgetModuleStatus {
-    let memory = systemService.memoryInfo
+  static func memoryStatus(_ memory: MemoryInfo) -> WidgetModuleStatus {
     switch memory.pressure {
     case .critical: return .critical
     case .warning: return .poor
@@ -160,7 +180,9 @@ struct WidgetModuleStatusResolver {
 
   /// Mirrors the Alerts tab: rain is informational blue, storms are urgent.
   private var weatherStatus: WidgetModuleStatus {
-    guard weatherSettings.weatherEnabled, let current = weatherStore.current else { return .inactive }
+    guard let weatherSettings, let weatherStore, weatherSettings.weatherEnabled,
+      let current = weatherStore.current
+    else { return .inactive }
     switch current.bucket {
     case .thunder: return .critical
     case .rain, .snow: return .neutral
@@ -171,7 +193,7 @@ struct WidgetModuleStatusResolver {
   }
 
   private var upcomingPrecipitation: Bool {
-    guard let event = weatherStore.nextEvent, event.kind == .precipStart else { return false }
+    guard let event = weatherStore?.nextEvent, event.kind == .precipStart else { return false }
     let lead = event.startTime.timeIntervalSinceNow
     return lead > 0 && lead <= 30 * 60
   }
