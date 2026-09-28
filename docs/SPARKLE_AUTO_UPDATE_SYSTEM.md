@@ -396,6 +396,60 @@ jobs:
 
 ---
 
+### 5.4 Packaging Invariants (read before touching `release.yml`)
+
+Sparkle validates every update against the **installed** copy, so the way the release bundle is
+signed and archived decides whether users can update at all. Two rules, both learned the hard way
+in v0.9.0 and v0.9.1, are enforced by the workflow and must not be removed:
+
+**Rule 1: the release bundle must be code signed, at minimum ad-hoc.**
+
+```bash
+codesign --force --deep --sign - "$APP_PATH"
+codesign --verify --deep --strict --verbose=2 "$APP_PATH"
+```
+
+- Sparkle's policy (`SUUpdateValidator.m`, `passesBasicUpdatePolicy`): *"The old bundle is code
+  signed but the update is not code signed. Sparkle only supports rotation, but not removal of Apple
+  Code Signing identity."* It rejects the update with **"The update is improperly signed and could
+  not be validated"** even when the EdDSA signature is perfect.
+- The Makefile ad-hoc signs local builds (`make install`, `make install-debug`), so anyone who ever
+  installed a local build has a signed host. Shipping an unsigned bundle silently breaks updates for
+  all of them (v0.9.0 did this).
+- With the EdDSA key unchanged, Sparkle accepts unsigned → ad-hoc and ad-hoc → ad-hoc alike, so
+  signing is safe for users on older unsigned releases too.
+
+**Rule 2: archive with `ditto`, never `zip -r`.**
+
+```bash
+ditto -c -k --sequesterRsrc --keepParent "$PRODUCT_NAME.app" "$ZIP_NAME"
+```
+
+- `zip -r` follows symlinks and flattens `Sparkle.framework` (`Versions/Current`,
+  `Sparkle`, `Resources` become copies). The app still launches, but the bundle no longer passes
+  `codesign --verify` after extraction ("bundle format is ambiguous"), and Sparkle checks the
+  signature of the extracted update whenever the update is signed. v0.9.1 shipped this way and
+  would have failed with the same "improperly signed" error.
+- `ditto -c -k --sequesterRsrc --keepParent` is the archiver Sparkle's own documentation
+  recommends. It preserves symlinks and resource forks.
+
+**The workflow proves both rules on every run.** After archiving, it extracts the zip into a scratch
+directory and runs `codesign --verify --deep --strict` on the result. A future change that breaks
+either rule fails the build instead of every user's update.
+
+**Manual verification of a published release** (what the CI check does, by hand):
+
+```bash
+gh release download vX.Y.Z -p '*.zip' && ditto -x -k Microverse-vX.Y.Z.zip .
+codesign --verify --deep --strict --verbose=2 Microverse.app      # must print "valid on disk"
+ls -la Microverse.app/Contents/Frameworks/Sparkle.framework      # entries must be symlinks
+```
+
+To check the EdDSA signature independently (needs `pip install cryptography`), verify the
+`sparkle:edSignature` from the appcast over the raw zip bytes with the `SUPublicEDKey` from
+`Info.plist` using Ed25519. Both `.zip` and appcast must refer to the same bytes; the CI job signs
+the exact file it uploads.
+
 ## 6. Release Notes System
 
 ### 6.1 HTML Sidecar File Approach
@@ -802,6 +856,21 @@ extension SecureUpdateService: SPUUpdaterDelegate {
 
 ### 10.1 Common Issues
 
+#### **Issue: "The update is improperly signed and could not be validated"**
+
+Sparkle shows this for three different root causes. Check them in this order:
+
+1. **Release bundle is unsigned while the installed app is signed.** `codesign -dv` on the
+   downloaded app prints "code object is not signed at all". Fix: the ad-hoc signing step in
+   `release.yml` (see §5.4, Rule 1). This is what broke v0.9.0.
+2. **Signed bundle no longer verifies after extraction.** `codesign --verify --deep --strict`
+   on the extracted app complains about `Sparkle.framework` ("bundle format is ambiguous").
+   Cause: the archive was built with `zip -r`. Fix: `ditto` (see §5.4, Rule 2). This is what broke
+   v0.9.1.
+3. **EdDSA mismatch.** The `SUPublicEDKey` in the installed app does not match the
+   `SPARKLE_PRIVATE_KEY` secret used by CI, or the appcast signature was generated over different
+   bytes than the uploaded zip. Verify with the Ed25519 check in §5.4.
+
 #### **Issue: Release Notes Not Showing**
 ```bash
 # Check if HTML file exists
@@ -856,6 +925,8 @@ otool -L /Applications/Microverse.app/Contents/MacOS/Microverse
 - [ ] HTML release notes file exists and is accessible
 - [ ] EdDSA signature verification works
 - [ ] App bundle contains Sparkle.framework with correct rpath
+- [ ] Release bundle is code signed (ad-hoc at minimum) and the CI round-trip verify step passed
+- [ ] Archive built with `ditto -c -k --sequesterRsrc --keepParent`, never `zip -r`
 - [ ] Info.plist has correct Sparkle configuration
 - [ ] GitHub Secrets contain valid SPARKLE_PRIVATE_KEY
 

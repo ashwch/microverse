@@ -32,6 +32,7 @@ See `docs/NOTCH_FEATURES.md` for trigger rules + motion details.
   - `docs/appcast.xml`
   - `docs/Microverse-vX.Y.Z.html`
 - The Sparkle feed URL is `https://microverse.ashwch.com/appcast.xml`.
+- Packaging invariants (both broke real releases, v0.9.0 and v0.9.1): the bundle must be ad-hoc code signed, and the zip must be created with `ditto -c -k --sequesterRsrc --keepParent`, never `zip -r`. CI verifies the extracted zip; keep that step. Details: `docs/SPARKLE_AUTO_UPDATE_SYSTEM.md` §5.4.
 
 Docs:
 - `docs/SPARKLE_AUTO_UPDATE_SYSTEM.md`

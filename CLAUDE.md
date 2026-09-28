@@ -51,6 +51,11 @@ If you touch notch/glow behavior:
    - `https://microverse.ashwch.com/appcast.xml` points to the latest zip and has `sparkle:edSignature`
    - `https://microverse.ashwch.com/Microverse-vX.Y.Z.html` exists
 
+Hard rules for `release.yml` (Sparkle rejects the update otherwise, see `docs/SPARKLE_AUTO_UPDATE_SYSTEM.md` §5.4):
+- The release bundle **must be code signed**, ad-hoc at minimum (`codesign --force --deep --sign -`). Local `make install` builds are ad-hoc signed, and Sparkle refuses an unsigned update onto a signed install.
+- The zip **must be built with `ditto -c -k --sequesterRsrc --keepParent`**, never `zip -r`, which flattens `Sparkle.framework` symlinks and invalidates the signature.
+- The workflow extracts the zip and re-verifies it. Do not remove that step.
+
 ## Where to look in code
 
 - Trigger rules: `Sources/Microverse/BatteryViewModel.swift` (`checkAndTriggerAlerts()`)
