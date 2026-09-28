@@ -895,7 +895,7 @@ private struct CustomModularWidget: View {
     /// Shared good/poor/critical resolution so this tile and the secondary grid agree.
     private var resolver: WidgetModuleStatusResolver {
       WidgetModuleStatusResolver(
-        viewModel: viewModel, systemService: systemService, wifi: wifi, audio: audio,
+        viewModel: viewModel, systemService: systemService,
         weatherSettings: weatherSettings, weatherStore: weatherStore)
     }
 
@@ -1226,7 +1226,7 @@ private struct CustomModularWidget: View {
 
     private var resolver: WidgetModuleStatusResolver {
       WidgetModuleStatusResolver(
-        viewModel: viewModel, systemService: systemService, wifi: wifi, audio: audio,
+        viewModel: viewModel, systemService: systemService,
         weatherSettings: weatherSettings, weatherStore: weatherStore)
     }
 

@@ -35,30 +35,21 @@ enum WidgetModuleStatus: Equatable {
 
 /// Resolves a `WidgetModuleStatus` for each module from the live stores. The desktop widget tiles
 /// and every notch surface go through this so the thresholds live in exactly one place.
+///
+/// Wi-Fi and audio come from the view model, which owns the only instances of those stores.
+/// Weather stores are passed in because only some surfaces show weather.
 @MainActor
 struct WidgetModuleStatusResolver {
   let viewModel: BatteryViewModel
-  let systemService: SystemMonitoringService
-  let wifi: WiFiStore
-  let audio: AudioDevicesStore
-  /// Weather stores are optional because some notch views never show weather.
-  let weatherSettings: WeatherSettingsStore?
-  let weatherStore: WeatherStore?
+  var systemService: SystemMonitoringService = .shared
+  var weatherSettings: WeatherSettingsStore? = nil
+  var weatherStore: WeatherStore? = nil
 
-  init(
-    viewModel: BatteryViewModel,
-    systemService: SystemMonitoringService = .shared,
-    wifi: WiFiStore? = nil,
-    audio: AudioDevicesStore? = nil,
-    weatherSettings: WeatherSettingsStore? = nil,
-    weatherStore: WeatherStore? = nil
-  ) {
-    self.viewModel = viewModel
-    self.systemService = systemService
-    self.wifi = wifi ?? viewModel.wifiStore
-    self.audio = audio ?? viewModel.audioDevicesStore
-    self.weatherSettings = weatherSettings
-    self.weatherStore = weatherStore
+  private var wifi: WiFiStore { viewModel.wifiStore }
+  private var audio: AudioDevicesStore { viewModel.audioDevicesStore }
+
+  func color(for module: WidgetModule) -> Color {
+    status(for: module).color
   }
 
   func status(for module: WidgetModule) -> WidgetModuleStatus {

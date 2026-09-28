@@ -683,9 +683,9 @@ struct MicroverseCompactLeadingView: View {
     }
   }
 
-  /// Same green/yellow/orange/red scale as the desktop widget, driven by charge level.
+  /// Same green/yellow/orange/red scale as the desktop widget.
   private var batteryColor: Color {
-    WidgetModuleStatusResolver(viewModel: viewModel).status(for: .battery).color
+    WidgetModuleStatusResolver(viewModel: viewModel).color(for: .battery)
   }
 }
 
@@ -1093,8 +1093,7 @@ struct MicroverseCompactUnifiedView: View {
   }
 
   private var airPodsTint: Color {
-    WidgetModuleStatusResolver(viewModel: viewModel, audio: audio)
-      .status(for: .audioOutput).color.opacity(0.85)
+    WidgetModuleStatusResolver(viewModel: viewModel).color(for: .audioOutput).opacity(0.85)
   }
 
   private func growNonPinnedWidth(_ width: CGFloat) {
@@ -1135,9 +1134,9 @@ struct MicroverseCompactUnifiedView: View {
     }
   }
 
-  /// Same green/yellow/orange/red scale as the desktop widget, driven by charge level.
+  /// Same green/yellow/orange/red scale as the desktop widget.
   private var batteryColor: Color {
-    WidgetModuleStatusResolver(viewModel: viewModel).status(for: .battery).color
+    WidgetModuleStatusResolver(viewModel: viewModel).color(for: .battery)
   }
 
   private var cpuColor: Color {
@@ -1511,8 +1510,7 @@ struct MicroverseCompactTrailingView: View {
   }
 
   private var airPodsTint: Color {
-    WidgetModuleStatusResolver(viewModel: viewModel, audio: audio)
-      .status(for: .audioOutput).color.opacity(0.85)
+    WidgetModuleStatusResolver(viewModel: viewModel).color(for: .audioOutput).opacity(0.85)
   }
 
   private func growNonPinnedWidth(_ width: CGFloat) {
@@ -2346,12 +2344,12 @@ struct MicroverseExpandedNotchView: View {
   /// One resolver for the whole expanded view so every card uses the same status scale.
   private var statusResolver: WidgetModuleStatusResolver {
     WidgetModuleStatusResolver(
-      viewModel: viewModel, systemService: systemService, wifi: wifi, audio: audio,
+      viewModel: viewModel, systemService: systemService,
       weatherSettings: weatherSettings, weatherStore: weatherStore)
   }
 
   private var wifiColor: Color {
-    statusResolver.status(for: .wifi).color.opacity(0.85)
+    statusResolver.color(for: .wifi).opacity(0.85)
   }
 
   private var wifiValueText: String {
@@ -2409,7 +2407,7 @@ struct MicroverseExpandedNotchView: View {
   }
 
   private var audioColor: Color {
-    statusResolver.status(for: .audioOutput).color.opacity(0.85)
+    statusResolver.color(for: .audioOutput).opacity(0.85)
   }
 
   private var audioValueText: String {
@@ -2492,9 +2490,9 @@ struct MicroverseExpandedNotchView: View {
     }
   }
 
-  /// Same green/yellow/orange/red scale as the desktop widget, driven by charge level.
+  /// Same green/yellow/orange/red scale as the desktop widget.
   private var batteryColor: Color {
-    WidgetModuleStatusResolver(viewModel: viewModel).status(for: .battery).color
+    WidgetModuleStatusResolver(viewModel: viewModel).color(for: .battery)
   }
 
   private var batteryDetail: String {
@@ -2526,7 +2524,7 @@ struct MicroverseExpandedNotchView: View {
   }
 
   private var systemHealthColor: Color {
-    statusResolver.status(for: .systemHealth).color
+    statusResolver.color(for: .systemHealth)
   }
 }
 
