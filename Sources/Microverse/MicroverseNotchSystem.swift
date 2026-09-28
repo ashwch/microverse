@@ -2245,61 +2245,100 @@ struct MicroverseExpandedNotchView: View {
     .background(tileBackground)
   }
 
+  /// Weather card: current conditions on the left, the next few hours on the right, and a
+  /// warning row underneath only when the forecast has something coming.
   private var weatherTile: some View {
-    HStack(spacing: MicroverseDesign.Notch.Spacing.statusSpacing) {
-      MicroverseWeatherGlyph(
-        bucket: weatherStore.current?.bucket ?? .unknown,
-        isDaylight: weatherStore.current?.isDaylight ?? true,
-        renderMode: weatherAnimationBudget.renderMode(
-          for: .expandedNotch, isVisible: true, reduceMotion: reduceMotion)
-      )
-      .font(MicroverseDesign.Notch.Typography.expandedIcon)
-      .foregroundColor(.white.opacity(0.85))
-      .symbolRenderingMode(.hierarchical)
-      .frame(
-        width: MicroverseDesign.Layout.iconSize + 4, height: MicroverseDesign.Layout.iconSize + 4
-      )
-      .clipped()
+    VStack(alignment: .leading, spacing: MicroverseDesign.Layout.space2) {
+      HStack(spacing: MicroverseDesign.Notch.Spacing.statusSpacing) {
+        MicroverseWeatherGlyph(
+          bucket: weatherStore.current?.bucket ?? .unknown,
+          isDaylight: weatherStore.current?.isDaylight ?? true,
+          renderMode: weatherAnimationBudget.renderMode(
+            for: .expandedNotch, isVisible: true, reduceMotion: reduceMotion)
+        )
+        .font(MicroverseDesign.Notch.Typography.expandedIcon)
+        .foregroundColor(.white.opacity(0.85))
+        .symbolRenderingMode(.hierarchical)
+        .frame(
+          width: MicroverseDesign.Layout.iconSize + 4, height: MicroverseDesign.Layout.iconSize + 4
+        )
+        .clipped()
 
-      VStack(alignment: .leading, spacing: 1) {
-        Text(expandedWeatherTitle)
-          .font(MicroverseDesign.Notch.Typography.expandedLabel)
-          .foregroundColor(MicroverseDesign.Colors.accentSubtle)
-          .tracking(0.8)
-          .lineLimit(1)
+        VStack(alignment: .leading, spacing: 1) {
+          Text(expandedWeatherTitle)
+            .font(MicroverseDesign.Notch.Typography.expandedLabel)
+            .foregroundColor(MicroverseDesign.Colors.accentSubtle)
+            .tracking(0.8)
+            .lineLimit(1)
 
-        Text(expandedWeatherValue)
-          .font(.system(size: 18, weight: .bold, design: .rounded))
-          .foregroundColor(.white)
-          .monospacedDigit()
-          .lineLimit(1)
-      }
+          Text(expandedWeatherValue)
+            .font(.system(size: 18, weight: .bold, design: .rounded))
+            .foregroundColor(.white)
+            .monospacedDigit()
+            .lineLimit(1)
+        }
 
-      Spacer()
+        Spacer(minLength: MicroverseDesign.Layout.space2)
 
-      if let e = weatherStore.nextEvent {
-        TimelineView(.periodic(from: .now, by: 60)) { tl in
-          HStack(spacing: 4) {
-            Text(e.title.lowercased())
-              .font(MicroverseDesign.Notch.Typography.statusText)
-              .foregroundColor(.white.opacity(0.55))
-              .lineLimit(1)
-
-            Text(relativeTime(from: tl.date, to: e.startTime))
-              .font(MicroverseDesign.Notch.Typography.statusText)
-              .foregroundColor(.white.opacity(0.55))
-              .monospacedDigit()
+        HStack(spacing: MicroverseDesign.Layout.space3) {
+          ForEach(upcomingHours, id: \.date) { hour in
+            NotchWeatherHourSlot(
+              hour: hour,
+              temperature: weatherSettings.weatherUnits.formatTemperatureShort(
+                celsius: hour.temperatureC),
+              renderMode: weatherAnimationBudget.renderMode(
+                for: .expandedNotch, isVisible: true, reduceMotion: reduceMotion)
+            )
           }
         }
-      } else {
-        Text("steady")
-          .font(MicroverseDesign.Notch.Typography.statusText)
-          .foregroundColor(.white.opacity(0.45))
+      }
+
+      if let event = weatherStore.nextEvent {
+        weatherWarningRow(for: event)
       }
     }
     .padding(.horizontal, MicroverseDesign.Layout.space2)
     .padding(.vertical, MicroverseDesign.Layout.space2)
     .background(tileBackground)
+  }
+
+  /// Next hour, then every second hour, so four slots cover roughly the next seven hours.
+  private var upcomingHours: [HourlyForecastPoint] {
+    let now = Date()
+    let future = weatherStore.hourly.filter { $0.date > now }
+    return stride(from: 0, to: future.count, by: 2).prefix(4).map { future[$0] }
+  }
+
+  /// Chance of precipitation for the hour the event lands in, not for right now.
+  private func precipChance(at date: Date) -> Double? {
+    weatherStore.hourly.first { $0.date >= date }?.precipChance
+      ?? weatherStore.current?.precipChance
+  }
+
+  private func weatherWarningRow(for event: WeatherEvent) -> some View {
+    let color = WidgetModuleStatusResolver.status(for: event).color
+
+    return TimelineView(.periodic(from: .now, by: 60)) { timeline in
+      HStack(spacing: 6) {
+        Circle()
+          .fill(color)
+          .frame(width: 5, height: 5)
+
+        Text("\(event.title) \(relativeTime(from: timeline.date, to: event.startTime))")
+          .font(MicroverseDesign.Notch.Typography.statusText)
+          .foregroundColor(color.opacity(0.95))
+          .lineLimit(1)
+
+        if event.kind == .precipStart, let chance = precipChance(at: event.startTime) {
+          Text("• \(Int((chance * 100).rounded()))% chance")
+            .font(MicroverseDesign.Notch.Typography.statusText)
+            .foregroundColor(.white.opacity(0.55))
+            .lineLimit(1)
+        }
+
+        Spacer(minLength: 0)
+      }
+    }
   }
 
   private var tileBackground: some View {
@@ -2558,6 +2597,37 @@ private struct NotchMiniMetric: View {
   }
 }
 
+/// One upcoming-hour column in the expanded weather card: hour, condition glyph, temperature.
+private struct NotchWeatherHourSlot: View {
+  let hour: HourlyForecastPoint
+  let temperature: String
+  let renderMode: WeatherRenderMode
+
+  var body: some View {
+    VStack(spacing: 2) {
+      Text(DateFormatter.hourLabelFormatter.string(from: hour.date).lowercased())
+        .font(MicroverseDesign.Notch.Typography.expandedLabel)
+        .foregroundColor(.white.opacity(0.5))
+        .lineLimit(1)
+
+      MicroverseWeatherGlyph(
+        bucket: hour.bucket, isDaylight: hour.isDaylight ?? true, renderMode: renderMode
+      )
+      .font(.system(size: 11, weight: .semibold))
+      .foregroundColor(.white.opacity(0.8))
+      .symbolRenderingMode(.hierarchical)
+      .frame(width: 14, height: 14)
+
+      Text(temperature)
+        .font(.system(size: 11, weight: .bold, design: .rounded))
+        .foregroundColor(.white.opacity(0.9))
+        .monospacedDigit()
+        .lineLimit(1)
+    }
+    .frame(minWidth: 30)
+  }
+}
+
 private struct NotchWiFiStrengthBars: View {
   let bars: Int
 
@@ -2716,6 +2786,13 @@ extension DateFormatter {
   static let elegantTimeFormatter: DateFormatter = {
     let formatter = DateFormatter()
     formatter.dateFormat = "h:mm"
+    return formatter
+  }()
+
+  /// "3pm" style labels for the upcoming-hour slots.
+  static let hourLabelFormatter: DateFormatter = {
+    let formatter = DateFormatter()
+    formatter.dateFormat = "ha"
     return formatter
   }()
 }

@@ -183,6 +183,16 @@ struct WidgetModuleStatusResolver {
     }
   }
 
+  /// Severity of an upcoming forecast event on the same scale, so warning rows match the tiles.
+  static func status(for event: WeatherEvent) -> WidgetModuleStatus {
+    switch event.kind {
+    case .precipStart: return .neutral
+    case .precipStop: return .good
+    case .conditionShift: return event.toBucket == .thunder ? .critical : .fair
+    case .tempRise, .tempDrop: return event.severity >= 0.7 ? .poor : .fair
+    }
+  }
+
   private var upcomingPrecipitation: Bool {
     guard let event = weatherStore?.nextEvent, event.kind == .precipStart else { return false }
     let lead = event.startTime.timeIntervalSinceNow
