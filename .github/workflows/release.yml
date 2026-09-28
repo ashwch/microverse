@@ -392,8 +392,17 @@ jobs:
     - name: Upload App Bundle to Release
       if: steps.check_proceed.outputs.should_proceed == 'true'
       run: |
-        # Create zip of app bundle for additional download option
-        zip -r "${PRODUCT_NAME}-v${{ steps.version.outputs.new_version }}.zip" "$PRODUCT_NAME.app"
+        # Create zip of app bundle for additional download option (this is what Sparkle installs).
+        # `zip -r` follows symlinks and flattens Sparkle.framework, which breaks the bundle's code
+        # signature after extraction; ditto keeps symlinks and resource forks as Apple recommends.
+        ZIP_NAME="${PRODUCT_NAME}-v${{ steps.version.outputs.new_version }}.zip"
+        ditto -c -k --sequesterRsrc --keepParent "$PRODUCT_NAME.app" "$ZIP_NAME"
+
+        # Prove the archive round-trips with a valid signature, exactly as Sparkle will see it.
+        rm -rf zip-check && mkdir zip-check
+        ditto -x -k "$ZIP_NAME" zip-check
+        codesign --verify --deep --strict --verbose=2 "zip-check/$PRODUCT_NAME.app"
+        rm -rf zip-check
         echo "app_zip=${PRODUCT_NAME}-v${{ steps.version.outputs.new_version }}.zip" >> $GITHUB_ENV
         
     - name: Upload App Zip to Release
