@@ -85,11 +85,12 @@ struct WidgetModuleStatusResolver {
 
   /// Follows the charge level even while charging, using the same low/critical thresholds as the
   /// notch battery alerts. Charging is shown separately with a bolt on the icon.
+  /// Bands: red ≤ critical alert, orange ≤ low alert, yellow ≤ 60%, green above.
   private var batteryStatus: WidgetModuleStatus {
-    let battery = viewModel.batteryInfo
-    if battery.currentCharge <= viewModel.notchAlertCriticalBatteryThreshold { return .critical }
-    if battery.currentCharge <= viewModel.notchAlertLowBatteryThreshold { return .poor }
-    if battery.currentCharge <= MicroverseDesign.Notch.Performance.batteryThresholdMedium { return .fair }
+    let charge = viewModel.batteryInfo.currentCharge
+    if charge <= viewModel.notchAlertCriticalBatteryThreshold { return .critical }
+    if charge <= viewModel.notchAlertLowBatteryThreshold { return .poor }
+    if charge <= 60 { return .fair }
     return .good
   }
 
@@ -120,27 +121,58 @@ struct WidgetModuleStatusResolver {
   private var memoryStatus: WidgetModuleStatus { Self.memoryStatus(systemService.memoryInfo) }
 
   /// Static so views that only observe `SystemMonitoringService` can share the thresholds.
+  /// Bands: red > 80%, orange > 60%, yellow > 40%, green below.
   static func cpuStatus(usage: Double) -> WidgetModuleStatus {
     if usage > MicroverseDesign.Notch.Performance.cpuThresholdCritical { return .critical }
     if usage > MicroverseDesign.Notch.Performance.cpuThresholdWarning { return .poor }
+    if usage > 40 { return .fair }
     return .good
   }
 
+  /// Memory pressure wins when the kernel reports it; otherwise grade by how full memory is.
+  /// Bands: red at critical pressure, orange at warning pressure or ≥ 90% used, yellow ≥ 70%,
+  /// green below.
   static func memoryStatus(_ memory: MemoryInfo) -> WidgetModuleStatus {
     switch memory.pressure {
     case .critical: return .critical
     case .warning: return .poor
-    case .normal: return memory.usagePercentage > 85 ? .fair : .good
+    case .normal:
+      if memory.usagePercentage >= 90 { return .poor }
+      if memory.usagePercentage >= 70 { return .fair }
+      return .good
     }
   }
 
+  /// The worst of CPU, memory, and battery. A low battery on the charger is not a health problem.
   private var systemHealthStatus: WidgetModuleStatus {
-    // A low battery on the charger is not a health problem.
     let batteryConcern: WidgetModuleStatus = viewModel.batteryInfo.isPluggedIn ? .good : batteryStatus
-    let worst = [cpuStatus, memoryStatus, batteryConcern]
-    if worst.contains(.critical) { return .critical }
-    if worst.contains(.poor) { return .poor }
+    let all = [cpuStatus, memoryStatus, batteryConcern]
+    for level in [WidgetModuleStatus.critical, .poor, .fair] where all.contains(level) {
+      return level
+    }
     return .good
+  }
+
+  /// Headline for the System Health card. Derived from the status so word and color always agree.
+  var systemHealthHeadline: String {
+    switch status(for: .systemHealth) {
+    case .good: return "Optimal"
+    case .fair: return "Steady"
+    case .poor: return "Strained"
+    case .critical: return "Under pressure"
+    case .neutral, .inactive: return "—"
+    }
+  }
+
+  /// Short form of `systemHealthHeadline` for the small widget tiles.
+  var systemHealthShortLabel: String {
+    switch status(for: .systemHealth) {
+    case .good: return "OK"
+    case .fair: return "Fair"
+    case .poor: return "High"
+    case .critical: return "Critical"
+    case .neutral, .inactive: return "—"
+    }
   }
 
   // MARK: - Connectivity & audio

@@ -1148,19 +1148,7 @@ private struct CustomModularWidget: View {
       return "Normal"
     }
 
-    private var systemHealthText: String {
-      let battery = viewModel.batteryInfo
-      if systemService.cpuUsage > 80 || systemService.memoryInfo.pressure == .critical {
-        return "High Load"
-      }
-      if systemService.cpuUsage > 60 || systemService.memoryInfo.pressure == .warning {
-        return "Moderate"
-      }
-      if !battery.isPluggedIn && battery.currentCharge < 20 {
-        return "Low Battery"
-      }
-      return "Optimal"
-    }
+    private var systemHealthText: String { resolver.systemHealthHeadline }
 
     private var systemHealthDetail: String {
       let battery = viewModel.batteryInfo
@@ -1364,9 +1352,7 @@ private struct CustomModularWidget: View {
         guard let c = weatherStore.current?.temperatureC else { return "—" }
         return weatherSettings.weatherUnits.formatTemperatureShort(celsius: c)
       case .systemHealth:
-        if systemService.cpuUsage > 80 || memory.pressure == .critical { return "High" }
-        if systemService.cpuUsage > 60 || memory.pressure == .warning { return "Moderate" }
-        return "OK"
+        return resolver.systemHealthShortLabel
       }
     }
   }

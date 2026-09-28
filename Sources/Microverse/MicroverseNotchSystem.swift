@@ -2503,17 +2503,7 @@ struct MicroverseExpandedNotchView: View {
   }
 
   private var systemHealthHeadline: String {
-    if systemService.cpuUsage > MicroverseDesign.Notch.Performance.cpuThresholdCritical
-      || systemService.memoryInfo.pressure == .critical
-    {
-      return "Under pressure"
-    } else if systemService.cpuUsage > MicroverseDesign.Notch.Performance.cpuThresholdWarning
-      || systemService.memoryInfo.pressure == .warning
-    {
-      return "Active"
-    } else {
-      return "Optimal"
-    }
+    statusResolver.systemHealthHeadline
   }
 
   // MARK: - Computed Properties
