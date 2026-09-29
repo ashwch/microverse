@@ -47,7 +47,7 @@ struct AlertsTab: View {
         VStack(alignment: .leading, spacing: 6) {
           alertTagGroup("Battery", tags: notchBatteryRuleTags)
 
-          alertTagGroup("Devices", tags: notchDeviceRuleTags)
+          alertTagGroup("Devices & storage", tags: notchDeviceRuleTags)
 
           alertKeyValueRow(
             title: "Startup",
@@ -175,6 +175,17 @@ struct AlertsTab: View {
 
   private var notchDeviceRuleTags: [MicroverseAlertTag] {
     var tags: [MicroverseAlertTag] = []
+
+    if viewModel.notchAlertLowDiskEnabled {
+      tags.append(.init(text: "Disk ≥90%", dot: MicroverseDesign.Colors.warning))
+      let disk = viewModel.diskInfo
+      if disk.totalBytes > 0 {
+        tags.append(
+          .init(
+            text: "Now \(Int(disk.usagePercentage))%",
+            dot: WidgetModuleStatusResolver.diskStatus(disk).color))
+      }
+    }
 
     if viewModel.notchAlertAirPodsLowBatteryEnabled {
       tags.append(

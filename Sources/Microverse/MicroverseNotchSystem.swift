@@ -1268,6 +1268,21 @@ struct MicroverseCompactTrailingView: View {
         isPrimary: false
       )
 
+      // Disk only earns pill space once it needs attention (80% full and up); it lives in the
+      // expanded panel otherwise.
+      if diskNeedsAttention {
+        Circle()
+          .fill(.white.opacity(MicroverseDesign.Notch.Materials.separatorOpacity))
+          .frame(width: 2, height: 2)
+
+        NotchCompactMetric(
+          icon: "internaldrive",
+          value: Int(systemService.diskInfo.usagePercentage),
+          suffix: "%",
+          color: WidgetModuleStatusResolver.diskStatus(systemService.diskInfo).color
+        )
+      }
+
       // Volume rides beside memory only when the center slot cannot show it (physical notch).
       if viewModel.notchShowWiFiAndVolume, hasPhysicalNotch {
         Circle()
@@ -1484,6 +1499,13 @@ struct MicroverseCompactTrailingView: View {
 
   private var airPodsTint: Color {
     viewModel.status.color(for: .audioOutput).opacity(0.85)
+  }
+
+  private var diskNeedsAttention: Bool {
+    switch WidgetModuleStatusResolver.diskStatus(systemService.diskInfo) {
+    case .fair, .poor, .critical: return true
+    default: return false
+    }
   }
 
   private var volumeIcon: String {

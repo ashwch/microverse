@@ -478,7 +478,8 @@ struct SystemStatusWidget: View {
   @StateObject private var systemService = SystemMonitoringService.shared
 
   var body: some View {
-    HStack(spacing: MicroverseDesign.Layout.space4) {
+    // Four columns in 240pt: tight spacing, and values may shrink a little rather than truncate.
+    HStack(spacing: MicroverseDesign.Layout.space2) {
       // Battery Column
       VStack(spacing: MicroverseDesign.Layout.space1) {
         Image(
@@ -490,11 +491,16 @@ struct SystemStatusWidget: View {
         Text("\(batteryInfo.currentCharge)%")
           .font(MicroverseDesign.Typography.title)
           .foregroundColor(.white)
+          .lineLimit(1)
+          .minimumScaleFactor(0.7)
         Text("BATTERY")
           .font(MicroverseDesign.Typography.label)
           .foregroundColor(.white.opacity(0.7))
           .tracking(0.6)
+          .lineLimit(1)
+          .minimumScaleFactor(0.7)
       }
+      .frame(maxWidth: .infinity)
 
       Divider()
         .frame(width: 1)
@@ -508,11 +514,16 @@ struct SystemStatusWidget: View {
         Text("\(Int(systemService.cpuUsage))%")
           .font(MicroverseDesign.Typography.title)
           .foregroundColor(.white)
+          .lineLimit(1)
+          .minimumScaleFactor(0.7)
         Text("CPU")
           .font(MicroverseDesign.Typography.label)
           .foregroundColor(.white.opacity(0.7))
           .tracking(0.6)
+          .lineLimit(1)
+          .minimumScaleFactor(0.7)
       }
+      .frame(maxWidth: .infinity)
 
       Divider()
         .frame(width: 1)
@@ -526,13 +537,42 @@ struct SystemStatusWidget: View {
         Text("\(Int(systemService.memoryInfo.usagePercentage))%")
           .font(MicroverseDesign.Typography.title)
           .foregroundColor(.white)
+          .lineLimit(1)
+          .minimumScaleFactor(0.7)
         Text("MEMORY")
           .font(MicroverseDesign.Typography.label)
           .foregroundColor(.white.opacity(0.7))
           .tracking(0.6)
+          .lineLimit(1)
+          .minimumScaleFactor(0.7)
       }
+      .frame(maxWidth: .infinity)
+
+      Divider()
+        .frame(width: 1)
+        .background(MicroverseDesign.Colors.divider)
+
+      // Disk Column
+      VStack(spacing: MicroverseDesign.Layout.space1) {
+        Image(systemName: "internaldrive")
+          .font(MicroverseDesign.Typography.body)
+          .foregroundColor(diskColor)
+        Text("\(Int(systemService.diskInfo.usagePercentage))%")
+          .font(MicroverseDesign.Typography.title)
+          .foregroundColor(.white)
+          .lineLimit(1)
+          .minimumScaleFactor(0.7)
+        Text("DISK")
+          .font(MicroverseDesign.Typography.label)
+          .foregroundColor(.white.opacity(0.7))
+          .tracking(0.6)
+          .lineLimit(1)
+          .minimumScaleFactor(0.7)
+      }
+      .frame(maxWidth: .infinity)
     }
-    .padding(MicroverseDesign.Layout.space3)
+    .padding(.horizontal, MicroverseDesign.Layout.space2)
+    .padding(.vertical, MicroverseDesign.Layout.space3)
     .frame(width: 240, height: 80)
     .widgetBackground()
   }
@@ -540,6 +580,7 @@ struct SystemStatusWidget: View {
   private var batteryColor: Color { viewModel.status.color(for: .battery) }
   private var cpuColor: Color { WidgetModuleStatusResolver.cpuStatus(usage: systemService.cpuUsage).color }
   private var memoryColor: Color { WidgetModuleStatusResolver.memoryStatus(systemService.memoryInfo).color }
+  private var diskColor: Color { WidgetModuleStatusResolver.diskStatus(systemService.diskInfo).color }
 }
 
 // Visual effect blur
@@ -1595,6 +1636,21 @@ struct SystemDashboardWidget: View {
             .font(.system(size: 14, weight: .bold, design: .rounded))
             .foregroundColor(.white)
           Text("MEMORY")
+            .font(.system(size: 8, weight: .medium))
+            .foregroundColor(.white.opacity(0.6))
+            .tracking(0.5)
+        }
+        .frame(maxWidth: .infinity)
+
+        // Disk
+        VStack(spacing: 1) {
+          Image(systemName: "internaldrive")
+            .font(.system(size: 12))
+            .foregroundColor(resolver.color(for: .disk))
+          Text("\(Int(systemService.diskInfo.usagePercentage))%")
+            .font(.system(size: 14, weight: .bold, design: .rounded))
+            .foregroundColor(.white)
+          Text("DISK")
             .font(.system(size: 8, weight: .medium))
             .foregroundColor(.white.opacity(0.6))
             .tracking(0.5)

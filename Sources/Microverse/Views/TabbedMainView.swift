@@ -1215,6 +1215,19 @@ struct NotchAlertsSection: View {
         DisclosureGroup(isExpanded: $isShowingDeviceRules) {
           VStack(spacing: 6) {
             alertToggleRow(
+              icon: "internaldrive",
+              color: MicroverseDesign.Colors.warning,
+              title: "Low disk space",
+              isOn: $viewModel.notchAlertLowDiskEnabled
+            )
+            if viewModel.notchAlertLowDiskEnabled {
+              Text(diskStatusText)
+                .font(.system(size: 10, weight: .regular))
+                .foregroundColor(.white.opacity(0.55))
+                .padding(.leading, 22)
+            }
+
+            alertToggleRow(
               icon: "airpods",
               color: MicroverseDesign.Colors.critical,
               title: "AirPods low battery",
@@ -1247,7 +1260,7 @@ struct NotchAlertsSection: View {
               .foregroundColor(.white.opacity(0.6))
               .frame(width: 16)
 
-            Text("Devices")
+            Text("Devices & storage")
               .font(MicroverseDesign.Typography.body)
               .foregroundColor(.white.opacity(0.9))
 
@@ -1425,10 +1438,21 @@ struct NotchAlertsSection: View {
   }
 
   private var devicesSummaryText: String {
+    var parts: [String] = []
+    if viewModel.notchAlertLowDiskEnabled { parts.append("Disk") }
     if viewModel.notchAlertAirPodsLowBatteryEnabled {
-      return "Low ≤ \(viewModel.notchAlertAirPodsLowBatteryThreshold)%"
+      parts.append("AirPods ≤ \(viewModel.notchAlertAirPodsLowBatteryThreshold)%")
     }
-    return "Off"
+    return parts.isEmpty ? "Off" : parts.joined(separator: " · ")
+  }
+
+  /// Orange at 90% full or under 10 GB, red at 95% or under 5 GB (the shared disk bands).
+  private var diskStatusText: String {
+    let disk = viewModel.diskInfo
+    guard disk.totalBytes > 0 else { return "Glows at 90% full (orange) and 95% (red)." }
+    return String(
+      format: "Glows at 90%% full (orange) and 95%% (red). Now %d%% used, %.0f GB free.",
+      Int(disk.usagePercentage), disk.availableGB)
   }
 
   private var airPodsStatusText: String? {

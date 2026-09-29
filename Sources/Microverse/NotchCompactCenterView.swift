@@ -13,6 +13,7 @@ struct MicroverseCompactCenterView: View {
   @EnvironmentObject private var weatherStore: WeatherStore
   @EnvironmentObject private var weatherAnimationBudget: WeatherAnimationBudget
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
+  @StateObject private var systemService = SystemMonitoringService.shared
 
   var body: some View {
     HStack(spacing: MicroverseDesign.Notch.Spacing.compactInternal) {
@@ -40,7 +41,19 @@ struct MicroverseCompactCenterView: View {
         separator
         weatherMetric
       }
+
+      // Disk only earns pill space once it needs attention (80% full and up).
+      if diskNeedsAttention {
+        separator
+        NotchCompactMetric(
+          icon: "internaldrive",
+          value: Int(systemService.diskInfo.usagePercentage),
+          suffix: "%",
+          color: WidgetModuleStatusResolver.diskStatus(systemService.diskInfo).color
+        )
+      }
     }
+    .systemMonitoringActive(diskNeedsAttention)
     .frame(height: MicroverseDesign.Notch.Dimensions.compactWidgetHeight)
     .padding(.horizontal, MicroverseDesign.Notch.Spacing.compactHorizontal)
     .padding(.vertical, MicroverseDesign.Notch.Spacing.compactVertical)
@@ -65,6 +78,13 @@ struct MicroverseCompactCenterView: View {
       audio.stop()
     }
     .microverseNotchTapToToggleExpanded(enabled: viewModel.notchClickToToggleExpanded)
+  }
+
+  private var diskNeedsAttention: Bool {
+    switch WidgetModuleStatusResolver.diskStatus(systemService.diskInfo) {
+    case .fair, .poor, .critical: return true
+    default: return false
+    }
   }
 
   private var separator: some View {

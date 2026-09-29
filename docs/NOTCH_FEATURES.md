@@ -17,6 +17,7 @@ Configured in Settings → **Smart Notch**:
 
 - **Left**: all metrics on the left side
 - **Split**: battery on the left, CPU + Memory on the right
+- **Disk**: the expanded panel always shows startup-volume usage as a fourth System Health metric (with "N GB free" in the summary line). The compact pill and the center slot only add the disk metric once it needs attention (80% full and up), so the pill stays short in normal conditions.
 - **Center slot (no physical notch only)**: on external displays or with the lid closed, DynamicNotchKit still reserves a notch-sized gap in the middle. Microverse fills it with Wi‑Fi signal, output volume, and (when enabled for the notch) weather, in the same status colors as the rest of the app. On a screen with a real notch that gap is the camera housing and the slot is never drawn.
 - **Off**: disables notch UI
 
@@ -77,6 +78,7 @@ Implemented in `Sources/Microverse/Weather/WeatherAlertEngine.swift`:
   - Lead time + cooldown configuration
 - Trigger:
   - A glow shortly before the next weather “upcoming change” event (based on lead time), with cooldown protection.
+- Storage rule (Settings → **Alerts** → **Devices & storage** → “Low disk space”, on by default): orange glow when the startup volume crosses 90% full or under 10 GB free, red at 95% or under 5 GB, once per crossing. Polled every five minutes by `BatteryViewModel`, independent of any visible surface.
 
 ### Motion + timing
 

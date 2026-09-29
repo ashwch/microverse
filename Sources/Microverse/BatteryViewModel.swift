@@ -3,6 +3,7 @@ import AppKit
 import Combine
 import Foundation
 import SwiftUI
+import SystemCore
 import os.log
 
 @MainActor
@@ -204,6 +205,20 @@ class BatteryViewModel: ObservableObject {
   // - AirPods don’t expose a simple “battery percent” via CoreAudio.
   // - They often broadcast battery levels via Bluetooth LE advertisements.
   // Microverse treats this as a best-effort, opt-in feature: we only scan when the user enables the rule.
+  /// Glow when the startup volume gets nearly full: orange at the "poor" band, red at "critical"
+  /// (see `WidgetModuleStatusResolver.diskStatus`). Polled independently of the UI so the alert
+  /// fires even when no surface is showing disk.
+  @Published var notchAlertLowDiskEnabled = true {
+    didSet {
+      guard !isLoadingSettings else { return }
+      saveSetting("notchAlertLowDiskEnabled", value: notchAlertLowDiskEnabled)
+      configureDiskAlertMonitoring()
+    }
+  }
+
+  /// Latest disk reading from the alert poll (also handy for the Alerts tab summary).
+  @Published private(set) var diskInfo = DiskInfo()
+
   @Published var notchAlertAirPodsLowBatteryEnabled = false {
     didSet {
       guard !isLoadingSettings else { return }
@@ -293,6 +308,11 @@ class BatteryViewModel: ObservableObject {
   private var hasShownCriticalBatteryAlert = false
   private var previousAirPodsBatteryPercent: Int = -1
   private var hasShownAirPodsLowBatteryAlert = false
+
+  private var diskAlertTask: Task<Void, Never>?
+  /// Last disk status the alert logic saw, so a glow fires once per crossing into a worse band.
+  private var previousDiskStatus: WidgetModuleStatus?
+  private let diskAlertMonitor = SystemMonitor()
   private var isAirPodsBatteryMonitoringActive = false
   private var debugAirPodsBatteryOverrideTask: Task<Void, Never>?
   private var hasPlayedStartupNotchAnimation = false
@@ -333,6 +353,7 @@ class BatteryViewModel: ObservableObject {
     }
 
     configureClamshellWidgetAuto(reason: "init")
+    configureDiskAlertMonitoring()
 
     logger.info("BatteryViewModel initialized")
   }
@@ -697,6 +718,51 @@ class BatteryViewModel: ObservableObject {
     return left ?? right ?? reading.casePercent
   }
 
+  // MARK: - Disk space alert
+
+  /// Disk changes slowly, so a five-minute poll is plenty and costs one `statfs`-class call.
+  private func configureDiskAlertMonitoring() {
+    diskAlertTask?.cancel()
+    diskAlertTask = nil
+    previousDiskStatus = nil
+    guard notchAlertLowDiskEnabled else { return }
+
+    diskAlertTask = Task { @MainActor [weak self] in
+      while !Task.isCancelled {
+        guard let self else { return }
+        let monitor = self.diskAlertMonitor
+        let info = await Task.detached(priority: .utility) { monitor.getDiskInfo() }.value
+        self.diskInfo = info
+        self.checkAndTriggerLowDiskAlert(info)
+        do {
+          try await Task.sleep(for: .seconds(300), tolerance: .seconds(60))
+        } catch {
+          return
+        }
+      }
+    }
+  }
+
+  private func checkAndTriggerLowDiskAlert(_ info: DiskInfo) {
+    let status = WidgetModuleStatusResolver.diskStatus(info)
+    defer { previousDiskStatus = status }
+
+    guard notchAlertLowDiskEnabled, enableNotchAlerts else { return }
+    // First reading only establishes the baseline; a glow needs a crossing into a worse band.
+    guard let previous = previousDiskStatus, status != previous else { return }
+
+    switch status {
+    case .critical:
+      NotchGlowManager.shared.showCritical(duration: 3.0)
+      logger.info("Notch alert: Disk critically full (\(Int(info.usagePercentage))%)")
+    case .poor where previous != .critical:
+      NotchGlowManager.shared.showWarning(duration: 2.0)
+      logger.info("Notch alert: Disk nearly full (\(Int(info.usagePercentage))%)")
+    default:
+      break
+    }
+  }
+
   private func checkAndTriggerAirPodsLowBatteryAlert(currentPercent: Int) {
     defer { previousAirPodsBatteryPercent = currentPercent }
 
@@ -909,6 +975,9 @@ class BatteryViewModel: ObservableObject {
     }
 
     // Load AirPods low battery alert settings (default off)
+    if defaults.object(forKey: "notchAlertLowDiskEnabled") != nil {
+      notchAlertLowDiskEnabled = defaults.bool(forKey: "notchAlertLowDiskEnabled")
+    }
     if defaults.object(forKey: "notchAlertAirPodsLowBatteryEnabled") != nil {
       notchAlertAirPodsLowBatteryEnabled = defaults.bool(
         forKey: "notchAlertAirPodsLowBatteryEnabled")
