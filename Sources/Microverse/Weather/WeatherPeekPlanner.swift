@@ -15,7 +15,9 @@ enum WeatherPeekSlide: Equatable, Identifiable {
   }
 }
 
-/// Next-day summary shown in the evening so the user can plan for it the night before.
+/// Summary of the coming daytime, shown from the evening through the small hours so the user can
+/// plan for it the night before. Before midnight that day is "tomorrow"; after midnight it is
+/// already "today".
 struct WeatherTomorrowOutlook: Equatable {
   enum Hint: Equatable {
     case none, cooler, warmer, rain, snow, storm
@@ -25,11 +27,15 @@ struct WeatherTomorrowOutlook: Equatable {
   var lowC: Double
   var bucket: WeatherConditionBucket
   var hint: Hint
+  /// True once the clock has passed midnight and the day being described has begun.
+  var isToday: Bool
+
+  private var dayWord: String { isToday ? "today" : "tomorrow" }
 
   /// Short label for the compact pill.
   var shortTitle: String {
     switch hint {
-    case .none: return "Tomorrow"
+    case .none: return dayWord.capitalized
     case .cooler: return "Cooler"
     case .warmer: return "Warmer"
     case .rain: return "Rain"
@@ -41,12 +47,12 @@ struct WeatherTomorrowOutlook: Equatable {
   /// Longer label for surfaces with room.
   var title: String {
     switch hint {
-    case .none: return "Tomorrow"
-    case .cooler: return "Cooler tomorrow"
-    case .warmer: return "Warmer tomorrow"
-    case .rain: return "Rain tomorrow"
-    case .snow: return "Snow tomorrow"
-    case .storm: return "Storms tomorrow"
+    case .none: return dayWord.capitalized
+    case .cooler: return "Cooler \(dayWord)"
+    case .warmer: return "Warmer \(dayWord)"
+    case .rain: return "Rain \(dayWord)"
+    case .snow: return "Snow \(dayWord)"
+    case .storm: return "Storms \(dayWord)"
     }
   }
 }
@@ -58,8 +64,11 @@ enum WeatherPeekPlanner {
   static let slideDuration: TimeInterval = 3
   /// At most this many upcoming changes after the current conditions.
   static let maxEvents = 3
-  /// Local hour from which the next day's outlook joins the cycle.
+  /// Local hour from which the coming day's outlook joins the cycle.
   static let eveningHour = 21
+  /// Local hour until which the outlook keeps showing after midnight (the day has not really
+  /// started yet, so it is still planning information).
+  static let lateNightEndHour = 5
   /// A day-to-day swing in the daily high at least this large is worth flagging.
   static let notableDeltaC = 4.0
 
@@ -82,34 +91,41 @@ enum WeatherPeekPlanner {
       .prefix(maxEvents)
     slides.append(contentsOf: upcoming.map(WeatherPeekSlide.event))
 
-    if isEvening(now, timeZone: timeZone),
-      let outlook = tomorrowOutlook(current: current, hourly: hourly, now: now, timeZone: timeZone)
-    {
+    if let outlook = tomorrowOutlook(current: current, hourly: hourly, now: now, timeZone: timeZone) {
       slides.append(.tomorrow(outlook))
     }
     return slides
   }
 
-  static func isEvening(_ now: Date, timeZone: TimeZone) -> Bool {
+  /// The outlook runs from the evening until early morning. Before midnight it describes tomorrow;
+  /// after midnight it describes the day that has just begun. Returns nil outside that window.
+  static func outlookDay(for now: Date, timeZone: TimeZone) -> (day: Date, isToday: Bool)? {
     var calendar = Calendar(identifier: .gregorian)
     calendar.timeZone = timeZone
-    return calendar.component(.hour, from: now) >= eveningHour
+    let hour = calendar.component(.hour, from: now)
+    let today = calendar.startOfDay(for: now)
+    if hour >= eveningHour {
+      return calendar.date(byAdding: .day, value: 1, to: today).map { ($0, false) }
+    }
+    if hour < lateNightEndHour {
+      return (today, true)
+    }
+    return nil
   }
 
-  /// Tomorrow's daytime (7am to 9pm local) high, low, dominant condition, and what to prepare for.
+  /// The coming daytime's (7am to 9pm local) high, low, dominant condition, and what to prepare for.
   static func tomorrowOutlook(
     current: WeatherSnapshot,
     hourly: [HourlyForecastPoint],
     now: Date,
     timeZone: TimeZone
   ) -> WeatherTomorrowOutlook? {
+    guard let (day, isToday) = outlookDay(for: now, timeZone: timeZone) else { return nil }
     var calendar = Calendar(identifier: .gregorian)
     calendar.timeZone = timeZone
-    guard let tomorrow = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: now))
-    else { return nil }
 
     let daytime = hourly.filter { point in
-      calendar.isDate(point.date, inSameDayAs: tomorrow)
+      calendar.isDate(point.date, inSameDayAs: day)
         && (7...21).contains(calendar.component(.hour, from: point.date))
     }
     // Need most of the day to say anything useful.
@@ -119,9 +135,12 @@ enum WeatherPeekPlanner {
     let lowC = daytime.map(\.temperatureC).min() ?? current.temperatureC
     let bucket = dominantBucket(daytime.map(\.bucket))
 
-    let todayHighC = max(
+    // Compare against the day the user just lived through: today's high before midnight, or, after
+    // midnight, yesterday's (the current temperature stands in when no hourly points remain).
+    let referenceDay = isToday ? calendar.date(byAdding: .day, value: -1, to: day) ?? now : now
+    let referenceHighC = max(
       current.temperatureC,
-      hourly.filter { calendar.isDate($0.date, inSameDayAs: now) }.map(\.temperatureC).max()
+      hourly.filter { calendar.isDate($0.date, inSameDayAs: referenceDay) }.map(\.temperatureC).max()
         ?? current.temperatureC)
 
     let hint: WeatherTomorrowOutlook.Hint
@@ -130,15 +149,15 @@ enum WeatherPeekPlanner {
     case .snow: hint = .snow
     case .rain: hint = .rain
     default:
-      if highC - todayHighC <= -notableDeltaC {
+      if highC - referenceHighC <= -notableDeltaC {
         hint = .cooler
-      } else if highC - todayHighC >= notableDeltaC {
+      } else if highC - referenceHighC >= notableDeltaC {
         hint = .warmer
       } else {
         hint = .none
       }
     }
-    return WeatherTomorrowOutlook(highC: highC, lowC: lowC, bucket: bucket, hint: hint)
+    return WeatherTomorrowOutlook(highC: highC, lowC: lowC, bucket: bucket, hint: hint, isToday: isToday)
   }
 
   /// Severe weather wins if it shows up for at least two hours; otherwise the most common bucket.

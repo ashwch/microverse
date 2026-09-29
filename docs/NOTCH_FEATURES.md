@@ -24,7 +24,11 @@ Configured in Settings → **Smart Notch**:
 
 When Weather is enabled (Settings → **Weather**) and “Show in Smart Notch” is on, Microverse can:
 
-- Peek temperature in the compact notch (rotation peeks or event-driven highlights)
+- Peek weather in the compact notch (rotation peeks or event-driven highlights). The peek is a cycle, not a single temperature:
+  1. current conditions and temperature;
+  2. up to three upcoming changes in the next six hours (rain, clearing, storm, fog, cooler, warmer) with their lead time, colored on the shared status scale;
+  3. from 9 PM until 5 AM local, the coming daytime's high/low and a prep hint (cooler, warmer, rain, snow, storms). It says "tomorrow" before midnight and "today" after.
+  Each slide holds 3 s and every slide is laid out up front, so the pill takes its widest slide's width from the first frame and nothing shifts. When nothing is changing there is only the current slide and the peek ends quickly. Logic: `Sources/Microverse/Weather/WeatherPeekPlanner.swift`, view: `Sources/Microverse/Weather/WeatherPeekView.swift`. The desktop widget's weather tile plays the same cycle.
 - Pin temperature in the compact notch (replaces CPU or Memory)
 - Show a small weather row in the expanded notch
 
@@ -34,7 +38,7 @@ When Weather is enabled (Settings → **Weather**) and “Show in Smart Notch”
 
 ## Notch Glow Alerts
 
-Notch Glow Alerts render a glow + sweep + sparkles around the notch pill when key battery events occur.
+Notch Glow Alerts render a glow + sweep + sparkles around the notch pill when key battery events occur. Every trigger is also published app-wide (`NotchGlowInNotchController`), and the desktop widget plays the same animation around its card (`DesktopWidgetGlow` in `Sources/Microverse/DesktopWidget.swift`), so the widget still glows with the lid closed or the notch UI off. The widget window carries a transparent margin for that ring.
 
 ### Rules (when it triggers)
 
