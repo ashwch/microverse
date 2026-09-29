@@ -208,6 +208,12 @@ struct NotchCompactMetric: View {
         self.isPrimary = isPrimary
     }
     
+    private var valueFont: Font {
+        isPrimary
+            ? MicroverseDesign.Notch.Typography.compactValue
+            : MicroverseDesign.Notch.Typography.compactValue.weight(.medium)
+    }
+
     var body: some View {
         HStack(spacing: isPrimary ? MicroverseDesign.Notch.Spacing.compactInternal : MicroverseDesign.Notch.Spacing.compactInternal - 1) {
             Image(systemName: icon)
@@ -217,10 +223,20 @@ struct NotchCompactMetric: View {
                 .frame(width: MicroverseDesign.Layout.iconSizeSmall + 2, alignment: .center) // Prevent icon clipping
             
             HStack(spacing: 1) {
-                Text("\(value)")
-                    .font(isPrimary ? MicroverseDesign.Notch.Typography.compactValue : MicroverseDesign.Notch.Typography.compactValue.weight(.medium))
-                    .foregroundColor(MicroverseDesign.Colors.accent)
-                    .monospacedDigit()
+                // Reserve the width of three digits so the pill does not shift as a value moves
+                // between 9, 10, and 100. The hidden placeholder sets the width; the real value
+                // is right-aligned inside it so the suffix and neighbours never move.
+                ZStack(alignment: .trailing) {
+                    Text("100")
+                        .font(valueFont)
+                        .monospacedDigit()
+                        .hidden()
+
+                    Text("\(value)")
+                        .font(valueFont)
+                        .foregroundColor(MicroverseDesign.Colors.accent)
+                        .monospacedDigit()
+                }
 
                 if let suffix {
                     Text(suffix)
@@ -229,7 +245,6 @@ struct NotchCompactMetric: View {
                         .baselineOffset(1)
                 }
             }
-            .frame(minWidth: MicroverseDesign.Layout.space3, alignment: .leading) // Compact minimum width
         }
         .frame(
             minWidth: MicroverseDesign.Notch.Dimensions.compactWidgetMinWidth,

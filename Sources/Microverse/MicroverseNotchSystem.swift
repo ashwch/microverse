@@ -621,6 +621,19 @@ extension View {
 /// Displays battery percentage with appropriate color coding and charging indicators
 struct MicroverseCompactLeadingView: View {
   @EnvironmentObject var viewModel: BatteryViewModel
+  @EnvironmentObject private var wifi: WiFiStore
+  @Environment(\.dynamicNotchHasPhysicalNotch) private var hasPhysicalNotch
+
+  /// Wi‑Fi rides beside the battery only when the center slot cannot show it (physical notch).
+  private var wantsWiFi: Bool {
+    viewModel.notchShowWiFiAndVolume && hasPhysicalNotch
+  }
+
+  /// The store reports `.unavailable` until it has been started, so start it whenever Wi‑Fi is
+  /// wanted and only hide the metric once the store has actually said there is no interface.
+  private var showsWiFi: Bool {
+    wantsWiFi && wifi.status != .unavailable
+  }
 
   var body: some View {
     HStack(spacing: MicroverseDesign.Notch.Spacing.compactInternal) {
@@ -662,11 +675,26 @@ struct MicroverseCompactLeadingView: View {
         color: batteryColor,
         isPrimary: true
       )
+
+      if showsWiFi {
+        Circle()
+          .fill(.white.opacity(MicroverseDesign.Notch.Materials.separatorOpacity))
+          .frame(width: 2, height: 2)
+
+        NotchCompactMetric(
+          icon: wifi.status == .poweredOff ? "wifi.slash" : "wifi",
+          value: wifi.signalPercent ?? 0,
+          suffix: "%",
+          color: viewModel.status.color(for: .wifi)
+        )
+      }
     }
     .frame(
       minWidth: MicroverseDesign.Notch.Dimensions.compactWidgetMinWidth * 1.3,  // Slightly wider for icon
       minHeight: MicroverseDesign.Notch.Dimensions.compactWidgetHeight
     )
+    .onAppear { if wantsWiFi { wifi.start() } }
+    .onDisappear { if wantsWiFi { wifi.stop() } }
     .padding(.horizontal, MicroverseDesign.Notch.Spacing.compactHorizontal)
     .padding(.vertical, MicroverseDesign.Notch.Spacing.compactVertical)
     .background(
@@ -1151,6 +1179,7 @@ struct MicroverseCompactUnifiedView: View {
 /// Compact system metrics view for the notch trailing edge
 /// Shows CPU and memory usage with semantic color coding
 struct MicroverseCompactTrailingView: View {
+  @Environment(\.dynamicNotchHasPhysicalNotch) private var hasPhysicalNotch
   @EnvironmentObject var viewModel: BatteryViewModel
   @EnvironmentObject private var weatherSettings: WeatherSettingsStore
   @EnvironmentObject private var weatherStore: WeatherStore
@@ -1269,6 +1298,20 @@ struct MicroverseCompactTrailingView: View {
         color: memoryColor,
         isPrimary: false
       )
+
+      // Volume rides beside memory only when the center slot cannot show it (physical notch).
+      if viewModel.notchShowWiFiAndVolume, hasPhysicalNotch {
+        Circle()
+          .fill(.white.opacity(MicroverseDesign.Notch.Materials.separatorOpacity))
+          .frame(width: 2, height: 2)
+
+        NotchCompactMetric(
+          icon: volumeIcon,
+          value: Int(((audio.outputVolume ?? 0) * 100).rounded()),
+          suffix: "%",
+          color: viewModel.status.color(for: .audioOutput)
+        )
+      }
 
       if let model = airPodsModel {
         Circle()
@@ -1508,6 +1551,15 @@ struct MicroverseCompactTrailingView: View {
 
   private var airPodsTint: Color {
     viewModel.status.color(for: .audioOutput).opacity(0.85)
+  }
+
+  private var volumeIcon: String {
+    if audio.outputMuted == true { return "speaker.slash" }
+    let volume = audio.outputVolume ?? 0
+    if volume <= 0.01 { return "speaker" }
+    if volume < 0.34 { return "speaker.wave.1" }
+    if volume < 0.67 { return "speaker.wave.2" }
+    return "speaker.wave.3"
   }
 
   private func growNonPinnedWidth(_ width: CGFloat) {

@@ -251,6 +251,12 @@ class BatteryViewModel: ObservableObject {
   }
 
   // Smart Notch interaction
+  /// Show Wi‑Fi beside the battery and volume beside memory in the compact pill on screens with a
+  /// physical notch. On notchless screens the same metrics live in the center slot instead.
+  @Published var notchShowWiFiAndVolume = true {
+    didSet { saveSetting("notchShowWiFiAndVolume", value: notchShowWiFiAndVolume) }
+  }
+
   @Published var notchClickToToggleExpanded = false {
     didSet {
       saveSetting("notchClickToToggleExpanded", value: notchClickToToggleExpanded)
@@ -921,6 +927,9 @@ class BatteryViewModel: ObservableObject {
     // Load click-to-expand behavior (default off)
     if defaults.object(forKey: "notchClickToToggleExpanded") != nil {
       notchClickToToggleExpanded = defaults.bool(forKey: "notchClickToToggleExpanded")
+    }
+    if defaults.object(forKey: "notchShowWiFiAndVolume") != nil {
+      notchShowWiFiAndVolume = defaults.bool(forKey: "notchShowWiFiAndVolume")
     }
 
     // Note: launchAtStartup is already loaded from LaunchAtStartup.isEnabled

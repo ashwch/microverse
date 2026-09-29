@@ -140,6 +140,7 @@ struct NotchView<Expanded, CompactLeading, CompactTrailing>: View where Expanded
             }
         }
         .frame(height: dynamicNotch.notchSize.height)
+        .environment(\.dynamicNotchHasPhysicalNotch, dynamicNotch.hasPhysicalNotch)
         .onChange(of: dynamicNotch.disableCompactLeading) { _ in
             if dynamicNotch.disableCompactLeading {
                 compactLeadingWidth = 0

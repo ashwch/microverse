@@ -1089,6 +1089,24 @@ struct SmartNotchSection: View {
             .toggleStyle(ElegantToggleStyle())
         }
         .padding(.top, MicroverseDesign.Layout.space2)
+
+        HStack {
+          VStack(alignment: .leading, spacing: 2) {
+            Text("Show Wi‑Fi and volume")
+              .font(MicroverseDesign.Typography.caption)
+              .foregroundColor(.white.opacity(0.7))
+            Text("Beside the pill on a notched screen, in the middle otherwise")
+              .font(.system(size: 10, weight: .regular))
+              .foregroundColor(.white.opacity(0.5))
+          }
+
+          Spacer()
+
+          Toggle("", isOn: $viewModel.notchShowWiFiAndVolume)
+            .labelsHidden()
+            .toggleStyle(ElegantToggleStyle())
+        }
+        .padding(.top, MicroverseDesign.Layout.space2)
       }
     }
     .padding(.horizontal, style == .settings ? MicroverseDesign.Layout.space5 : 12)

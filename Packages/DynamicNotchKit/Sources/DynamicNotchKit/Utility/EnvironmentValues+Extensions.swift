@@ -17,6 +17,10 @@ private struct NotchSectionKey: EnvironmentKey {
     static let defaultValue: DynamicNotchSection = .expanded
 }
 
+private struct HasPhysicalNotchKey: EnvironmentKey {
+    static let defaultValue = true
+}
+
 extension EnvironmentValues {
     var notchStyle: DynamicNotchStyle {
         get { self[NotchStyleKey.self] }
@@ -26,6 +30,13 @@ extension EnvironmentValues {
     var notchSection: DynamicNotchSection {
         get { self[NotchSectionKey.self] }
         set { self[NotchSectionKey.self] = newValue }
+    }
+
+    /// Whether the screen the notch is on has a physical notch. Lets compact content decide what to
+    /// show beside the pill versus in the center slot, which only exists on notchless screens.
+    public var dynamicNotchHasPhysicalNotch: Bool {
+        get { self[HasPhysicalNotchKey.self] }
+        set { self[HasPhysicalNotchKey.self] = newValue }
     }
 }
 
