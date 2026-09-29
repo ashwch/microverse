@@ -77,13 +77,14 @@ struct WeatherPeekView: View {
       let cue = compact ? (outlook.hint == .none ? outlook.dayLabel : outlook.shortTitle) : outlook.title
       let icon = Image(systemName: outlook.bucket.symbolName(isDaylight: true))
       if layout == .narrowRow {
-        // Two short lines fit where one long line would truncate.
-        HStack(spacing: MicroverseDesign.Notch.Spacing.compactInternal) {
+        // Two short lines fit where one long line would truncate. The icon sits on the range
+        // line, not floating between the two lines.
+        HStack(alignment: .bottom, spacing: MicroverseDesign.Notch.Spacing.compactInternal) {
           icon
             .font(iconFont)
             .foregroundColor(.white.opacity(0.85))
             .symbolRenderingMode(.hierarchical)
-            .frame(width: iconWidth, alignment: .center)
+            .frame(width: iconWidth, height: 13, alignment: .center)
 
           VStack(alignment: .leading, spacing: 0) {
             Text(cue)
