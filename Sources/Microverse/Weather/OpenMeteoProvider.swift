@@ -59,7 +59,7 @@ struct OpenMeteoProvider: WeatherProvider {
 
         if mode == .full {
             items.append(URLQueryItem(name: "hourly", value: "temperature_2m,is_day,precipitation_probability,weather_code,wind_speed_10m"))
-            items.append(URLQueryItem(name: "forecast_hours", value: "24"))
+            items.append(URLQueryItem(name: "forecast_hours", value: "48"))
             items.append(URLQueryItem(name: "wind_speed_unit", value: "kmh"))
         }
 

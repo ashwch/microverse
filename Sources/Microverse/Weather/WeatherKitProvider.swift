@@ -52,7 +52,7 @@ struct WeatherKitProvider: WeatherProvider {
             expiration: weather.currentWeather.metadata.expirationDate
         )
 
-        let hourly: [HourlyForecastPoint] = weather.hourlyForecast.forecast.prefix(24).map { hour in
+        let hourly: [HourlyForecastPoint] = weather.hourlyForecast.forecast.prefix(48).map { hour in
             HourlyForecastPoint(
                 date: hour.date,
                 temperatureC: hour.temperature.converted(to: .celsius).value,

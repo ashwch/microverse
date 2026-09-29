@@ -552,25 +552,13 @@ class MicroverseNotchViewModel: ObservableObject, NotchServiceProtocol {
 
 // MARK: - View Measurement Helpers
 
-private struct MicroverseWidthPreferenceKey: PreferenceKey {
-  static let defaultValue: CGFloat = 0
-
-  static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
-    value = nextValue()
-  }
-}
-
 private struct MicroverseReportWidthModifier: ViewModifier {
   let onChange: (CGFloat) -> Void
 
   func body(content: Content) -> some View {
-    content
-      .background {
-        GeometryReader { proxy in
-          Color.clear.preference(key: MicroverseWidthPreferenceKey.self, value: proxy.size.width)
-        }
-      }
-      .onPreferenceChange(MicroverseWidthPreferenceKey.self, perform: onChange)
+    // Direct geometry callback. The earlier preference-key version never delivered a value
+    // through the notch's view tree, which left every stabilised width nil.
+    content.onGeometryChange(for: CGFloat.self, of: { $0.size.width }, action: onChange)
   }
 }
 
@@ -737,7 +725,11 @@ struct MicroverseCompactUnifiedView: View {
   @EnvironmentObject private var audio: AudioDevicesStore
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
   @StateObject private var systemService = SystemMonitoringService.shared
-  @State private var stableNonPinnedWidth: CGFloat?
+  // One remembered width per presentation. Each only ever grows, so the pill never pumps while
+  // a mode is showing, and it takes its own natural width when the mode swaps (the kit animates
+  // that change) instead of padding the weather peek out to the width of the system metrics.
+  @State private var stableSystemWidth: CGFloat?
+  @State private var stableWeatherWidth: CGFloat?
   @State private var stablePinnedWidth: CGFloat?
 
   var body: some View {
@@ -754,7 +746,11 @@ struct MicroverseCompactUnifiedView: View {
             .allowsHitTesting(!showWeather)
             .accessibilityHidden(showWeather)
             .fixedSize(horizontal: true, vertical: false)
-            .microverseReportWidth(growNonPinnedWidth)
+            .microverseReportWidth(growSystemWidth)
+            // The hidden mode must not take up width, or the pill would always be as wide as the
+            // wider of the two and the narrower content would sit off-centre inside it.
+            .frame(width: showWeather ? 0 : nil)
+            .clipped()
 
           unifiedWeatherContent
             .opacity(showWeather ? 1 : 0)
@@ -762,13 +758,15 @@ struct MicroverseCompactUnifiedView: View {
             .allowsHitTesting(showWeather)
             .accessibilityHidden(!showWeather)
             .fixedSize(horizontal: true, vertical: false)
-            .microverseReportWidth(growNonPinnedWidth)
+            .microverseReportWidth(growWeatherWidth)
+            .frame(width: showWeather ? nil : 0)
+            .clipped()
         }
         .compositingGroup()
       }
     }
     .frame(
-      width: pinnedInNotch ? stablePinnedWidth : stableNonPinnedWidth,
+      width: stableWidth,
       height: MicroverseDesign.Notch.Dimensions.compactWidgetHeight, alignment: .leading
     )
     .padding(.horizontal, MicroverseDesign.Notch.Spacing.compactHorizontal)
@@ -904,48 +902,12 @@ struct MicroverseCompactUnifiedView: View {
 
   private var unifiedWeatherContent: some View {
     HStack(spacing: MicroverseDesign.Notch.Spacing.compactInternal) {
-      MicroverseWeatherGlyph(
-        bucket: weatherStore.current?.bucket ?? .unknown,
+      WeatherPeekView(
+        slides: weatherStore.peekSlides(),
+        units: weatherSettings.weatherUnits,
         isDaylight: weatherStore.current?.isDaylight ?? true,
         renderMode: compactWeatherGlyphMode
       )
-      .font(MicroverseDesign.Notch.Typography.compactIcon)
-      .foregroundColor(.white.opacity(0.85))
-      .symbolRenderingMode(.hierarchical)
-      .frame(
-        width: MicroverseDesign.Layout.iconSizeSmall + 2,
-        height: MicroverseDesign.Layout.iconSizeSmall + 2, alignment: .center)
-
-      Text(unifiedTemperatureText)
-        .font(MicroverseDesign.Notch.Typography.compactValue)
-        .foregroundColor(MicroverseDesign.Colors.accent)
-        .monospacedDigit()
-
-      if let e = compactUpcomingEvent {
-        Circle()
-          .fill(.white.opacity(MicroverseDesign.Notch.Materials.separatorOpacity))
-          .frame(width: 2, height: 2)
-
-        Image(
-          systemName: MicroverseWeatherAnnouncement.symbolName(
-            for: e, isDaylight: weatherStore.current?.isDaylight ?? true)
-        )
-        .font(.system(size: 9, weight: .semibold))
-        .foregroundColor(.white.opacity(0.55))
-        .symbolRenderingMode(.hierarchical)
-        .frame(width: 10, alignment: .center)
-
-        TimelineView(.periodic(from: .now, by: 60)) { tl in
-          Text(MicroverseWeatherAnnouncement.relativeTimeShort(from: tl.date, to: e.startTime))
-            .font(MicroverseDesign.Notch.Typography.statusText)
-            .foregroundColor(.white.opacity(0.55))
-            .monospacedDigit()
-        }
-      } else if weatherStore.nextEvent != nil {
-        Circle()
-          .fill(.white.opacity(MicroverseDesign.Notch.Materials.separatorOpacity))
-          .frame(width: 2, height: 2)
-      }
 
       if let model = airPodsModel {
         Circle()
@@ -1129,30 +1091,27 @@ struct MicroverseCompactUnifiedView: View {
     viewModel.status.color(for: .audioOutput).opacity(0.85)
   }
 
-  private func growNonPinnedWidth(_ width: CGFloat) {
-    let maxSaneWidth: CGFloat = 240
-    guard width > 0 else { return }
-    let next = max(stableNonPinnedWidth ?? 0, min(width, maxSaneWidth))
-    guard stableNonPinnedWidth == nil || next > (stableNonPinnedWidth ?? 0) + 0.5 else { return }
-
-    var t = Transaction()
-    t.animation = nil
-    withTransaction(t) {
-      stableNonPinnedWidth = next
+  private var stableWidth: CGFloat? {
+    switch compactPresentation {
+    case .pinned: return stablePinnedWidth
+    case .weather: return stableWeatherWidth
+    case .system: return stableSystemWidth
     }
   }
 
-  private func growPinnedWidth(_ width: CGFloat) {
-    let maxSaneWidth: CGFloat = 240
-    guard width > 0 else { return }
-    let next = max(stablePinnedWidth ?? 0, min(width, maxSaneWidth))
-    guard stablePinnedWidth == nil || next > (stablePinnedWidth ?? 0) + 0.5 else { return }
+  private func growSystemWidth(_ width: CGFloat) { grow(&stableSystemWidth, to: width, cap: 240) }
+  private func growWeatherWidth(_ width: CGFloat) { grow(&stableWeatherWidth, to: width, cap: 240) }
 
+  private func growPinnedWidth(_ width: CGFloat) { grow(&stablePinnedWidth, to: width, cap: 240) }
+
+  /// Widths only ever grow (and never past `cap`), so a mode's pill settles quickly and stays put.
+  private func grow(_ stored: inout CGFloat?, to width: CGFloat, cap: CGFloat) {
+    guard width > 0 else { return }
+    let next = max(stored ?? 0, min(width, cap))
+    guard stored == nil || next > (stored ?? 0) + 0.5 else { return }
     var t = Transaction()
     t.animation = nil
-    withTransaction(t) {
-      stablePinnedWidth = next
-    }
+    withTransaction(t) { stored = next }
   }
 
   private var batteryIcon: String {
@@ -1189,7 +1148,11 @@ struct MicroverseCompactTrailingView: View {
   @EnvironmentObject private var audio: AudioDevicesStore
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
   @StateObject private var systemService = SystemMonitoringService.shared
-  @State private var stableNonPinnedWidth: CGFloat?
+  // One remembered width per presentation. Each only ever grows, so the pill never pumps while
+  // a mode is showing, and it takes its own natural width when the mode swaps (the kit animates
+  // that change) instead of padding the weather peek out to the width of the system metrics.
+  @State private var stableSystemWidth: CGFloat?
+  @State private var stableWeatherWidth: CGFloat?
   @State private var stablePinnedWidth: CGFloat?
 
   var body: some View {
@@ -1206,7 +1169,11 @@ struct MicroverseCompactTrailingView: View {
             .allowsHitTesting(!showWeather)
             .accessibilityHidden(showWeather)
             .fixedSize(horizontal: true, vertical: false)
-            .microverseReportWidth(growNonPinnedWidth)
+            .microverseReportWidth(growSystemWidth)
+            // The hidden mode must not take up width, or the pill would always be as wide as the
+            // wider of the two and the narrower content would sit off-centre inside it.
+            .frame(width: showWeather ? 0 : nil)
+            .clipped()
 
           compactWeatherContent
             .opacity(showWeather ? 1 : 0)
@@ -1214,13 +1181,15 @@ struct MicroverseCompactTrailingView: View {
             .allowsHitTesting(showWeather)
             .accessibilityHidden(!showWeather)
             .fixedSize(horizontal: true, vertical: false)
-            .microverseReportWidth(growNonPinnedWidth)
+            .microverseReportWidth(growWeatherWidth)
+            .frame(width: showWeather ? nil : 0)
+            .clipped()
         }
         .compositingGroup()
       }
     }
     .frame(
-      width: pinnedInNotch ? stablePinnedWidth : stableNonPinnedWidth,
+      width: stableWidth,
       height: MicroverseDesign.Notch.Dimensions.compactWidgetHeight, alignment: .trailing
     )
     .padding(.horizontal, MicroverseDesign.Notch.Spacing.compactHorizontal)
@@ -1349,48 +1318,12 @@ struct MicroverseCompactTrailingView: View {
 
   private var compactWeatherContent: some View {
     HStack(spacing: MicroverseDesign.Notch.Spacing.compactInternal) {
-      MicroverseWeatherGlyph(
-        bucket: weatherStore.current?.bucket ?? .unknown,
+      WeatherPeekView(
+        slides: weatherStore.peekSlides(),
+        units: weatherSettings.weatherUnits,
         isDaylight: weatherStore.current?.isDaylight ?? true,
         renderMode: compactWeatherGlyphMode
       )
-      .font(MicroverseDesign.Notch.Typography.compactIcon)
-      .foregroundColor(.white.opacity(0.85))
-      .symbolRenderingMode(.hierarchical)
-      .frame(
-        width: MicroverseDesign.Layout.iconSizeSmall + 2,
-        height: MicroverseDesign.Layout.iconSizeSmall + 2, alignment: .center)
-
-      Text(compactTemperatureText)
-        .font(MicroverseDesign.Notch.Typography.compactValue)
-        .foregroundColor(MicroverseDesign.Colors.accent)
-        .monospacedDigit()
-
-      if let e = compactUpcomingEvent {
-        Circle()
-          .fill(.white.opacity(MicroverseDesign.Notch.Materials.separatorOpacity))
-          .frame(width: 2, height: 2)
-
-        Image(
-          systemName: MicroverseWeatherAnnouncement.symbolName(
-            for: e, isDaylight: weatherStore.current?.isDaylight ?? true)
-        )
-        .font(.system(size: 9, weight: .semibold))
-        .foregroundColor(.white.opacity(0.55))
-        .symbolRenderingMode(.hierarchical)
-        .frame(width: 10, alignment: .center)
-
-        TimelineView(.periodic(from: .now, by: 60)) { tl in
-          Text(MicroverseWeatherAnnouncement.relativeTimeShort(from: tl.date, to: e.startTime))
-            .font(MicroverseDesign.Notch.Typography.statusText)
-            .foregroundColor(.white.opacity(0.55))
-            .monospacedDigit()
-        }
-      } else if weatherStore.nextEvent != nil {
-        Circle()
-          .fill(.white.opacity(MicroverseDesign.Notch.Materials.separatorOpacity))
-          .frame(width: 2, height: 2)
-      }
 
       if let model = airPodsModel {
         Circle()
@@ -1562,30 +1495,27 @@ struct MicroverseCompactTrailingView: View {
     return "speaker.wave.3"
   }
 
-  private func growNonPinnedWidth(_ width: CGFloat) {
-    let maxSaneWidth: CGFloat = 200
-    guard width > 0 else { return }
-    let next = max(stableNonPinnedWidth ?? 0, min(width, maxSaneWidth))
-    guard stableNonPinnedWidth == nil || next > (stableNonPinnedWidth ?? 0) + 0.5 else { return }
-
-    var t = Transaction()
-    t.animation = nil
-    withTransaction(t) {
-      stableNonPinnedWidth = next
+  private var stableWidth: CGFloat? {
+    switch compactPresentation {
+    case .pinned: return stablePinnedWidth
+    case .weather: return stableWeatherWidth
+    case .system: return stableSystemWidth
     }
   }
 
-  private func growPinnedWidth(_ width: CGFloat) {
-    let maxSaneWidth: CGFloat = 200
-    guard width > 0 else { return }
-    let next = max(stablePinnedWidth ?? 0, min(width, maxSaneWidth))
-    guard stablePinnedWidth == nil || next > (stablePinnedWidth ?? 0) + 0.5 else { return }
+  private func growSystemWidth(_ width: CGFloat) { grow(&stableSystemWidth, to: width, cap: 200) }
+  private func growWeatherWidth(_ width: CGFloat) { grow(&stableWeatherWidth, to: width, cap: 200) }
 
+  private func growPinnedWidth(_ width: CGFloat) { grow(&stablePinnedWidth, to: width, cap: 200) }
+
+  /// Widths only ever grow (and never past `cap`), so a mode's pill settles quickly and stays put.
+  private func grow(_ stored: inout CGFloat?, to width: CGFloat, cap: CGFloat) {
+    guard width > 0 else { return }
+    let next = max(stored ?? 0, min(width, cap))
+    guard stored == nil || next > (stored ?? 0) + 0.5 else { return }
     var t = Transaction()
     t.animation = nil
-    withTransaction(t) {
-      stablePinnedWidth = next
-    }
+    withTransaction(t) { stored = next }
   }
 
   private var cpuColor: Color {

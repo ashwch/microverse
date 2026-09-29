@@ -25,24 +25,23 @@ struct WeatherEventDetector: Sendable {
         var score: Double
     }
 
+    /// Every detected change in the next few hours, soonest first, with stable ids. `nextEvent`
+    /// picks one of these to alert on; the compact weather peek cycles through all of them.
+    func upcomingEvents(payload: WeatherPayload, now: Date, settings: WeatherSettingsSnapshot) -> [WeatherEvent] {
+        guard settings.enabled else { return [] }
+        return candidates(payload: payload, now: now, settings: settings)
+            .map { candidate in
+                var event = candidate.event
+                event.id = stableID(for: event)
+                return event
+            }
+            .sorted { $0.startTime < $1.startTime }
+    }
+
     func nextEvent(payload: WeatherPayload, previous: WeatherEvent?, now: Date, settings: WeatherSettingsSnapshot) -> WeatherEvent? {
         guard settings.enabled else { return nil }
 
-        let horizonHours = 6
-        let horizon = now.addingTimeInterval(TimeInterval(horizonHours) * 3600)
-
-        var candidates: [Candidate] = []
-
-        if let c = precipCandidate(payload: payload, now: now, horizon: horizon, s: settings) {
-            candidates.append(c)
-        }
-        if let c = bucketShiftCandidate(payload: payload, now: now, horizon: horizon) {
-            candidates.append(c)
-        }
-        if let c = tempSwingCandidate(payload: payload, now: now, horizon: horizon, s: settings) {
-            candidates.append(c)
-        }
-
+        let candidates = candidates(payload: payload, now: now, settings: settings)
         guard var best = candidates.max(by: { $0.score < $1.score })?.event else { return nil }
 
         if let prev = previous, isStillValid(prev, now: now) {
@@ -53,6 +52,23 @@ struct WeatherEventDetector: Sendable {
 
         best.id = stableID(for: best)
         return best
+    }
+
+    private func candidates(payload: WeatherPayload, now: Date, settings: WeatherSettingsSnapshot) -> [Candidate] {
+        let horizonHours = 6
+        let horizon = now.addingTimeInterval(TimeInterval(horizonHours) * 3600)
+
+        var candidates: [Candidate] = []
+        if let c = precipCandidate(payload: payload, now: now, horizon: horizon, s: settings) {
+            candidates.append(c)
+        }
+        if let c = bucketShiftCandidate(payload: payload, now: now, horizon: horizon) {
+            candidates.append(c)
+        }
+        if let c = tempSwingCandidate(payload: payload, now: now, horizon: horizon, s: settings) {
+            candidates.append(c)
+        }
+        return candidates
     }
 
     // MARK: - Precip (prefer minutely if available)

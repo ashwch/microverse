@@ -175,9 +175,17 @@ final class DisplayOrchestrator: ObservableObject {
 
     private func beginWeatherPeek(now: Date, duration: TimeInterval, reason: String, snapshot: WeatherSettingsSnapshot) {
         activePeekReason = reason
-        let dwell = max(2.0, snapshot.minDwell)
+
+        // The peek cycles through slides (current, upcoming changes, tomorrow). Hold long enough to
+        // show them all once, but when nothing is changing there is only the current slide, so
+        // circle back to the system metrics quickly instead of sitting on one temperature.
+        let slideCount = weather.peekSlides(now: now).count
+        let cycle = Double(max(1, slideCount)) * WeatherPeekPlanner.slideDuration
+        let planned = slideCount <= 1 ? min(duration, cycle) : max(duration, cycle + 0.5)
+
+        let dwell = min(max(2.0, snapshot.minDwell), planned)
         lockedUntil = max(lockedUntil, now.addingTimeInterval(dwell))
-        weatherUntil = max(weatherUntil, now.addingTimeInterval(max(dwell, duration)))
+        weatherUntil = max(weatherUntil, now.addingTimeInterval(max(dwell, planned)))
 
         #if DEBUG
         logger.debug("Begin peek (\(reason, privacy: .public)) dwell=\(dwell, privacy: .public)s until=\(self.weatherUntil.timeIntervalSince(now), privacy: .public)s nextRotation=\(self.nextRotationAt.timeIntervalSince(now), privacy: .public)s cooldown=\(self.cooldownUntil.timeIntervalSince(now), privacy: .public)s")

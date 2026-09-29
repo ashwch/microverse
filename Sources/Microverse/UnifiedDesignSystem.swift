@@ -214,6 +214,22 @@ struct NotchCompactMetric: View {
             : MicroverseDesign.Notch.Typography.compactValue.weight(.medium)
     }
 
+    private func valueLabel(text: String) -> some View {
+        HStack(spacing: 1) {
+            Text(text)
+                .font(valueFont)
+                .foregroundColor(MicroverseDesign.Colors.accent)
+                .monospacedDigit()
+
+            if let suffix {
+                Text(suffix)
+                    .font(.system(size: 9, weight: isPrimary ? .semibold : .medium, design: .rounded))
+                    .foregroundColor(.white.opacity(0.6))
+                    .baselineOffset(1)
+            }
+        }
+    }
+
     var body: some View {
         HStack(spacing: isPrimary ? MicroverseDesign.Notch.Spacing.compactInternal : MicroverseDesign.Notch.Spacing.compactInternal - 1) {
             Image(systemName: icon)
@@ -222,28 +238,14 @@ struct NotchCompactMetric: View {
                 .symbolRenderingMode(.monochrome)
                 .frame(width: MicroverseDesign.Layout.iconSizeSmall + 2, alignment: .center) // Prevent icon clipping
             
-            HStack(spacing: 1) {
-                // Reserve the width of three digits so the pill does not shift as a value moves
-                // between 9, 10, and 100. The hidden placeholder sets the width; the real value
-                // is right-aligned inside it so the suffix and neighbours never move.
-                ZStack(alignment: .trailing) {
-                    Text("100")
-                        .font(valueFont)
-                        .monospacedDigit()
-                        .hidden()
+            // Every metric reserves the width of "100%" so the pill never shifts as a value moves
+            // between one, two, and three digits. The number stays snug against its icon; the
+            // slack lands after the suffix, where it reads as even spacing before the next metric.
+            ZStack(alignment: .leading) {
+                valueLabel(text: "100")
+                    .hidden()
 
-                    Text("\(value)")
-                        .font(valueFont)
-                        .foregroundColor(MicroverseDesign.Colors.accent)
-                        .monospacedDigit()
-                }
-
-                if let suffix {
-                    Text(suffix)
-                        .font(.system(size: 9, weight: isPrimary ? .semibold : .medium, design: .rounded))
-                        .foregroundColor(.white.opacity(0.6))
-                        .baselineOffset(1)
-                }
+                valueLabel(text: "\(value)")
             }
         }
         .frame(

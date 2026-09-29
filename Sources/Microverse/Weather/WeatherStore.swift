@@ -16,6 +16,8 @@ final class WeatherStore: ObservableObject {
     @Published private(set) var current: WeatherSnapshot?
     @Published private(set) var hourly: [HourlyForecastPoint] = []
     @Published private(set) var nextEvent: WeatherEvent?
+    /// All detected changes in the next few hours, soonest first. `nextEvent` is the one to alert on.
+    @Published private(set) var upcomingEvents: [WeatherEvent] = []
     @Published private(set) var fetchState: WeatherFetchState = .idle
     @Published private(set) var lastUpdated: Date?
     @Published private(set) var lastProvider: WeatherPayload.Provider?
@@ -204,14 +206,24 @@ final class WeatherStore: ObservableObject {
 
         lastProvider = payload.provider
         current = sanitize(snapshot: payload.current)
-        hourly = payload.hourly.prefix(24).map(sanitize(hour:))
+        hourly = payload.hourly.prefix(48).map(sanitize(hour:))
         lastUpdated = payload.fetchedAt
         fetchState = isStale ? .stale : .loaded
 
         let now = Date()
         let previous = nextEvent
-        let event = detector.nextEvent(payload: payload, previous: previous, now: now, settings: settings.snapshot())
+        let snapshot = settings.snapshot()
+        let event = detector.nextEvent(payload: payload, previous: previous, now: now, settings: snapshot)
         if event != previous { nextEvent = event }
+        let upcoming = detector.upcomingEvents(payload: payload, now: now, settings: snapshot)
+        if upcoming != upcomingEvents { upcomingEvents = upcoming }
+    }
+
+    /// What the compact weather peek should cycle through right now.
+    func peekSlides(now: Date = Date()) -> [WeatherPeekSlide] {
+        let timeZone = settings.selectedLocation.flatMap { TimeZone(identifier: $0.timezoneIdentifier) } ?? .current
+        return WeatherPeekPlanner.slides(
+            current: current, hourly: hourly, events: upcomingEvents, now: now, timeZone: timeZone)
     }
 
     private func sanitize(snapshot: WeatherSnapshot) -> WeatherSnapshot {
