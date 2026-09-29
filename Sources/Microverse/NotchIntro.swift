@@ -137,6 +137,13 @@ struct NotchIntroTypingView: View {
       let cursorOn = Int(timeline.date.timeIntervalSinceReferenceDate * 2) % 2 == 0
 
       HStack(spacing: 0) {
+        // The alien leads the word, exactly where it sits in the normal pill, and is there from
+        // the first frame so the letters type out beside it.
+        if segment != .trailing {
+          NotchIntroMascotIcon()
+            .padding(.trailing, 5)
+        }
+
         Text(typed)
           .font(.system(size: 13, weight: .semibold, design: .monospaced))
           .foregroundColor(MicroverseDesign.Colors.mascot)
@@ -167,6 +174,23 @@ struct NotchIntroTypingView: View {
       )
       .opacity(intro.phase == .fadingOut ? 0 : 1)
       .animation(.easeInOut(duration: 0.12), value: intro.typedCount)
+    }
+  }
+}
+
+/// The app icon at the size the compact pill uses, with a soft mascot-green halo for the intro.
+private struct NotchIntroMascotIcon: View {
+  var body: some View {
+    if let appIcon = NSImage(
+      contentsOfFile: Bundle.main.path(forResource: "AppIcon", ofType: "icns") ?? "")
+    {
+      Image(nsImage: appIcon)
+        .resizable()
+        .aspectRatio(contentMode: .fit)
+        .frame(width: 16, height: 16)
+        .clipShape(RoundedRectangle(cornerRadius: 3))
+        .overlay(RoundedRectangle(cornerRadius: 3).stroke(.white.opacity(0.15), lineWidth: 0.5))
+        .shadow(color: MicroverseDesign.Colors.mascot.opacity(0.5), radius: 4)
     }
   }
 }
