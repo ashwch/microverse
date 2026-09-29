@@ -68,7 +68,7 @@ import Darwin
 /// `previousCPUTicks` from a background task, so the read-write is guarded
 /// by `cpuLock`. `getMemoryInfo()` is stateless and needs no lock.
 public final class SystemMonitor: @unchecked Sendable {
-    private let logger = Logger(subsystem: "com.microverse.app", category: "SystemMonitor")
+    let logger = Logger(subsystem: "com.microverse.app", category: "SystemMonitor")
 
     /// A snapshot of the kernel's cumulative CPU tick counters.
     /// Keep this as UInt32 because kernel `natural_t` ticks are UInt32 and
@@ -311,6 +311,55 @@ public final class SystemMonitor: @unchecked Sendable {
         case 2: return .warning
         default: return .normal
         }
+    }
+}
+
+/// Startup-volume capacity.
+///
+/// `availableBytes` is the volume's *available capacity for important usage*: the figure Finder
+/// and System Settings show as "Available". It already accounts for purgeable space the system
+/// would reclaim on demand, which the raw free-block count does not.
+public struct DiskInfo: Sendable, Equatable {
+    public let totalBytes: UInt64
+    public let availableBytes: UInt64
+
+    public init(totalBytes: UInt64 = 0, availableBytes: UInt64 = 0) {
+        self.totalBytes = totalBytes
+        self.availableBytes = availableBytes
+    }
+
+    public var usedBytes: UInt64 { totalBytes > availableBytes ? totalBytes - availableBytes : 0 }
+
+    public var usagePercentage: Double {
+        guard totalBytes > 0 else { return 0 }
+        return Double(usedBytes) / Double(totalBytes) * 100.0
+    }
+
+    /// Decimal gigabytes, as Finder reports them.
+    public var availableGB: Double { Double(availableBytes) / 1_000_000_000 }
+    public var totalGB: Double { Double(totalBytes) / 1_000_000_000 }
+}
+
+extension SystemMonitor {
+    /// Capacity of the startup volume. Cheap (one `statfs`-class call), but it changes slowly, so
+    /// callers sample it far less often than CPU and memory.
+    public func getDiskInfo() -> DiskInfo {
+        let url = URL(fileURLWithPath: "/")
+        let keys: Set<URLResourceKey> = [
+            .volumeTotalCapacityKey,
+            .volumeAvailableCapacityForImportantUsageKey,
+            .volumeAvailableCapacityKey,
+        ]
+        guard let values = try? url.resourceValues(forKeys: keys),
+            let total = values.volumeTotalCapacity
+        else {
+            logger.error("Failed to read startup volume capacity")
+            return DiskInfo()
+        }
+        // Prefer the Finder figure; fall back to the raw free space if the OS does not provide it.
+        let available = values.volumeAvailableCapacityForImportantUsage
+            ?? Int64(values.volumeAvailableCapacity ?? 0)
+        return DiskInfo(totalBytes: UInt64(max(0, total)), availableBytes: UInt64(max(0, available)))
     }
 }
 

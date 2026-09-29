@@ -62,7 +62,14 @@ class SystemMonitoringService: ObservableObject {
     // Published properties for reactive UI updates
     @Published private(set) var cpuUsage: Double = 0
     @Published private(set) var memoryInfo = MemoryInfo()
+    /// Startup-volume capacity. Sampled every `diskSampleEvery` ticks (once a minute) because it
+    /// moves slowly and the value is only ever shown at whole-GB / whole-percent precision.
+    @Published private(set) var diskInfo = DiskInfo()
     @Published private(set) var sampleID: UInt64 = 0
+
+    private let diskSampleEvery = 20
+    /// Starts at the threshold so the very first tick samples the disk.
+    private var ticksSinceDiskSample = 20
     
     private let systemMonitor = SystemMonitor()
     private let logger = Logger(subsystem: "com.microverse.app", category: "SystemMonitoringService")
@@ -141,10 +148,14 @@ class SystemMonitoringService: ObservableObject {
         // Perform system calls off the main actor to avoid blocking UI.
         let systemMonitor = self.systemMonitor
 
-        let (newCpuUsage, newMemoryInfo) = await Task.detached(priority: .utility) {
+        let sampleDisk = ticksSinceDiskSample >= diskSampleEvery
+        ticksSinceDiskSample = sampleDisk ? 1 : ticksSinceDiskSample + 1
+
+        let (newCpuUsage, newMemoryInfo, newDiskInfo) = await Task.detached(priority: .utility) {
             let cpu = systemMonitor.getCPUUsage()
             let memory = systemMonitor.getMemoryInfo()
-            return (cpu, memory)
+            let disk: DiskInfo? = sampleDisk ? systemMonitor.getDiskInfo() : nil
+            return (cpu, memory, disk)
         }.value
 
         // Quantize then compare: only publish when the user-visible value changed.
@@ -160,6 +171,16 @@ class SystemMonitoringService: ObservableObject {
         if quantizedMemoryInfo != memoryInfo {
             memoryInfo = quantizedMemoryInfo
             changed = true
+        }
+        if let newDiskInfo {
+            // Whole-GB granularity: anything finer is invisible in the UI and would churn views.
+            let quantizedDisk = DiskInfo(
+                totalBytes: newDiskInfo.totalBytes,
+                availableBytes: newDiskInfo.availableBytes / 1_000_000_000 * 1_000_000_000)
+            if quantizedDisk != diskInfo {
+                diskInfo = quantizedDisk
+                changed = true
+            }
         }
 
         if changed {

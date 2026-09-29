@@ -59,6 +59,18 @@ struct UnifiedOverviewTab: View {
                             .font(.system(size: 8, weight: .medium))
                             .foregroundColor(.white.opacity(0.7))
                     }
+
+                    VStack(spacing: 2) {
+                        Image(systemName: "internaldrive")
+                            .font(.system(size: 12))
+                            .foregroundColor(resolver.color(for: .disk))
+                        Text("\(Int(systemService.diskInfo.usagePercentage))%")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(.white)
+                        Text("DISK")
+                            .font(.system(size: 8, weight: .medium))
+                            .foregroundColor(.white.opacity(0.7))
+                    }
                 }
             }
             .padding(12)

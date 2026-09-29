@@ -61,6 +61,8 @@ Hard rules for `release.yml` (Sparkle rejects the update otherwise, see `docs/SP
 ## Where to look in code
 
 - Trigger rules: `Sources/Microverse/BatteryViewModel.swift` (`checkAndTriggerAlerts()`)
+- CPU / memory / disk sampling: `Sources/SystemCore/SystemMonitor.swift` (published by `Sources/Microverse/SystemMonitoringService.swift`; disk is sampled once a minute)
+- Status colors and bands for every metric: `Sources/Microverse/WidgetModuleStatus.swift`
 - Wi‑Fi store: `Sources/Microverse/Network/WiFiStore.swift`
 - Network throughput store: `Sources/Microverse/Network/NetworkStore.swift`
 - Audio routing store: `Sources/Microverse/Audio/AudioDevicesStore.swift`

@@ -340,6 +340,7 @@ struct DesktopWidgetView: View {
     case .custom:
       let modules = Set(viewModel.widgetCustomModules)
       return modules.contains(.cpu) || modules.contains(.memory) || modules.contains(.systemHealth)
+        || modules.contains(.disk)
     case .batterySimple:
       return false
     case .cpuMonitor, .memoryMonitor, .systemGlance, .systemStatus, .systemDashboard:
@@ -811,6 +812,9 @@ private struct CustomModularWidget: View {
     let memory = systemService.memoryInfo
 
     switch module {
+    case .disk:
+      // Only urgent once the volume is nearly full.
+      return max(0, min(1, (systemService.diskInfo.usagePercentage - 80) / 15))
     case .systemHealth:
       let batteryScore =
         battery.isPluggedIn ? 0.0 : max(0, min(1, (30 - Double(battery.currentCharge)) / 30))
@@ -1095,6 +1099,8 @@ private struct CustomModularWidget: View {
       case .weather:
         guard let c = weatherStore.current?.temperatureC else { return "—" }
         return weatherSettings.weatherUnits.formatTemperature(celsius: c)
+      case .disk:
+        return String(format: "%.0f GB", systemService.diskInfo.availableGB)
       case .systemHealth:
         return systemHealthText
       }
@@ -1158,6 +1164,9 @@ private struct CustomModularWidget: View {
           return "\(city) • \(e.title) \(rel)"
         }
         return city
+      case .disk:
+        let disk = systemService.diskInfo
+        return String(format: "free of %.0f GB • %d%% used", disk.totalGB, Int(disk.usagePercentage))
       case .systemHealth:
         return systemHealthDetail
       }
@@ -1395,6 +1404,8 @@ private struct CustomModularWidget: View {
       case .weather:
         guard let c = weatherStore.current?.temperatureC else { return "—" }
         return weatherSettings.weatherUnits.formatTemperatureShort(celsius: c)
+      case .disk:
+        return String(format: "%.0f GB", systemService.diskInfo.availableGB)
       case .systemHealth:
         return resolver.systemHealthShortLabel
       }

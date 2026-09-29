@@ -2123,6 +2123,10 @@ struct MicroverseExpandedNotchView: View {
         NotchMiniMetric(
           icon: "memorychip", label: "MEMORY",
           value: "\(Int(systemService.memoryInfo.usagePercentage))%", color: memoryColor)
+        NotchMiniMetric(
+          icon: "internaldrive", label: "DISK",
+          value: "\(Int(systemService.diskInfo.usagePercentage))%",
+          color: WidgetModuleStatusResolver.diskStatus(systemService.diskInfo).color)
       }
 
       Text(systemSummaryLine)
@@ -2456,6 +2460,9 @@ struct MicroverseExpandedNotchView: View {
     parts.append(batteryDetail)
     parts.append(cpuStatusText)
     parts.append(memorySummaryText)
+    if systemService.diskInfo.totalBytes > 0 {
+      parts.append(String(format: "%.0f GB free", systemService.diskInfo.availableGB))
+    }
     return parts.joined(separator: " • ")
   }
 

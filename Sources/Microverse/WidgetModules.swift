@@ -18,6 +18,7 @@ enum WidgetModule: String, CaseIterable, Codable, Sendable, Hashable {
     case audioOutput
     case audioInput
     case weather
+    case disk
     case systemHealth
 
     static let maximumSelection = 5
@@ -41,6 +42,7 @@ enum WidgetModule: String, CaseIterable, Codable, Sendable, Hashable {
         case .audioOutput: return "Audio Output"
         case .audioInput: return "Audio Input"
         case .weather: return "Weather"
+        case .disk: return "Disk"
         case .systemHealth: return "System Health"
         }
     }
@@ -67,6 +69,8 @@ enum WidgetModule: String, CaseIterable, Codable, Sendable, Hashable {
             return "Input device selection"
         case .weather:
             return "Temperature and conditions"
+        case .disk:
+            return "Free space on the startup volume"
         case .systemHealth:
             return "Overall status signal"
         }
@@ -84,6 +88,7 @@ enum WidgetModule: String, CaseIterable, Codable, Sendable, Hashable {
         case .audioOutput: return "speaker.wave.2"
         case .audioInput: return "mic"
         case .weather: return "cloud.sun"
+        case .disk: return "internaldrive"
         case .systemHealth: return "gauge.with.dots.needle.67percent"
         }
     }

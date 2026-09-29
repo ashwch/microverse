@@ -64,8 +64,20 @@ struct WidgetModuleStatusResolver {
     case .audioOutput: return audioOutputStatus
     case .audioInput: return audio.defaultInputDeviceID == nil ? .poor : .good
     case .weather: return weatherStatus
+    case .disk: return Self.diskStatus(systemService.diskInfo)
     case .systemHealth: return systemHealthStatus
     }
+  }
+
+  /// Bands: red when 95% full or under 5 GB left, orange at 90% or under 10 GB, yellow at 80%,
+  /// green below. macOS itself starts complaining in the red band.
+  static func diskStatus(_ disk: DiskInfo) -> WidgetModuleStatus {
+    guard disk.totalBytes > 0 else { return .inactive }
+    let used = disk.usagePercentage
+    if used >= 95 || disk.availableGB < 5 { return .critical }
+    if used >= 90 || disk.availableGB < 10 { return .poor }
+    if used >= 80 { return .fair }
+    return .good
   }
 
   /// SF Symbol for the battery on every surface: a level-aware outline while discharging, and
