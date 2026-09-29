@@ -79,6 +79,11 @@ class DesktopWidgetManager: ObservableObject {
     else { return }
 
     let size = getWidgetSize(for: viewModel.widgetStyle)
+    // The window is larger than the widget by a transparent margin so the alert glow has room
+    // to spill outside the card, exactly as it does around the notch pill.
+    let windowSize = NSSize(
+      width: size.width + DesktopWidgetGlow.margin * 2,
+      height: size.height + DesktopWidgetGlow.margin * 2)
     let widgetView = AnyView(
       DesktopWidgetView()
         .environmentObject(viewModel)
@@ -88,13 +93,16 @@ class DesktopWidgetManager: ObservableObject {
         .environmentObject(weatherStore)
         .environmentObject(displayOrchestrator)
         .environmentObject(weatherAnimationBudget)
+        .frame(width: size.width, height: size.height)
+        .overlay(DesktopWidgetGlow.Decoration(contentSize: size))
+        .padding(DesktopWidgetGlow.margin)
     )
 
     // The hosting view must match the window size exactly or the content gets clipped.
     hostingView = NSHostingView(rootView: widgetView)
-    hostingView?.frame = NSRect(origin: .zero, size: size)
+    hostingView?.frame = NSRect(origin: .zero, size: windowSize)
 
-    let window = DesktopWidgetWindow(size: size)
+    let window = DesktopWidgetWindow(size: windowSize)
     window.contentView = hostingView
     window.onDragEnded = { frame in DesktopWidgetPlacement.save(frame) }
     window.setFrameOrigin(DesktopWidgetPlacement.origin(for: size))
@@ -190,6 +198,42 @@ enum DesktopWidgetPlacement {
     guard let screen = NSScreen.main ?? NSScreen.screens.first else { return .zero }
     let area = screen.visibleFrame
     return NSPoint(x: area.maxX - size.width - cornerInset, y: area.maxY - size.height - cornerInset)
+  }
+}
+
+/// Alert glow around the desktop widget card, driven by the same triggers as the notch glow.
+enum DesktopWidgetGlow {
+  /// Transparent room around the card for blur and sparkles.
+  static let margin: CGFloat = 28
+  /// Matches `widgetBackground()`.
+  static let cornerRadius: CGFloat = 16
+
+  struct Decoration: View {
+    let contentSize: NSSize
+    @ObservedObject private var controller = NotchGlowInNotchController.shared
+
+    var body: some View {
+      if let trigger = controller.current {
+        NotchGlowView(
+          alertType: trigger.type,
+          pillWidth: contentSize.width,
+          pillHeight: contentSize.height,
+          topCornerRadius: DesktopWidgetGlow.cornerRadius,
+          bottomCornerRadius: DesktopWidgetGlow.cornerRadius,
+          glowPadding: DesktopWidgetGlow.margin,
+          rotations: trigger.pulseCount,
+          motion: trigger.motion,
+          animationDuration: trigger.duration,
+          outline: .roundedRectangle
+        )
+        .id(trigger.id)
+        // Make room for blur and sparkles, then align the padded container back onto the card.
+        .frame(
+          width: contentSize.width + DesktopWidgetGlow.margin * 2,
+          height: contentSize.height + DesktopWidgetGlow.margin * 2)
+        .allowsHitTesting(false)
+      }
+    }
   }
 }
 
@@ -915,7 +959,7 @@ private struct CustomModularWidget: View {
           iconView
             .frame(width: 16, height: 16, alignment: .center)
 
-          Text(module.title.uppercased())
+          Text(primaryTitle.uppercased())
             .font(.system(size: 9, weight: .semibold))
             .foregroundColor(.white.opacity(0.55))
             .tracking(0.8)
@@ -930,22 +974,35 @@ private struct CustomModularWidget: View {
             .accessibilityHidden(true)
         }
 
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
-          Text(primaryValue)
-            .font(.system(size: 18, weight: .bold, design: .rounded))
-            .foregroundColor(status.tintsValue ? status.color : .white)
-            .monospacedDigit()
-            .lineLimit(1)
-            .minimumScaleFactor(0.85)
-            .layoutPriority(1)
-
-          if let detail = primaryDetail {
-            Text(detail)
-              .font(.system(size: 10, weight: .medium))
-              .foregroundColor(.white.opacity(0.6))
+        if module == .weather {
+          // Same cycling peek as the notch: conditions, upcoming changes, tomorrow in the evening.
+          WeatherPeekView(
+            slides: weatherStore.peekSlides(),
+            units: weatherSettings.weatherUnits,
+            isDaylight: weatherStore.current?.isDaylight ?? true,
+            renderMode: weatherAnimationBudget.renderMode(
+              for: .desktopWidget, isVisible: true, reduceMotion: reduceMotion),
+            compact: false
+          )
+          .frame(maxWidth: .infinity, alignment: .leading)
+        } else {
+          HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Text(primaryValue)
+              .font(.system(size: 18, weight: .bold, design: .rounded))
+              .foregroundColor(status.tintsValue ? status.color : .white)
+              .monospacedDigit()
               .lineLimit(1)
-              .truncationMode(.tail)
-              .minimumScaleFactor(0.8)
+              .minimumScaleFactor(0.85)
+              .layoutPriority(1)
+
+            if let detail = primaryDetail {
+              Text(detail)
+                .font(.system(size: 10, weight: .medium))
+                .foregroundColor(.white.opacity(0.6))
+                .lineLimit(1)
+                .truncationMode(.tail)
+                .minimumScaleFactor(0.8)
+            }
           }
         }
       }
@@ -1026,6 +1083,14 @@ private struct CustomModularWidget: View {
       case .good, .fair: return .white.opacity(opacity)
       default: return status.color
       }
+    }
+
+    /// The weather card is titled by its city; every other module keeps its name.
+    private var primaryTitle: String {
+      guard module == .weather,
+        let city = weatherSettings.selectedLocation?.microversePrimaryName(), !city.isEmpty
+      else { return module.title }
+      return city
     }
 
     private var primaryValue: String {
@@ -1230,15 +1295,26 @@ private struct CustomModularWidget: View {
       let isCritical = status == .critical
 
       HStack(spacing: 8) {
-        secondaryIcon(module, status: status)
-          .frame(width: 12, height: 12)
+        if module == .weather {
+          // The small tile cycles the same peek as the notch pill.
+          WeatherPeekView(
+            slides: weatherStore.peekSlides(),
+            units: weatherSettings.weatherUnits,
+            isDaylight: weatherStore.current?.isDaylight ?? true,
+            renderMode: weatherAnimationBudget.renderMode(
+              for: .desktopWidget, isVisible: true, reduceMotion: reduceMotion)
+          )
+        } else {
+          secondaryIcon(module, status: status)
+            .frame(width: 12, height: 12)
 
-        Text(secondaryValue(module))
-          .font(.system(size: 12, weight: .bold, design: .rounded))
-          .foregroundColor(status.tintsValue ? status.color : .white.opacity(0.9))
-          .monospacedDigit()
-          .lineLimit(1)
-          .minimumScaleFactor(0.75)
+          Text(secondaryValue(module))
+            .font(.system(size: 12, weight: .bold, design: .rounded))
+            .foregroundColor(status.tintsValue ? status.color : .white.opacity(0.9))
+            .monospacedDigit()
+            .lineLimit(1)
+            .minimumScaleFactor(0.75)
+        }
 
         Spacer(minLength: 0)
       }

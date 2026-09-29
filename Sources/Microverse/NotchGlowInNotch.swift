@@ -1,6 +1,8 @@
 import Foundation
 import SwiftUI
 
+/// App-wide feed of glow triggers. The notch decoration and the desktop widget both observe it;
+/// whichever surfaces are visible play the animation.
 @MainActor
 final class NotchGlowInNotchController: ObservableObject {
     static let shared = NotchGlowInNotchController()

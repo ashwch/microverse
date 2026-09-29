@@ -126,6 +126,10 @@ class NotchGlowManager {
     func showAlert(type: NotchAlertType, duration: TimeInterval = 2.0, pulseCount: Int = 2, motion: NotchGlowMotion? = nil) {
         let resolvedMotion = motion ?? type.defaultMotion
 
+        // Publish first: the in-notch decoration and the desktop widget both listen, so the widget
+        // glows even when the notch UI is off (lid closed, notch disabled).
+        NotchGlowInNotchController.shared.trigger(type: type, duration: duration, pulseCount: pulseCount, motion: resolvedMotion)
+
         // Preferred path: render the glow inside the DynamicNotchKit pill coordinate space.
         // This avoids external overlay math (physical notch vs software pill) and matches SwiftUI transforms like `.offset(x:)`.
         if
@@ -133,7 +137,6 @@ class NotchGlowManager {
             notchService.layoutMode != .off,
             notchService.isNotchVisible
         {
-            NotchGlowInNotchController.shared.trigger(type: type, duration: duration, pulseCount: pulseCount, motion: resolvedMotion)
             return
         }
 
@@ -367,6 +370,12 @@ private final class ZeroSafeAreaHostingView<Content: View>: NSHostingView<Conten
 }
 
 struct NotchGlowView: View {
+    /// What the glow traces: the notch pill (flat top, rounded bottom) or a plain rounded rectangle.
+    enum Outline {
+        case notchPill
+        case roundedRectangle
+    }
+
     let alertType: NotchAlertType
     let pillWidth: CGFloat
     let pillHeight: CGFloat
@@ -376,6 +385,7 @@ struct NotchGlowView: View {
     let rotations: Int
     let motion: NotchGlowMotion
     let animationDuration: TimeInterval
+    var outline: Outline = .notchPill
 
     @State private var sweepProgress: Double = 0
     @State private var opacity: Double = 1
@@ -388,7 +398,8 @@ struct NotchGlowView: View {
     var body: some View {
         GeometryReader { proxy in
             let size = proxy.size
-            let shape = NotchPillShape(
+            let shape = NotchGlowOutlineShape(
+                outline: outline,
                 topCornerRadius: topCornerRadius,
                 bottomCornerRadius: bottomCornerRadius
             )
@@ -562,16 +573,25 @@ struct NotchGlowView: View {
     }
 }
 
-private struct NotchPillShape: Shape {
+/// The path the glow strokes. Sparkles always sit on the flat bottom edge, which both outlines share.
+private struct NotchGlowOutlineShape: Shape {
+    let outline: NotchGlowView.Outline
     private var topCornerRadius: CGFloat
     private var bottomCornerRadius: CGFloat
 
-    init(topCornerRadius: CGFloat, bottomCornerRadius: CGFloat) {
+    init(outline: NotchGlowView.Outline, topCornerRadius: CGFloat, bottomCornerRadius: CGFloat) {
+        self.outline = outline
         self.topCornerRadius = topCornerRadius
         self.bottomCornerRadius = bottomCornerRadius
     }
 
     func path(in rect: CGRect) -> Path {
+        if outline == .roundedRectangle {
+            // Start at the bottom-left corner so the sweep runs along the visible bottom edge first,
+            // matching where the pill's sweep begins.
+            return RoundedRectangle(cornerRadius: bottomCornerRadius, style: .continuous).path(in: rect)
+        }
+
         var path = Path()
 
         path.move(to: CGPoint(x: rect.minX, y: rect.minY))
