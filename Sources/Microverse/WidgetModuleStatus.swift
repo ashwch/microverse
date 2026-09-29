@@ -168,10 +168,12 @@ struct WidgetModuleStatusResolver {
     }
   }
 
-  /// The worst of CPU, memory, and battery. A low battery on the charger is not a health problem.
+  /// The worst of CPU, memory, disk, and battery. A low battery on the charger is not a health
+  /// problem, and an unknown disk (no reading yet) does not count.
   private var systemHealthStatus: WidgetModuleStatus {
     let batteryConcern: WidgetModuleStatus = viewModel.batteryInfo.isPluggedIn ? .good : batteryStatus
-    let worst = [cpuStatus, memoryStatus, batteryConcern]
+    let diskConcern = Self.diskStatus(systemService.diskInfo)
+    let worst = [cpuStatus, memoryStatus, batteryConcern, diskConcern == .inactive ? .good : diskConcern]
     if worst.contains(.critical) { return .critical }
     if worst.contains(.poor) { return .poor }
     if worst.contains(.fair) { return .fair }
