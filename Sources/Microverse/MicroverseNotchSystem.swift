@@ -1099,12 +1099,14 @@ struct MicroverseCompactUnifiedView: View {
     }
   }
 
-  private func growSystemWidth(_ width: CGFloat) { grow(&stableSystemWidth, to: width, cap: 240) }
-  private func growWeatherWidth(_ width: CGFloat) { grow(&stableWeatherWidth, to: width, cap: 240) }
+  private func growSystemWidth(_ width: CGFloat) { grow(&stableSystemWidth, to: width, cap: 400) }
+  private func growWeatherWidth(_ width: CGFloat) { grow(&stableWeatherWidth, to: width, cap: 400) }
 
-  private func growPinnedWidth(_ width: CGFloat) { grow(&stablePinnedWidth, to: width, cap: 240) }
+  private func growPinnedWidth(_ width: CGFloat) { grow(&stablePinnedWidth, to: width, cap: 400) }
 
-  /// Widths only ever grow (and never past `cap`), so a mode's pill settles quickly and stays put.
+  /// Widths only ever grow (and never past `cap`, a sanity ceiling well above any real pill), so a
+  /// mode's pill settles quickly and stays put. A cap below the content width would clip the pill
+  /// under the notch, because the frame is trailing-aligned.
   private func grow(_ stored: inout CGFloat?, to width: CGFloat, cap: CGFloat) {
     guard width > 0 else { return }
     let next = max(stored ?? 0, min(width, cap))
@@ -1268,8 +1270,9 @@ struct MicroverseCompactTrailingView: View {
         isPrimary: false
       )
 
-      // Disk only earns pill space once it needs attention (80% full and up); it lives in the
-      // expanded panel otherwise.
+      // The pill has room for one metric after CPU and memory before it runs into the menu bar
+      // icons. Disk takes that slot once it needs attention (80% full and up), otherwise volume
+      // does (on a physical notch only; the center slot shows volume elsewhere).
       if diskNeedsAttention {
         Circle()
           .fill(.white.opacity(MicroverseDesign.Notch.Materials.separatorOpacity))
@@ -1281,10 +1284,7 @@ struct MicroverseCompactTrailingView: View {
           suffix: "%",
           color: WidgetModuleStatusResolver.diskStatus(systemService.diskInfo).color
         )
-      }
-
-      // Volume rides beside memory only when the center slot cannot show it (physical notch).
-      if viewModel.notchShowWiFiAndVolume, hasPhysicalNotch {
+      } else if viewModel.notchShowWiFiAndVolume, hasPhysicalNotch {
         Circle()
           .fill(.white.opacity(MicroverseDesign.Notch.Materials.separatorOpacity))
           .frame(width: 2, height: 2)
@@ -1525,12 +1525,14 @@ struct MicroverseCompactTrailingView: View {
     }
   }
 
-  private func growSystemWidth(_ width: CGFloat) { grow(&stableSystemWidth, to: width, cap: 200) }
-  private func growWeatherWidth(_ width: CGFloat) { grow(&stableWeatherWidth, to: width, cap: 200) }
+  private func growSystemWidth(_ width: CGFloat) { grow(&stableSystemWidth, to: width, cap: 400) }
+  private func growWeatherWidth(_ width: CGFloat) { grow(&stableWeatherWidth, to: width, cap: 400) }
 
-  private func growPinnedWidth(_ width: CGFloat) { grow(&stablePinnedWidth, to: width, cap: 200) }
+  private func growPinnedWidth(_ width: CGFloat) { grow(&stablePinnedWidth, to: width, cap: 400) }
 
-  /// Widths only ever grow (and never past `cap`), so a mode's pill settles quickly and stays put.
+  /// Widths only ever grow (and never past `cap`, a sanity ceiling well above any real pill), so a
+  /// mode's pill settles quickly and stays put. A cap below the content width would clip the pill
+  /// under the notch, because the frame is trailing-aligned.
   private func grow(_ stored: inout CGFloat?, to width: CGFloat, cap: CGFloat) {
     guard width > 0 else { return }
     let next = max(stored ?? 0, min(width, cap))
