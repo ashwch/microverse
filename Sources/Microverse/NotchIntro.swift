@@ -38,8 +38,6 @@ final class NotchIntroController: ObservableObject {
     showsText || phase == .lights
   }
 
-  var isActive: Bool { phase != .done }
-
   /// Call before the notch appears so the first frame is the empty typing pill, not the metrics.
   func prepare() {
     phase = .typing
@@ -96,6 +94,8 @@ struct NotchIntroTypingView: View {
 
   @ObservedObject private var intro = NotchIntroController.shared
 
+  private static let font = Font.system(size: 13, weight: .semibold, design: .monospaced)
+
   /// Characters this segment is responsible for.
   private var range: Range<Int> {
     let text = NotchIntroController.text
@@ -114,12 +114,13 @@ struct NotchIntroTypingView: View {
     return String(text[range.lowerBound..<end])
   }
 
-  /// The cursor lives in whichever segment is being typed, and stays at the end once done.
+  /// The cursor follows the typing: it stays in the leading segment until that segment is full,
+  /// then moves to the trailing one and stays at the end.
   private var ownsCursor: Bool {
     switch segment {
     case .whole: return true
     case .leading: return intro.typedCount < range.upperBound
-    case .trailing: return intro.typedCount >= range.upperBound - (range.count - 1)
+    case .trailing: return intro.typedCount > range.lowerBound
     }
   }
 
@@ -140,24 +141,24 @@ struct NotchIntroTypingView: View {
         // The alien leads the word, exactly where it sits in the normal pill, and is there from
         // the first frame so the letters type out beside it.
         if segment != .trailing {
-          NotchIntroMascotIcon()
+          MicroverseAppIconBadge(halo: MicroverseDesign.Colors.mascot)
             .padding(.trailing, 5)
         }
 
         Text(typed)
-          .font(.system(size: 13, weight: .semibold, design: .monospaced))
+          .font(Self.font)
           .foregroundColor(MicroverseDesign.Colors.mascot)
           .shadow(color: MicroverseDesign.Colors.mascot.opacity(0.6), radius: 4)
 
-        // Block cursor keeps its slot while blinking so the pill width never twitches.
+        // Block cursor: solid while typing, blinking once the word is complete. It keeps its slot
+        // either way so the pill width never twitches.
         if ownsCursor {
           Text("▍")
-            .font(.system(size: 13, weight: .semibold, design: .monospaced))
+            .font(Self.font)
             .foregroundColor(MicroverseDesign.Colors.mascot)
-            .opacity(cursorOn || intro.phase == .typing ? 1 : 0)
+            .opacity(intro.phase == .typing || cursorOn ? 1 : 0)
         }
       }
-      .monospacedDigit()
       .frame(height: MicroverseDesign.Notch.Dimensions.compactWidgetHeight)
       .padding(.horizontal, MicroverseDesign.Notch.Spacing.compactHorizontal + 4)
       .padding(.vertical, MicroverseDesign.Notch.Spacing.compactVertical)
@@ -178,20 +179,29 @@ struct NotchIntroTypingView: View {
   }
 }
 
-/// The app icon at the size the compact pill uses, with a soft mascot-green halo for the intro.
-private struct NotchIntroMascotIcon: View {
+/// The app icon at compact-pill size (16pt, rounded), with an optional halo. Falls back to a
+/// lettered tile if the icon resource is missing. Shared by the normal pill and the launch intro.
+struct MicroverseAppIconBadge: View {
+  var halo: Color? = nil
+
   var body: some View {
-    if let appIcon = NSImage(
-      contentsOfFile: Bundle.main.path(forResource: "AppIcon", ofType: "icns") ?? "")
-    {
-      Image(nsImage: appIcon)
-        .resizable()
-        .aspectRatio(contentMode: .fit)
-        .frame(width: 16, height: 16)
-        .clipShape(RoundedRectangle(cornerRadius: 3))
-        .overlay(RoundedRectangle(cornerRadius: 3).stroke(.white.opacity(0.15), lineWidth: 0.5))
-        .shadow(color: MicroverseDesign.Colors.mascot.opacity(0.5), radius: 4)
+    Group {
+      if let appIcon = NSImage(
+        contentsOfFile: Bundle.main.path(forResource: "AppIcon", ofType: "icns") ?? "")
+      {
+        Image(nsImage: appIcon)
+          .resizable()
+          .aspectRatio(contentMode: .fit)
+      } else {
+        RoundedRectangle(cornerRadius: 3)
+          .fill(.white.opacity(0.2))
+          .overlay(Text("M").font(.system(size: 9, weight: .bold)).foregroundColor(.white))
+      }
     }
+    .frame(width: 16, height: 16)
+    .clipShape(RoundedRectangle(cornerRadius: 3))
+    .overlay(RoundedRectangle(cornerRadius: 3).stroke(.white.opacity(0.15), lineWidth: 0.5))
+    .shadow(color: halo?.opacity(0.5) ?? .clear, radius: halo == nil ? 0 : 4)
   }
 }
 

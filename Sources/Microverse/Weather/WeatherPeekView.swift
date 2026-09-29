@@ -72,7 +72,7 @@ struct WeatherPeekView: View {
       // Both temperatures always show, with a cue for which day: the weekday ("Tue"), "Today"
       // after midnight, or the hint when there is something to prepare for ("Cooler"). Roomy
       // surfaces get the full title ("Cooler tomorrow").
-      let range = "H:" + units.formatTemperatureShort(celsius: outlook.highC)
+      let highLow = "H:" + units.formatTemperatureShort(celsius: outlook.highC)
         + " L:" + units.formatTemperatureShort(celsius: outlook.lowC)
       let cue = compact ? (outlook.hint == .none ? outlook.dayLabel : outlook.shortTitle) : outlook.title
       let icon = Image(systemName: outlook.bucket.symbolName(isDaylight: true))
@@ -91,7 +91,7 @@ struct WeatherPeekView: View {
               .font(.system(size: 8, weight: .semibold))
               .foregroundColor(.white.opacity(0.6))
               .lineLimit(1)
-            Text(range)
+            Text(highLow)
               .font(.system(size: 10, weight: .bold, design: .rounded))
               .foregroundColor(MicroverseDesign.Colors.accent)
               .monospacedDigit()
@@ -100,7 +100,7 @@ struct WeatherPeekView: View {
           }
         }
       } else {
-        slideBody(icon: icon, tint: .white.opacity(0.85), primary: range, detail: .text(cue))
+        slideBody(icon: icon, tint: .white.opacity(0.85), primary: highLow, detail: .text(cue))
       }
     }
   }

@@ -89,6 +89,16 @@ final class AudioDevicesStore: ObservableObject {
   @Published private(set) var outputVolume: Float?
   @Published private(set) var canSetOutputVolume: Bool = false
   @Published private(set) var outputMuted: Bool?
+
+  /// Speaker glyph for the current output level: slashed when muted, more waves as volume rises.
+  var outputSymbolName: String {
+    if outputMuted == true { return "speaker.slash" }
+    let volume = outputVolume ?? 0
+    if volume <= 0.01 { return "speaker" }
+    if volume < 0.34 { return "speaker.wave.1" }
+    if volume < 0.67 { return "speaker.wave.2" }
+    return "speaker.wave.3"
+  }
   @Published private(set) var canSetOutputMute: Bool = false
 
   @Published private(set) var lastUpdated: Date?

@@ -1200,11 +1200,7 @@ private struct CustomModularWidget: View {
       case .audioInput:
         return "Default input"
       case .weather:
-        let city = weatherSettings.selectedLocation?.microversePrimaryName() ?? "—"
-        if let e = upcomingEvent, let rel = relativeTime(to: e.startTime) {
-          return "\(city) • \(e.title) \(rel)"
-        }
-        return city
+        return nil  // The weather tile shows the peek carousel instead of value + detail.
       case .disk:
         let disk = systemService.diskInfo
         return String(format: "free of %.0f GB • %d%% used", disk.totalGB, Int(disk.usagePercentage))
@@ -1236,24 +1232,6 @@ private struct CustomModularWidget: View {
       let battery = viewModel.batteryInfo
       let mem = memoryPressureText
       return "CPU \(Int(systemService.cpuUsage))% • Mem \(mem) • \(battery.currentCharge)%"
-    }
-
-    private var upcomingEvent: WeatherEvent? {
-      guard let e = weatherStore.nextEvent else { return nil }
-      let now = Date()
-      guard e.startTime > now else { return nil }
-      guard e.startTime.timeIntervalSince(now) <= 30 * 60 else { return nil }
-      return e
-    }
-
-    private func relativeTime(to date: Date) -> String? {
-      let seconds = date.timeIntervalSince(Date())
-      if seconds <= 0 { return nil }
-      if seconds < 60 { return "\(Int(seconds))s" }
-      let minutes = Int((seconds / 60).rounded(.down))
-      if minutes < 60 { return "\(minutes)m" }
-      let hours = Int((Double(minutes) / 60).rounded(.down))
-      return "\(hours)h"
     }
 
     private func shortTimeRemaining(_ battery: BatteryInfo) -> String {

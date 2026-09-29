@@ -31,6 +31,11 @@ enum WidgetModuleStatus: Equatable {
   var tintsValue: Bool {
     self == .poor || self == .critical
   }
+
+  /// Anything short of good: used to decide when a metric earns space in the compact pill.
+  var needsAttention: Bool {
+    self == .fair || self == .poor || self == .critical
+  }
 }
 
 /// Resolves a `WidgetModuleStatus` for each module from the live stores. The desktop widget tiles

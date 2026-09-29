@@ -636,30 +636,8 @@ struct MicroverseCompactLeadingView: View {
 
   private var metricsBody: some View {
     HStack(spacing: MicroverseDesign.Notch.Spacing.compactInternal) {
-      // App branding with actual app icon
-      if let appIcon = NSImage(
-        contentsOfFile: Bundle.main.path(forResource: "AppIcon", ofType: "icns") ?? "")
-      {
-        Image(nsImage: appIcon)
-          .resizable()
-          .aspectRatio(contentMode: .fit)
-          .frame(width: 16, height: 16)
-          .clipShape(RoundedRectangle(cornerRadius: 3))
-          .overlay(
-            RoundedRectangle(cornerRadius: 3)
-              .stroke(.white.opacity(0.15), lineWidth: 0.5)
-          )
-      } else {
-        // Fallback if app icon isn't found
-        RoundedRectangle(cornerRadius: 3)
-          .fill(.white.opacity(0.2))
-          .frame(width: 16, height: 16)
-          .overlay(
-            Text("M")
-              .font(.system(size: 9, weight: .bold))
-              .foregroundColor(.white)
-          )
-      }
+      // App branding
+      MicroverseAppIconBadge()
 
       // Subtle separator
       Circle()
@@ -676,9 +654,7 @@ struct MicroverseCompactLeadingView: View {
       )
 
       if showsWiFi {
-        Circle()
-          .fill(.white.opacity(MicroverseDesign.Notch.Materials.separatorOpacity))
-          .frame(width: 2, height: 2)
+        NotchSeparatorDot()
 
         NotchCompactMetric(
           icon: wifi.status == .poweredOff ? "wifi.slash" : "wifi",
@@ -736,12 +712,8 @@ struct MicroverseCompactUnifiedView: View {
   @EnvironmentObject private var audio: AudioDevicesStore
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
   @StateObject private var systemService = SystemMonitoringService.shared
-  // One remembered width per presentation. Each only ever grows, so the pill never pumps while
-  // a mode is showing, and it takes its own natural width when the mode swaps (the kit animates
-  // that change) instead of padding the weather peek out to the width of the system metrics.
-  @State private var stableSystemWidth: CGFloat?
-  @State private var stableWeatherWidth: CGFloat?
-  @State private var stablePinnedWidth: CGFloat?
+  /// Widest width each presentation has needed, so the pill never pumps (see the type's docs).
+  @State private var widths = NotchPillWidthMemory()
 
   @ObservedObject private var intro = NotchIntroController.shared
 
@@ -759,7 +731,7 @@ struct MicroverseCompactUnifiedView: View {
       if pinnedInNotch {
         unifiedPinnedContent
           .fixedSize(horizontal: true, vertical: false)
-          .microverseReportWidth(growPinnedWidth)
+          .microverseReportWidth { widths.remember($0, for: .pinned) }
       } else {
         ZStack {
           unifiedSystemContent
@@ -768,7 +740,7 @@ struct MicroverseCompactUnifiedView: View {
             .allowsHitTesting(!showWeather)
             .accessibilityHidden(showWeather)
             .fixedSize(horizontal: true, vertical: false)
-            .microverseReportWidth(growSystemWidth)
+            .microverseReportWidth { widths.remember($0, for: .system) }
             // The hidden mode must not take up width, or the pill would always be as wide as the
             // wider of the two and the narrower content would sit off-centre inside it.
             .frame(width: showWeather ? 0 : nil)
@@ -780,7 +752,7 @@ struct MicroverseCompactUnifiedView: View {
             .allowsHitTesting(showWeather)
             .accessibilityHidden(!showWeather)
             .fixedSize(horizontal: true, vertical: false)
-            .microverseReportWidth(growWeatherWidth)
+            .microverseReportWidth { widths.remember($0, for: .weather) }
             .frame(width: showWeather ? nil : 0)
             .clipped()
         }
@@ -788,7 +760,7 @@ struct MicroverseCompactUnifiedView: View {
       }
     }
     .frame(
-      width: stableWidth,
+      width: widths.width(for: compactPresentation),
       height: MicroverseDesign.Notch.Dimensions.compactWidgetHeight, alignment: .leading
     )
     .padding(.horizontal, MicroverseDesign.Notch.Spacing.compactHorizontal)
@@ -816,11 +788,7 @@ struct MicroverseCompactUnifiedView: View {
     .microverseNotchTapToToggleExpanded(enabled: viewModel.notchClickToToggleExpanded)
   }
 
-  private enum CompactPresentation: Equatable {
-    case system
-    case weather
-    case pinned
-  }
+  private typealias CompactPresentation = NotchPillWidthMemory.Presentation
 
   private var compactPresentation: CompactPresentation {
     if pinnedInNotch { return .pinned }
@@ -1113,30 +1081,7 @@ struct MicroverseCompactUnifiedView: View {
     viewModel.status.color(for: .audioOutput).opacity(0.85)
   }
 
-  private var stableWidth: CGFloat? {
-    switch compactPresentation {
-    case .pinned: return stablePinnedWidth
-    case .weather: return stableWeatherWidth
-    case .system: return stableSystemWidth
-    }
-  }
 
-  private func growSystemWidth(_ width: CGFloat) { grow(&stableSystemWidth, to: width, cap: 400) }
-  private func growWeatherWidth(_ width: CGFloat) { grow(&stableWeatherWidth, to: width, cap: 400) }
-
-  private func growPinnedWidth(_ width: CGFloat) { grow(&stablePinnedWidth, to: width, cap: 400) }
-
-  /// Widths only ever grow (and never past `cap`, a sanity ceiling well above any real pill), so a
-  /// mode's pill settles quickly and stays put. A cap below the content width would clip the pill
-  /// under the notch, because the frame is trailing-aligned.
-  private func grow(_ stored: inout CGFloat?, to width: CGFloat, cap: CGFloat) {
-    guard width > 0 else { return }
-    let next = max(stored ?? 0, min(width, cap))
-    guard stored == nil || next > (stored ?? 0) + 0.5 else { return }
-    var t = Transaction()
-    t.animation = nil
-    withTransaction(t) { stored = next }
-  }
 
   private var batteryIcon: String {
     viewModel.status.batteryIconName
@@ -1172,12 +1117,8 @@ struct MicroverseCompactTrailingView: View {
   @EnvironmentObject private var audio: AudioDevicesStore
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
   @StateObject private var systemService = SystemMonitoringService.shared
-  // One remembered width per presentation. Each only ever grows, so the pill never pumps while
-  // a mode is showing, and it takes its own natural width when the mode swaps (the kit animates
-  // that change) instead of padding the weather peek out to the width of the system metrics.
-  @State private var stableSystemWidth: CGFloat?
-  @State private var stableWeatherWidth: CGFloat?
-  @State private var stablePinnedWidth: CGFloat?
+  /// Widest width each presentation has needed, so the pill never pumps (see the type's docs).
+  @State private var widths = NotchPillWidthMemory()
 
   @ObservedObject private var intro = NotchIntroController.shared
 
@@ -1195,7 +1136,7 @@ struct MicroverseCompactTrailingView: View {
       if pinnedInNotch {
         compactPinnedContent
           .fixedSize(horizontal: true, vertical: false)
-          .microverseReportWidth(growPinnedWidth)
+          .microverseReportWidth { widths.remember($0, for: .pinned) }
       } else {
         ZStack {
           compactSystemContent
@@ -1204,7 +1145,7 @@ struct MicroverseCompactTrailingView: View {
             .allowsHitTesting(!showWeather)
             .accessibilityHidden(showWeather)
             .fixedSize(horizontal: true, vertical: false)
-            .microverseReportWidth(growSystemWidth)
+            .microverseReportWidth { widths.remember($0, for: .system) }
             // The hidden mode must not take up width, or the pill would always be as wide as the
             // wider of the two and the narrower content would sit off-centre inside it.
             .frame(width: showWeather ? 0 : nil)
@@ -1216,7 +1157,7 @@ struct MicroverseCompactTrailingView: View {
             .allowsHitTesting(showWeather)
             .accessibilityHidden(!showWeather)
             .fixedSize(horizontal: true, vertical: false)
-            .microverseReportWidth(growWeatherWidth)
+            .microverseReportWidth { widths.remember($0, for: .weather) }
             .frame(width: showWeather ? nil : 0)
             .clipped()
         }
@@ -1224,7 +1165,7 @@ struct MicroverseCompactTrailingView: View {
       }
     }
     .frame(
-      width: stableWidth,
+      width: widths.width(for: compactPresentation),
       height: MicroverseDesign.Notch.Dimensions.compactWidgetHeight, alignment: .trailing
     )
     .padding(.horizontal, MicroverseDesign.Notch.Spacing.compactHorizontal)
@@ -1253,11 +1194,7 @@ struct MicroverseCompactTrailingView: View {
     .microverseNotchTapToToggleExpanded(enabled: viewModel.notchClickToToggleExpanded)
   }
 
-  private enum CompactPresentation: Equatable {
-    case system
-    case weather
-    case pinned
-  }
+  private typealias CompactPresentation = NotchPillWidthMemory.Presentation
 
   private var compactPresentation: CompactPresentation {
     if pinnedInNotch { return .pinned }
@@ -1307,9 +1244,7 @@ struct MicroverseCompactTrailingView: View {
       // icons. Disk takes that slot once it needs attention (80% full and up), otherwise volume
       // does (on a physical notch only; the center slot shows volume elsewhere).
       if diskNeedsAttention {
-        Circle()
-          .fill(.white.opacity(MicroverseDesign.Notch.Materials.separatorOpacity))
-          .frame(width: 2, height: 2)
+        NotchSeparatorDot()
 
         NotchCompactMetric(
           icon: "internaldrive",
@@ -1318,12 +1253,10 @@ struct MicroverseCompactTrailingView: View {
           color: WidgetModuleStatusResolver.diskStatus(systemService.diskInfo).color
         )
       } else if viewModel.notchShowWiFiAndVolume, hasPhysicalNotch {
-        Circle()
-          .fill(.white.opacity(MicroverseDesign.Notch.Materials.separatorOpacity))
-          .frame(width: 2, height: 2)
+        NotchSeparatorDot()
 
         NotchCompactMetric(
-          icon: volumeIcon,
+          icon: audio.outputSymbolName,
           value: Int(((audio.outputVolume ?? 0) * 100).rounded()),
           suffix: "%",
           color: viewModel.status.color(for: .audioOutput)
@@ -1535,45 +1468,10 @@ struct MicroverseCompactTrailingView: View {
   }
 
   private var diskNeedsAttention: Bool {
-    switch WidgetModuleStatusResolver.diskStatus(systemService.diskInfo) {
-    case .fair, .poor, .critical: return true
-    default: return false
-    }
+    WidgetModuleStatusResolver.diskStatus(systemService.diskInfo).needsAttention
   }
 
-  private var volumeIcon: String {
-    if audio.outputMuted == true { return "speaker.slash" }
-    let volume = audio.outputVolume ?? 0
-    if volume <= 0.01 { return "speaker" }
-    if volume < 0.34 { return "speaker.wave.1" }
-    if volume < 0.67 { return "speaker.wave.2" }
-    return "speaker.wave.3"
-  }
 
-  private var stableWidth: CGFloat? {
-    switch compactPresentation {
-    case .pinned: return stablePinnedWidth
-    case .weather: return stableWeatherWidth
-    case .system: return stableSystemWidth
-    }
-  }
-
-  private func growSystemWidth(_ width: CGFloat) { grow(&stableSystemWidth, to: width, cap: 400) }
-  private func growWeatherWidth(_ width: CGFloat) { grow(&stableWeatherWidth, to: width, cap: 400) }
-
-  private func growPinnedWidth(_ width: CGFloat) { grow(&stablePinnedWidth, to: width, cap: 400) }
-
-  /// Widths only ever grow (and never past `cap`, a sanity ceiling well above any real pill), so a
-  /// mode's pill settles quickly and stays put. A cap below the content width would clip the pill
-  /// under the notch, because the frame is trailing-aligned.
-  private func grow(_ stored: inout CGFloat?, to width: CGFloat, cap: CGFloat) {
-    guard width > 0 else { return }
-    let next = max(stored ?? 0, min(width, cap))
-    guard stored == nil || next > (stored ?? 0) + 0.5 else { return }
-    var t = Transaction()
-    t.animation = nil
-    withTransaction(t) { stored = next }
-  }
 
   private var cpuColor: Color {
     WidgetModuleStatusResolver.cpuStatus(usage: systemService.cpuUsage).color
@@ -2474,16 +2372,7 @@ struct MicroverseExpandedNotchView: View {
     return audio.outputDevices.first(where: { $0.id == id })
   }
 
-  private var audioIcon: String {
-    if audio.outputMuted == true {
-      return "speaker.slash"
-    }
-    let v = audio.outputVolume ?? 0
-    if v <= 0.01 { return "speaker" }
-    if v < 0.34 { return "speaker.wave.1" }
-    if v < 0.67 { return "speaker.wave.2" }
-    return "speaker.wave.3"
-  }
+  private var audioIcon: String { audio.outputSymbolName }
 
   private var audioColor: Color {
     resolver.color(for: .audioOutput).opacity(0.85)

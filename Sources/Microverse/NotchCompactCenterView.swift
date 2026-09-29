@@ -24,27 +24,24 @@ struct MicroverseCompactCenterView: View {
           suffix: "%",
           color: viewModel.status.color(for: .wifi)
         )
-      }
-
-      if wifi.status != .unavailable {
-        separator
+        NotchSeparatorDot()
       }
 
       NotchCompactMetric(
-        icon: audioIcon,
+        icon: audio.outputSymbolName,
         value: Int(((audio.outputVolume ?? 0) * 100).rounded()),
         suffix: "%",
         color: viewModel.status.color(for: .audioOutput)
       )
 
       if showWeather {
-        separator
+        NotchSeparatorDot()
         weatherMetric
       }
 
       // Disk only earns pill space once it needs attention (80% full and up).
       if diskNeedsAttention {
-        separator
+        NotchSeparatorDot()
         NotchCompactMetric(
           icon: "internaldrive",
           value: Int(systemService.diskInfo.usagePercentage),
@@ -81,16 +78,7 @@ struct MicroverseCompactCenterView: View {
   }
 
   private var diskNeedsAttention: Bool {
-    switch WidgetModuleStatusResolver.diskStatus(systemService.diskInfo) {
-    case .fair, .poor, .critical: return true
-    default: return false
-    }
-  }
-
-  private var separator: some View {
-    Circle()
-      .fill(.white.opacity(MicroverseDesign.Notch.Materials.separatorOpacity))
-      .frame(width: 2, height: 2)
+    WidgetModuleStatusResolver.diskStatus(systemService.diskInfo).needsAttention
   }
 
   private var weatherMetric: some View {
@@ -128,14 +116,5 @@ struct MicroverseCompactCenterView: View {
     case .connected, .disconnected: return "wifi"
     case .poweredOff, .unavailable: return "wifi.slash"
     }
-  }
-
-  private var audioIcon: String {
-    if audio.outputMuted == true { return "speaker.slash" }
-    let volume = audio.outputVolume ?? 0
-    if volume <= 0.01 { return "speaker" }
-    if volume < 0.34 { return "speaker.wave.1" }
-    if volume < 0.67 { return "speaker.wave.2" }
-    return "speaker.wave.3"
   }
 }

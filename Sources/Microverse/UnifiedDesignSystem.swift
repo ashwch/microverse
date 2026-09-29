@@ -194,6 +194,15 @@ enum MicroverseDesign {
 
 // MARK: - Unified Components
 
+/// The two-point dot that separates metrics inside a compact pill.
+struct NotchSeparatorDot: View {
+    var body: some View {
+        Circle()
+            .fill(.white.opacity(MicroverseDesign.Notch.Materials.separatorOpacity))
+            .frame(width: 2, height: 2)
+    }
+}
+
 /// Notch-specific compact metric component with proper design system compliance
 struct NotchCompactMetric: View {
     let icon: String
