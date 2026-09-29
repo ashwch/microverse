@@ -628,7 +628,7 @@ struct MicroverseCompactLeadingView: View {
   var body: some View {
     // Launch: the pill types "microverse" here, then hands over to the metrics.
     if intro.showsText {
-      NotchIntroTypingView()
+      NotchIntroTypingView(segment: .leading)
     } else {
       metricsBody.notchIntroMetrics()
     }
@@ -1182,7 +1182,12 @@ struct MicroverseCompactTrailingView: View {
   @ObservedObject private var intro = NotchIntroController.shared
 
   var body: some View {
-    metricsBody.notchIntroMetrics()
+    // Launch: the word continues here ("verse") after the leading slot types "micro".
+    if intro.showsText {
+      NotchIntroTypingView(segment: .trailing)
+    } else {
+      metricsBody.notchIntroMetrics()
+    }
   }
 
   private var metricsBody: some View {

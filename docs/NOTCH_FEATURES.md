@@ -41,7 +41,7 @@ When Weather is enabled (Settings → **Weather**) and “Show in Smart Notch”
 
 When the notch UI is enabled and “startup animation” is on (Settings → Alerts), launching plays a short sequence in the compact pill, in whichever layout the user has:
 
-1. “microverse” types out letter by letter in mascot green, monospaced, with a blinking block cursor (an old-phone-keypad feel);
+1. “microverse” types out letter by letter in mascot green, monospaced, with a blinking block cursor (an old-phone-keypad feel). In the **Split** layout the word crosses the notch: “micro” types in the left slot, then “verse” continues in the right slot; in **Left** the whole word types on the left;
 2. it holds, then fades;
 3. the startup glow runs around the empty notch;
 4. the metrics fade in under the remaining light passes.

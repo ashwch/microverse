@@ -82,13 +82,59 @@ final class NotchIntroController: ObservableObject {
 }
 
 /// The typing pill: monospaced, mascot green, blinking block cursor.
+///
+/// In the split layout the word flows across the notch: the leading slot types "micro", then the
+/// trailing slot continues with "verse". The left-only layout types the whole word in one pill.
 struct NotchIntroTypingView: View {
+  enum Segment {
+    case whole
+    case leading
+    case trailing
+  }
+
+  var segment: Segment = .whole
+
   @ObservedObject private var intro = NotchIntroController.shared
 
+  /// Characters this segment is responsible for.
+  private var range: Range<Int> {
+    let text = NotchIntroController.text
+    let split = 5  // "micro" | "verse"
+    switch segment {
+    case .whole: return 0..<text.count
+    case .leading: return 0..<split
+    case .trailing: return split..<text.count
+    }
+  }
+
+  private var typed: String {
+    let text = Array(NotchIntroController.text)
+    let end = min(intro.typedCount, range.upperBound)
+    guard end > range.lowerBound else { return "" }
+    return String(text[range.lowerBound..<end])
+  }
+
+  /// The cursor lives in whichever segment is being typed, and stays at the end once done.
+  private var ownsCursor: Bool {
+    switch segment {
+    case .whole: return true
+    case .leading: return intro.typedCount < range.upperBound
+    case .trailing: return intro.typedCount >= range.upperBound - (range.count - 1)
+    }
+  }
+
   var body: some View {
+    // The trailing pill only appears once typing reaches it, so the word visibly crosses the notch.
+    if segment == .trailing, intro.typedCount <= range.lowerBound {
+      EmptyView()
+    } else {
+      pill
+    }
+  }
+
+  private var pill: some View {
     TimelineView(.periodic(from: .now, by: 0.5)) { timeline in
       let cursorOn = Int(timeline.date.timeIntervalSinceReferenceDate * 2) % 2 == 0
-      let typed = String(NotchIntroController.text.prefix(intro.typedCount))
 
       HStack(spacing: 0) {
         Text(typed)
@@ -97,10 +143,12 @@ struct NotchIntroTypingView: View {
           .shadow(color: MicroverseDesign.Colors.mascot.opacity(0.6), radius: 4)
 
         // Block cursor keeps its slot while blinking so the pill width never twitches.
-        Text("▍")
-          .font(.system(size: 13, weight: .semibold, design: .monospaced))
-          .foregroundColor(MicroverseDesign.Colors.mascot)
-          .opacity(cursorOn || intro.phase == .typing ? 1 : 0)
+        if ownsCursor {
+          Text("▍")
+            .font(.system(size: 13, weight: .semibold, design: .monospaced))
+            .foregroundColor(MicroverseDesign.Colors.mascot)
+            .opacity(cursorOn || intro.phase == .typing ? 1 : 0)
+        }
       }
       .monospacedDigit()
       .frame(height: MicroverseDesign.Notch.Dimensions.compactWidgetHeight)
