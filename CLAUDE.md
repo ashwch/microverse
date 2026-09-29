@@ -42,6 +42,8 @@ If you touch notch/glow behavior:
 - Prefer staying in-tree (decoration overlay).
 - Treat external overlay windows as a fallback only (e.g. notch UI disabled).
 
+The vendored kit also has a second Microverse hook: `setCompactCenter` fills the reserved notch width with content when the screen has no physical notch (`hasPhysicalNotch == false`). Microverse uses it for Wi‑Fi, volume, and weather in `Sources/Microverse/NotchCompactCenterView.swift`.
+
 ## Release checklist (high level)
 
 1. Merge to `main`

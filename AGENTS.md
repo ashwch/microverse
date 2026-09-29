@@ -40,6 +40,9 @@ Docs:
 
 ## When changing DynamicNotchKit
 
-DynamicNotchKit is vendored under `Packages/DynamicNotchKit` because Microverse patches it with a “decoration overlay” hook used for the glow.
+DynamicNotchKit is vendored under `Packages/DynamicNotchKit` because Microverse patches it with:
 
-If you update/replace the vendored package, ensure the glow decoration hook is preserved or re-implemented.
+- a “decoration overlay” hook used for the glow (`setDecoration`), and
+- a “compact center” slot (`setCompactCenter`, `hasPhysicalNotch`) that fills the reserved notch width on screens without a physical notch (external displays, closed lid). On a real notch that width is the camera housing and the slot is never rendered.
+
+If you update/replace the vendored package, ensure both hooks are preserved or re-implemented. Also keep the package free of `@Entry` / `#Preview` macros (see `CLAUDE.md`).

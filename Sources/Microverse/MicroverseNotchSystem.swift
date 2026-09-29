@@ -319,6 +319,19 @@ class MicroverseNotchViewModel: ObservableObject, NotchServiceProtocol {
       MicroverseNotchGlowDecorationView()
     }
 
+    // On screens without a physical notch the kit still reserves a notch-sized gap in the middle.
+    // Fill it with Wi‑Fi, volume, and weather instead of leaving it empty; on a real notch this is
+    // never rendered.
+    notch.setCompactCenter {
+      MicroverseCompactCenterView()
+        .environmentObject(batteryViewModel)
+        .environmentObject(batteryViewModel.wifiStore)
+        .environmentObject(batteryViewModel.audioDevicesStore)
+        .environmentObject(weatherSettings)
+        .environmentObject(weatherStore)
+        .environmentObject(weatherAnimationBudget)
+    }
+
     // Show on the resolved notched screen.
     let targetScreen = screens[targetIndex]
     await notch.compact(on: targetScreen)
@@ -596,7 +609,7 @@ private struct MicroverseNotchTapToToggleExpandedModifier: ViewModifier {
 }
 
 extension View {
-  fileprivate func microverseNotchTapToToggleExpanded(enabled: Bool) -> some View {
+  func microverseNotchTapToToggleExpanded(enabled: Bool) -> some View {
     modifier(MicroverseNotchTapToToggleExpandedModifier(enabled: enabled))
   }
 }

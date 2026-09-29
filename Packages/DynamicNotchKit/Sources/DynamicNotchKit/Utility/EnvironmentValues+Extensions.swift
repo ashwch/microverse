@@ -32,5 +32,7 @@ extension EnvironmentValues {
 enum DynamicNotchSection {
     case expanded
     case compactLeading
+    /// The reserved notch width in the middle, only rendered on screens without a physical notch.
+    case compactCenter
     case compactTrailing
 }

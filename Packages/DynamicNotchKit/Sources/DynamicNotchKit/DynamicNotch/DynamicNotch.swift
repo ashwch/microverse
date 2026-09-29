@@ -78,6 +78,16 @@ public final class DynamicNotch<Expanded, CompactLeading, CompactTrailing>: Obse
     /// as the pill, without requiring a separate overlay window.
     public private(set) var decoration: AnyView = AnyView(EmptyView())
 
+    /// Optional content for the middle of the compact pill.
+    ///
+    /// On a screen with a physical notch that width is the camera housing and stays empty. On any other
+    /// screen (external display, closed lid) the kit still reserves a notch-sized gap, and this content
+    /// fills it instead of leaving it blank. Set with ``setCompactCenter(_:)``.
+    public private(set) var compactCenterContent: AnyView = AnyView(EmptyView())
+
+    /// Whether the screen the notch is currently on has a physical notch.
+    @Published public private(set) var hasPhysicalNotch: Bool = true
+
     /// Notch Properties
     @Published private(set) var state: DynamicNotchState = .hidden
     @Published private(set) var notchSize: CGSize = .zero
@@ -115,6 +125,13 @@ public final class DynamicNotch<Expanded, CompactLeading, CompactTrailing>: Obse
     /// Call this before presenting the notch (e.g. before `compact(on:)`) to ensure it is visible immediately.
     public func setDecoration<Decoration: View>(@ViewBuilder _ decoration: () -> Decoration) {
         self.decoration = AnyView(decoration())
+    }
+
+    /// Sets the content shown in the middle of the compact pill on screens without a physical notch.
+    ///
+    /// Call this before presenting the notch (e.g. before `compact(on:)`) to ensure it is visible immediately.
+    public func setCompactCenter<Center: View>(@ViewBuilder _ content: () -> Center) {
+        self.compactCenterContent = AnyView(content())
     }
 
     /// Creates a new DynamicNotch with custom content and style. Does not support the compact appearance.
@@ -315,6 +332,7 @@ private extension DynamicNotch {
 
         notchSize = screen.notchFrameWithMenubarAsBackup.size
         menubarHeight = screen.menubarHeight
+        hasPhysicalNotch = screen.hasNotch
 
         let style = effectiveStyle(for: screen)
         let view = NSHostingView(rootView: NotchContentView(dynamicNotch: self, style: style))

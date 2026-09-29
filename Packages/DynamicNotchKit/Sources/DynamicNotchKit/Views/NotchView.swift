@@ -116,8 +116,18 @@ struct NotchView<Expanded, CompactLeading, CompactTrailing>: View where Expanded
                     .transition(.blur(intensity: 10).combined(with: .scale(x: 0, anchor: .trailing)).combined(with: .opacity))
             }
 
-            Spacer()
-                .frame(width: dynamicNotch.notchSize.width)
+            if dynamicNotch.state == .compact, !dynamicNotch.hasPhysicalNotch {
+                // No camera housing on this screen, so the reserved notch width can hold content.
+                // Same insets as the side slots so all three sit on one baseline.
+                dynamicNotch.compactCenterContent
+                    .environment(\.notchSection, .compactCenter)
+                    .safeAreaInset(edge: .top, spacing: 0) { Color.clear.frame(height: 4) }
+                    .safeAreaInset(edge: .bottom, spacing: 0) { Color.clear.frame(height: 8) }
+                    .frame(width: dynamicNotch.notchSize.width)
+            } else {
+                Spacer()
+                    .frame(width: dynamicNotch.notchSize.width)
+            }
 
             if dynamicNotch.state == .compact, !dynamicNotch.disableCompactTrailing {
                 dynamicNotch.compactTrailingContent
