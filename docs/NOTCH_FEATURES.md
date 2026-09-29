@@ -37,6 +37,17 @@ When Weather is enabled (Settings → **Weather**) and “Show in Smart Notch”
 
 - **Click notch to show details**: toggles expanded/compact Smart Notch view (Settings → **Smart Notch**)
 
+## Launch intro
+
+When the notch UI is enabled and “startup animation” is on (Settings → Alerts), launching plays a short sequence in the compact pill, in whichever layout the user has:
+
+1. “microverse” types out letter by letter in mascot green, monospaced, with a blinking block cursor (an old-phone-keypad feel);
+2. it holds, then fades;
+3. the startup glow runs around the empty notch;
+4. the metrics fade in under the remaining light passes.
+
+Logic: `Sources/Microverse/NotchIntro.swift` (`NotchIntroController` phases; the compact views show the typing pill while `showsText` and hide their metrics while `hidesMetrics`). Wired from `BatteryViewModel.handleAppLaunchCompleted`. Screenshot automation skips it.
+
 ## Notch Glow Alerts
 
 Notch Glow Alerts render a glow + sweep + sparkles around the notch pill when key battery events occur. Every trigger is also published app-wide (`NotchGlowInNotchController`), and the desktop widget plays the same animation around its card (`DesktopWidgetGlow` in `Sources/Microverse/DesktopWidget.swift`), so the widget still glows with the lid closed or the notch UI off. The widget window carries a transparent margin for that ring.

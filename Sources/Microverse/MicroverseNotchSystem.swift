@@ -623,7 +623,18 @@ struct MicroverseCompactLeadingView: View {
     wantsWiFi && wifi.status != .unavailable
   }
 
+  @ObservedObject private var intro = NotchIntroController.shared
+
   var body: some View {
+    // Launch: the pill types "microverse" here, then hands over to the metrics.
+    if intro.showsText {
+      NotchIntroTypingView()
+    } else {
+      metricsBody.notchIntroMetrics()
+    }
+  }
+
+  private var metricsBody: some View {
     HStack(spacing: MicroverseDesign.Notch.Spacing.compactInternal) {
       // App branding with actual app icon
       if let appIcon = NSImage(
@@ -732,7 +743,18 @@ struct MicroverseCompactUnifiedView: View {
   @State private var stableWeatherWidth: CGFloat?
   @State private var stablePinnedWidth: CGFloat?
 
+  @ObservedObject private var intro = NotchIntroController.shared
+
   var body: some View {
+    // Launch: the pill types "microverse" here, then hands over to the metrics.
+    if intro.showsText {
+      NotchIntroTypingView()
+    } else {
+      metricsBody.notchIntroMetrics()
+    }
+  }
+
+  private var metricsBody: some View {
     Group {
       if pinnedInNotch {
         unifiedPinnedContent
@@ -1157,7 +1179,13 @@ struct MicroverseCompactTrailingView: View {
   @State private var stableWeatherWidth: CGFloat?
   @State private var stablePinnedWidth: CGFloat?
 
+  @ObservedObject private var intro = NotchIntroController.shared
+
   var body: some View {
+    metricsBody.notchIntroMetrics()
+  }
+
+  private var metricsBody: some View {
     Group {
       if pinnedInNotch {
         compactPinnedContent

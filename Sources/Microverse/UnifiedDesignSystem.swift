@@ -19,6 +19,8 @@ enum MicroverseDesign {
         static let warning = Color.orange  
         static let critical = Color.red
         static let neutral = Color.blue
+        // The alien mascot's green (Rick and Morty's battery microverse). Used for the launch intro.
+        static let mascot = Color(red: 0.55, green: 0.93, blue: 0.58)
         
         // Metric-specific colors (semantic, not arbitrary)
         static let battery = success      // Energy = green

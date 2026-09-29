@@ -392,6 +392,8 @@ class BatteryViewModel: ObservableObject {
   func handleAppLaunchCompleted() {
     // Show notch on startup if enabled and supported.
     if notchViewModel.layoutMode != .off, isNotchAvailable {
+      // Set the intro up before the notch appears so its first frame is the typing pill.
+      if shouldPlayStartupSequence { NotchIntroController.shared.prepare() }
       Task { @MainActor in
         do {
           try await notchViewModel.showNotch()
@@ -399,6 +401,7 @@ class BatteryViewModel: ObservableObject {
             "Notch displayed on startup with mode: \(self.notchViewModel.layoutMode.displayName)")
           await playStartupNotchAnimationIfNeeded()
         } catch {
+          NotchIntroController.shared.cancel()
           logger.error("Failed to show notch on startup: \(error.localizedDescription)")
         }
       }
@@ -1120,13 +1123,33 @@ class BatteryViewModel: ObservableObject {
     UserDefaults.standard.set(value, forKey: key)
   }
 
-  private func playStartupNotchAnimationIfNeeded() async {
-    guard !hasPlayedStartupNotchAnimation else { return }
-    guard enableNotchAlerts, enableNotchStartupAnimation else { return }
-    guard isNotchAvailable else { return }
+  /// The launch sequence is part of the startup animation setting. Screenshot automation skips it.
+  private var shouldPlayStartupSequence: Bool {
+    guard !hasPlayedStartupNotchAnimation, enableNotchAlerts, enableNotchStartupAnimation,
+      isNotchAvailable
+    else { return false }
+    #if DEBUG
+      if ProcessInfo.processInfo.arguments.contains("--debug-screenshot-mode") { return false }
+    #endif
+    return true
+  }
 
+  private func playStartupNotchAnimationIfNeeded() async {
+    guard shouldPlayStartupSequence else {
+      NotchIntroController.shared.cancel()
+      return
+    }
     hasPlayedStartupNotchAnimation = true
-    await NotchGlowManager.shared.playStartupAnimation()
+
+    if notchViewModel.isNotchVisible {
+      // Text types out, fades, then the lights run and the metrics fade in under them.
+      await NotchIntroController.shared.play {
+        await NotchGlowManager.shared.playStartupAnimation()
+      }
+    } else {
+      NotchIntroController.shared.cancel()
+      await NotchGlowManager.shared.playStartupAnimation()
+    }
   }
 
   // MARK: - Auto-Update Methods
