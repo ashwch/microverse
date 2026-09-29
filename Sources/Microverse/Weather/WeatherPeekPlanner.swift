@@ -29,6 +29,8 @@ struct WeatherTomorrowOutlook: Equatable {
   var hint: Hint
   /// True once the clock has passed midnight and the day being described has begun.
   var isToday: Bool
+  /// "Today" after midnight, otherwise the weekday ("Tue"). Short enough for the smallest tiles.
+  var dayLabel: String
 
   private var dayWord: String { isToday ? "today" : "tomorrow" }
 
@@ -157,7 +159,12 @@ enum WeatherPeekPlanner {
         hint = .none
       }
     }
-    return WeatherTomorrowOutlook(highC: highC, lowC: lowC, bucket: bucket, hint: hint, isToday: isToday)
+    let weekday = DateFormatter()
+    weekday.timeZone = timeZone
+    weekday.dateFormat = "EEE"
+    return WeatherTomorrowOutlook(
+      highC: highC, lowC: lowC, bucket: bucket, hint: hint, isToday: isToday,
+      dayLabel: isToday ? "Today" : weekday.string(from: day))
   }
 
   /// Severe weather wins if it shows up for at least two hours; otherwise the most common bucket.

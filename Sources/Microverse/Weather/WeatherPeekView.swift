@@ -64,16 +64,17 @@ struct WeatherPeekView: View {
         detail: .relative(event.startTime))
 
     case .tomorrow(let outlook):
-      // Compact: the hint word plus the high ("Cooler 19°"), or high/low when there is no hint.
-      // Roomy: high/low plus the full title ("Cooler tomorrow").
+      // Compact: the hint word plus the high ("Cooler 19°"), or the high with the weekday
+      // ("19° Tue") when there is nothing to flag; the smallest tile has no room for the low.
+      // Roomy: high/low plus the full title.
       let high = units.formatTemperatureShort(celsius: outlook.highC)
       let low = units.formatTemperatureShort(celsius: outlook.lowC)
       let icon = Image(systemName: outlook.bucket.symbolName(isDaylight: true))
       if compact {
         slideBody(
           icon: icon, tint: .white.opacity(0.85),
-          primary: outlook.hint == .none ? "\(high)/\(low)" : "\(outlook.shortTitle) \(high)",
-          detail: outlook.hint == .none ? .text(outlook.shortTitle) : nil)
+          primary: outlook.hint == .none ? high : "\(outlook.shortTitle) \(high)",
+          detail: outlook.hint == .none ? .text(outlook.dayLabel) : nil)
       } else {
         slideBody(icon: icon, tint: .white.opacity(0.85), primary: "\(high)/\(low)", detail: .text(outlook.title))
       }
@@ -98,6 +99,9 @@ struct WeatherPeekView: View {
       .foregroundColor(MicroverseDesign.Colors.accent)
       .monospacedDigit()
       .lineLimit(1)
+      // Safety valve for the narrowest tiles: shrink a little rather than truncate.
+      .minimumScaleFactor(0.85)
+      .layoutPriority(1)
 
     switch layout {
     case .row:
