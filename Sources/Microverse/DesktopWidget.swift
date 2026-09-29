@@ -353,14 +353,13 @@ struct DesktopWidgetView: View {
 // Battery Simple - Just battery percentage
 struct BatterySimpleWidget: View {
   let batteryInfo: BatteryInfo
+  @EnvironmentObject private var viewModel: BatteryViewModel
 
   var body: some View {
     HStack(spacing: MicroverseDesign.Layout.space1) {
-      if batteryInfo.isCharging {
-        Image(systemName: "bolt.fill")
-          .font(.system(size: 12, weight: .bold))
-          .foregroundColor(MicroverseDesign.Colors.success)
-      }
+      Image(systemName: viewModel.status.batteryIconName)
+        .font(.system(size: 12, weight: .bold))
+        .foregroundColor(viewModel.status.color(for: .battery))
 
       Text("\(batteryInfo.currentCharge)%")
         .font(.system(size: 16, weight: .bold, design: .rounded))
@@ -377,6 +376,7 @@ struct BatterySimpleWidget: View {
 // System Glance - Compact view of all three metrics
 struct SystemGlanceWidget: View {
   let batteryInfo: BatteryInfo
+  @EnvironmentObject private var viewModel: BatteryViewModel
   @EnvironmentObject private var weatherSettings: WeatherSettingsStore
   @EnvironmentObject private var weatherStore: WeatherStore
   @EnvironmentObject private var displayOrchestrator: DisplayOrchestrator
@@ -393,7 +393,7 @@ struct SystemGlanceWidget: View {
             charge: batteryInfo.currentCharge, isCharging: batteryInfo.isCharging)
         )
         .font(.system(size: 12, weight: .medium))
-        .foregroundColor(batteryInfo.isCharging ? MicroverseDesign.Colors.success : .white)
+        .foregroundColor(viewModel.status.color(for: .battery))
         Text("\(batteryInfo.currentCharge)")
           .font(.system(size: 15, weight: .bold, design: .rounded))
           .foregroundColor(.white)
@@ -417,7 +417,7 @@ struct SystemGlanceWidget: View {
       VStack(spacing: 1) {
         Image(systemName: "memorychip")
           .font(.system(size: 12, weight: .medium))
-          .foregroundColor(MicroverseDesign.Colors.memory)
+          .foregroundColor(WidgetModuleStatusResolver.memoryStatus(systemService.memoryInfo).color)
         Text("\(Int(systemService.memoryInfo.usagePercentage))")
           .font(.system(size: 15, weight: .bold, design: .rounded))
           .foregroundColor(.white)
@@ -444,7 +444,7 @@ struct SystemGlanceWidget: View {
     VStack(spacing: 1) {
       Image(systemName: "cpu")
         .font(.system(size: 12, weight: .medium))
-        .foregroundColor(MicroverseDesign.Colors.processor)
+        .foregroundColor(WidgetModuleStatusResolver.cpuStatus(usage: systemService.cpuUsage).color)
 
       Text("\(Int(systemService.cpuUsage))")
         .font(.system(size: 15, weight: .bold, design: .rounded))
@@ -456,39 +456,24 @@ struct SystemGlanceWidget: View {
     }
   }
 
+  /// Same peek cycle as the notch, stacked to fit the column.
   private var weatherColumn: some View {
-    VStack(spacing: 1) {
-      MicroverseWeatherGlyph(
-        bucket: weatherStore.current?.bucket ?? .unknown,
-        isDaylight: weatherStore.current?.isDaylight ?? true,
-        renderMode: weatherAnimationBudget.renderMode(
-          for: .desktopWidget, isVisible: shouldShowWeatherInWidget, reduceMotion: reduceMotion)
-      )
-      .font(.system(size: 12, weight: .medium))
-      .foregroundColor(.white.opacity(0.9))
-      .symbolRenderingMode(.hierarchical)
-      .frame(width: 18, height: 18)
-
-      Text(widgetTemperatureText)
-        .font(.system(size: 15, weight: .bold, design: .rounded))
-        .foregroundColor(.white)
-        .monospacedDigit()
-
-      Text(weatherStore.nextEvent != nil ? "•" : "...")
-        .font(.system(size: 6))
-        .foregroundColor(.white.opacity(0.3))
-    }
+    WeatherPeekView(
+      slides: weatherStore.peekSlides(),
+      units: weatherSettings.weatherUnits,
+      isDaylight: weatherStore.current?.isDaylight ?? true,
+      renderMode: weatherAnimationBudget.renderMode(
+        for: .desktopWidget, isVisible: shouldShowWeatherInWidget, reduceMotion: reduceMotion),
+      layout: .column
+    )
   }
 
-  private var widgetTemperatureText: String {
-    guard let c = weatherStore.current?.temperatureC else { return "—" }
-    return weatherSettings.weatherUnits.formatTemperatureShort(celsius: c)
-  }
 }
 
 // System Status - Medium view with all metrics
 struct SystemStatusWidget: View {
   let batteryInfo: BatteryInfo
+  @EnvironmentObject private var viewModel: BatteryViewModel
   @StateObject private var systemService = SystemMonitoringService.shared
 
   var body: some View {
@@ -551,33 +536,9 @@ struct SystemStatusWidget: View {
     .widgetBackground()
   }
 
-  private var batteryColor: Color {
-    if batteryInfo.currentCharge <= 20 {
-      return MicroverseDesign.Colors.warning
-    } else if batteryInfo.isCharging {
-      return MicroverseDesign.Colors.success
-    } else {
-      return .white
-    }
-  }
-
-  private var cpuColor: Color {
-    if systemService.cpuUsage > 80 {
-      return MicroverseDesign.Colors.critical
-    } else if systemService.cpuUsage > 60 {
-      return MicroverseDesign.Colors.warning
-    } else {
-      return MicroverseDesign.Colors.processor
-    }
-  }
-
-  private var memoryColor: Color {
-    switch systemService.memoryInfo.pressure {
-    case .critical: return MicroverseDesign.Colors.critical
-    case .warning: return MicroverseDesign.Colors.warning
-    case .normal: return MicroverseDesign.Colors.memory
-    }
-  }
+  private var batteryColor: Color { viewModel.status.color(for: .battery) }
+  private var cpuColor: Color { WidgetModuleStatusResolver.cpuStatus(usage: systemService.cpuUsage).color }
+  private var memoryColor: Color { WidgetModuleStatusResolver.memoryStatus(systemService.memoryInfo).color }
 }
 
 // Visual effect blur
@@ -1450,7 +1411,7 @@ struct CPUMonitorWidget: View {
       HStack {
         Image(systemName: "cpu")
           .font(MicroverseDesign.Typography.body)
-          .foregroundColor(MicroverseDesign.Colors.processor)
+          .foregroundColor(cpuColor)
 
         Text("CPU")
           .font(MicroverseDesign.Typography.caption.weight(.semibold))
@@ -1488,23 +1449,14 @@ struct CPUMonitorWidget: View {
     .widgetBackground()
   }
 
-  private var cpuColor: Color {
-    if systemService.cpuUsage > 80 {
-      return MicroverseDesign.Colors.critical
-    } else if systemService.cpuUsage > 60 {
-      return MicroverseDesign.Colors.warning
-    } else {
-      return MicroverseDesign.Colors.processor
-    }
-  }
+  private var cpuColor: Color { WidgetModuleStatusResolver.cpuStatus(usage: systemService.cpuUsage).color }
 
   private var cpuStatusText: String {
-    if systemService.cpuUsage > 80 {
-      return "High Usage"
-    } else if systemService.cpuUsage > 60 {
-      return "Moderate Load"
-    } else {
-      return "Normal Operation"
+    switch WidgetModuleStatusResolver.cpuStatus(usage: systemService.cpuUsage) {
+    case .critical: return "High Usage"
+    case .poor: return "Moderate Load"
+    case .fair: return "Busy"
+    default: return "Normal Operation"
     }
   }
 }
@@ -1519,7 +1471,7 @@ struct MemoryMonitorWidget: View {
       HStack {
         Image(systemName: "memorychip")
           .font(MicroverseDesign.Typography.body)
-          .foregroundColor(MicroverseDesign.Colors.memory)
+          .foregroundColor(memoryColor)
 
         Text("MEMORY")
           .font(MicroverseDesign.Typography.caption.weight(.semibold))
@@ -1563,30 +1515,27 @@ struct MemoryMonitorWidget: View {
     .widgetBackground()
   }
 
-  private var memoryColor: Color {
-    switch systemService.memoryInfo.pressure {
-    case .critical: return MicroverseDesign.Colors.critical
-    case .warning: return MicroverseDesign.Colors.warning
-    case .normal: return MicroverseDesign.Colors.memory
-    }
-  }
+  private var memoryColor: Color { WidgetModuleStatusResolver.memoryStatus(systemService.memoryInfo).color }
 }
 
 // System Dashboard - Full detailed view
 struct SystemDashboardWidget: View {
   let batteryInfo: BatteryInfo
+  @EnvironmentObject private var viewModel: BatteryViewModel
   @StateObject private var systemService = SystemMonitoringService.shared
+
+  private var resolver: WidgetModuleStatusResolver {
+    WidgetModuleStatusResolver(viewModel: viewModel, systemService: systemService)
+  }
 
   var body: some View {
     VStack(spacing: 4) {
       // Compact header
       HStack {
         HStack(spacing: 4) {
-          if batteryInfo.isCharging {
-            Image(systemName: "bolt.fill")
-              .font(.system(size: 14, weight: .medium))
-              .foregroundColor(MicroverseDesign.Colors.success)
-          }
+          Image(systemName: resolver.batteryIconName)
+            .font(.system(size: 14, weight: .medium))
+            .foregroundColor(resolver.color(for: .battery))
           Text("\(batteryInfo.currentCharge)%")
             .font(.system(size: 20, weight: .bold, design: .rounded))
             .foregroundColor(.white)
@@ -1644,7 +1593,7 @@ struct SystemDashboardWidget: View {
         VStack(spacing: 1) {
           Image(systemName: "heart.fill")
             .font(.system(size: 12))
-            .foregroundColor(.white.opacity(0.9))
+            .foregroundColor(resolver.color(for: .batteryHealth))
           Text("\(Int(batteryInfo.health * 100))%")
             .font(.system(size: 14, weight: .bold, design: .rounded))
             .foregroundColor(.white)
@@ -1682,45 +1631,8 @@ struct SystemDashboardWidget: View {
     .widgetBackground()
   }
 
-  private var systemHealthColor: Color {
-    if systemService.cpuUsage > 80 || systemService.memoryInfo.pressure == .critical
-      || batteryInfo.currentCharge < 15
-    {
-      return MicroverseDesign.Colors.critical
-    } else if systemService.cpuUsage > 60 || systemService.memoryInfo.pressure == .warning
-      || batteryInfo.currentCharge < 25
-    {
-      return MicroverseDesign.Colors.warning
-    } else {
-      return MicroverseDesign.Colors.success
-    }
-  }
-
-  private var systemHealthText: String {
-    if systemService.cpuUsage > 80 || systemService.memoryInfo.pressure == .critical {
-      return "High Load"
-    } else if systemService.cpuUsage > 60 || systemService.memoryInfo.pressure == .warning {
-      return "Moderate"
-    } else {
-      return "Optimal"
-    }
-  }
-
-  private var cpuColor: Color {
-    if systemService.cpuUsage > 80 {
-      return MicroverseDesign.Colors.critical
-    } else if systemService.cpuUsage > 60 {
-      return MicroverseDesign.Colors.warning
-    } else {
-      return MicroverseDesign.Colors.processor
-    }
-  }
-
-  private var memoryColor: Color {
-    switch systemService.memoryInfo.pressure {
-    case .critical: return MicroverseDesign.Colors.critical
-    case .warning: return MicroverseDesign.Colors.warning
-    case .normal: return MicroverseDesign.Colors.memory
-    }
-  }
+  private var systemHealthColor: Color { resolver.color(for: .systemHealth) }
+  private var systemHealthText: String { resolver.systemHealthHeadline }
+  private var cpuColor: Color { WidgetModuleStatusResolver.cpuStatus(usage: systemService.cpuUsage).color }
+  private var memoryColor: Color { WidgetModuleStatusResolver.memoryStatus(systemService.memoryInfo).color }
 }

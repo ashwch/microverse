@@ -8,8 +8,16 @@ struct WeatherPeekView: View {
   let units: WeatherUnits
   let isDaylight: Bool
   let renderMode: WeatherRenderMode
+  enum Layout {
+    /// Icon and text side by side (notch pill, widget tiles).
+    case row
+    /// Icon above text (the System Glance column).
+    case column
+  }
+
   /// Larger surfaces (the desktop widget) get the longer labels.
   var compact = true
+  var layout: Layout = .row
 
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
   @State private var startedAt = Date()
@@ -42,62 +50,94 @@ struct WeatherPeekView: View {
   private func slideView(_ slide: WeatherPeekSlide) -> some View {
     switch slide {
     case .current(let snapshot):
-      HStack(spacing: MicroverseDesign.Notch.Spacing.compactInternal) {
-        MicroverseWeatherGlyph(bucket: snapshot.bucket, isDaylight: isDaylight, renderMode: renderMode)
-          .font(iconFont)
-          .foregroundColor(.white.opacity(0.85))
-          .symbolRenderingMode(.hierarchical)
-          .frame(width: iconWidth, alignment: .center)
-
-        Text(units.formatTemperatureShort(celsius: snapshot.temperatureC))
-          .font(valueFont)
-          .foregroundColor(MicroverseDesign.Colors.accent)
-          .monospacedDigit()
-      }
+      slideBody(
+        icon: MicroverseWeatherGlyph(bucket: snapshot.bucket, isDaylight: isDaylight, renderMode: renderMode),
+        tint: .white.opacity(0.85),
+        primary: units.formatTemperatureShort(celsius: snapshot.temperatureC),
+        detail: nil)
 
     case .event(let event):
-      let tint = WidgetModuleStatusResolver.status(for: event).color
-      HStack(spacing: MicroverseDesign.Notch.Spacing.compactInternal) {
-        Image(systemName: MicroverseWeatherAnnouncement.symbolName(for: event, isDaylight: isDaylight))
-          .font(iconFont)
-          .foregroundColor(tint)
-          .symbolRenderingMode(.hierarchical)
-          .frame(width: iconWidth, alignment: .center)
-
-        Text(compact ? Self.shortTitle(for: event) : event.title)
-          .font(valueFont)
-          .foregroundColor(MicroverseDesign.Colors.accent)
-          .lineLimit(1)
-
-        TimelineView(.periodic(from: .now, by: 60)) { clock in
-          Text(MicroverseWeatherAnnouncement.relativeTimeShort(from: clock.date, to: event.startTime))
-            .font(detailFont)
-            .foregroundColor(.white.opacity(0.55))
-            .monospacedDigit()
-        }
-      }
+      slideBody(
+        icon: Image(systemName: MicroverseWeatherAnnouncement.symbolName(for: event, isDaylight: isDaylight)),
+        tint: WidgetModuleStatusResolver.status(for: event).color,
+        primary: compact ? Self.shortTitle(for: event) : event.title,
+        detail: .relative(event.startTime))
 
     case .tomorrow(let outlook):
+      // Compact: the hint word plus the high ("Cooler 19°"), or high/low when there is no hint.
+      // Roomy: high/low plus the full title ("Cooler tomorrow").
+      let high = units.formatTemperatureShort(celsius: outlook.highC)
+      let low = units.formatTemperatureShort(celsius: outlook.lowC)
+      let icon = Image(systemName: outlook.bucket.symbolName(isDaylight: true))
+      if compact {
+        slideBody(
+          icon: icon, tint: .white.opacity(0.85),
+          primary: outlook.hint == .none ? "\(high)/\(low)" : "\(outlook.shortTitle) \(high)",
+          detail: outlook.hint == .none ? .text(outlook.shortTitle) : nil)
+      } else {
+        slideBody(icon: icon, tint: .white.opacity(0.85), primary: "\(high)/\(low)", detail: .text(outlook.title))
+      }
+    }
+  }
+
+  private enum Detail {
+    case text(String)
+    case relative(Date)
+  }
+
+  @ViewBuilder
+  private func slideBody<Icon: View>(icon: Icon, tint: Color, primary: String, detail: Detail?) -> some View {
+    let iconView = icon
+      .font(iconFont)
+      .foregroundColor(tint)
+      .symbolRenderingMode(.hierarchical)
+      .frame(width: iconWidth, height: layout == .column ? 18 : nil, alignment: .center)
+
+    let primaryView = Text(primary)
+      .font(valueFont)
+      .foregroundColor(MicroverseDesign.Colors.accent)
+      .monospacedDigit()
+      .lineLimit(1)
+
+    switch layout {
+    case .row:
       HStack(spacing: MicroverseDesign.Notch.Spacing.compactInternal) {
-        Image(systemName: outlook.bucket.symbolName(isDaylight: true))
-          .font(iconFont)
-          .foregroundColor(.white.opacity(0.85))
-          .symbolRenderingMode(.hierarchical)
-          .frame(width: iconWidth, alignment: .center)
+        iconView
+        primaryView
+        detailView(detail)
+      }
+    case .column:
+      // The column has no room for a second line, so the detail replaces the primary text on
+      // event slides (the lead time matters more than repeating the word) and is dropped otherwise.
+      VStack(spacing: 1) {
+        iconView
+        primaryView
+        if case .relative(let date) = detail {
+          detailView(.relative(date))
+        } else {
+          Text(" ").font(detailFont)
+        }
+      }
+    }
+  }
 
-        Text(
-          "\(units.formatTemperatureShort(celsius: outlook.highC))/\(units.formatTemperatureShort(celsius: outlook.lowC))"
-        )
-        .font(valueFont)
-        .foregroundColor(MicroverseDesign.Colors.accent)
-        .monospacedDigit()
+  @ViewBuilder
+  private func detailView(_ detail: Detail?) -> some View {
+    switch detail {
+    case .text(let text):
+      Text(text)
+        .font(detailFont)
+        .foregroundColor(.white.opacity(0.55))
         .lineLimit(1)
-
-        Text(compact ? outlook.shortTitle : outlook.title)
+    case .relative(let date):
+      TimelineView(.periodic(from: .now, by: 60)) { clock in
+        Text(MicroverseWeatherAnnouncement.relativeTimeShort(from: clock.date, to: date))
           .font(detailFont)
           .foregroundColor(.white.opacity(0.55))
-          .lineLimit(1)
+          .monospacedDigit()
       }
+    case nil:
+      EmptyView()
     }
   }
 
@@ -129,7 +169,8 @@ struct WeatherPeekView: View {
   }
 
   private var valueFont: Font {
-    compact
+    if layout == .column { return .system(size: 13, weight: .bold, design: .rounded) }
+    return compact
       ? MicroverseDesign.Notch.Typography.compactValue
       : .system(size: 18, weight: .bold, design: .rounded)
   }
