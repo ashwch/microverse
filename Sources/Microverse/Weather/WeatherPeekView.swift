@@ -9,10 +9,13 @@ struct WeatherPeekView: View {
   let isDaylight: Bool
   let renderMode: WeatherRenderMode
   enum Layout {
-    /// Icon and text side by side (notch pill, widget tiles).
+    /// Icon and text side by side (notch pill, roomy widget tiles).
     case row
     /// Icon above text (the System Glance column).
     case column
+    /// Like `row`, but the outlook slide stacks the day over the range because a small tile
+    /// cannot hold icon, day, and both temperatures on one line.
+    case narrowRow
   }
 
   /// Larger surfaces (the desktop widget) get the longer labels.
@@ -64,19 +67,39 @@ struct WeatherPeekView: View {
         detail: .relative(event.startTime))
 
     case .tomorrow(let outlook):
-      // Compact: the hint word plus the high ("Cooler 19°"), or the high with the weekday
-      // ("19° Tue") when there is nothing to flag; the smallest tile has no room for the low.
-      // Roomy: high/low plus the full title.
-      let high = units.formatTemperatureShort(celsius: outlook.highC)
-      let low = units.formatTemperatureShort(celsius: outlook.lowC)
+      // The coming day's high and low use the Weather app's own "H:19° L:9°" notation, which
+      // is the one label users already read as a forecast rather than a current temperature.
+      // Both temperatures always show, with a cue for which day: the weekday ("Tue"), "Today"
+      // after midnight, or the hint when there is something to prepare for ("Cooler"). Roomy
+      // surfaces get the full title ("Cooler tomorrow").
+      let range = "H:" + units.formatTemperatureShort(celsius: outlook.highC)
+        + " L:" + units.formatTemperatureShort(celsius: outlook.lowC)
+      let cue = compact ? (outlook.hint == .none ? outlook.dayLabel : outlook.shortTitle) : outlook.title
       let icon = Image(systemName: outlook.bucket.symbolName(isDaylight: true))
-      if compact {
-        slideBody(
-          icon: icon, tint: .white.opacity(0.85),
-          primary: outlook.hint == .none ? high : "\(outlook.shortTitle) \(high)",
-          detail: outlook.hint == .none ? .text(outlook.dayLabel) : nil)
+      if layout == .narrowRow {
+        // Two short lines fit where one long line would truncate.
+        HStack(spacing: MicroverseDesign.Notch.Spacing.compactInternal) {
+          icon
+            .font(iconFont)
+            .foregroundColor(.white.opacity(0.85))
+            .symbolRenderingMode(.hierarchical)
+            .frame(width: iconWidth, alignment: .center)
+
+          VStack(alignment: .leading, spacing: 0) {
+            Text(cue)
+              .font(.system(size: 8, weight: .semibold))
+              .foregroundColor(.white.opacity(0.6))
+              .lineLimit(1)
+            Text(range)
+              .font(.system(size: 10, weight: .bold, design: .rounded))
+              .foregroundColor(MicroverseDesign.Colors.accent)
+              .monospacedDigit()
+              .lineLimit(1)
+              .fixedSize(horizontal: true, vertical: false)
+          }
+        }
       } else {
-        slideBody(icon: icon, tint: .white.opacity(0.85), primary: "\(high)/\(low)", detail: .text(outlook.title))
+        slideBody(icon: icon, tint: .white.opacity(0.85), primary: range, detail: .text(cue))
       }
     }
   }
@@ -99,17 +122,17 @@ struct WeatherPeekView: View {
       .foregroundColor(MicroverseDesign.Colors.accent)
       .monospacedDigit()
       .lineLimit(1)
-      // Safety valve for the narrowest tiles: shrink a little rather than truncate.
-      .minimumScaleFactor(0.85)
-      .layoutPriority(1)
 
     switch layout {
-    case .row:
+    case .row, .narrowRow:
       HStack(spacing: MicroverseDesign.Notch.Spacing.compactInternal) {
         iconView
         primaryView
         detailView(detail)
       }
+      // Safety valve for the narrowest tiles: both labels shrink together rather than truncate.
+      .minimumScaleFactor(0.75)
+      .fixedSize(horizontal: false, vertical: true)
     case .column:
       // The column has no room for a second line, so the detail replaces the primary text on
       // event slides (the lead time matters more than repeating the word) and is dropped otherwise.

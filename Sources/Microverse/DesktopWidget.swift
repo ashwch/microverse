@@ -1263,7 +1263,8 @@ private struct CustomModularWidget: View {
             units: weatherSettings.weatherUnits,
             isDaylight: weatherStore.current?.isDaylight ?? true,
             renderMode: weatherAnimationBudget.renderMode(
-              for: .desktopWidget, isVisible: true, reduceMotion: reduceMotion)
+              for: .desktopWidget, isVisible: true, reduceMotion: reduceMotion),
+            layout: .narrowRow
           )
         } else {
           secondaryIcon(module, status: status)
